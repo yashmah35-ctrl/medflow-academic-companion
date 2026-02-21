@@ -1,30 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, XCircle, AlertTriangle, Layers, PenLine, ArrowRight, RotateCcw, Upload, Image, Type } from "lucide-react";
-import { subjects } from "@/data/mockData";
+import { CheckCircle2, XCircle, AlertTriangle, Layers, PenLine, Upload, Image, Type } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
-type Mode = "select" | "flashcards" | "restitution" | "result";
-type FlashcardType = "text" | "image-occlusion";
-
-interface Flashcard {
-  id: number;
-  front: string;
-  back: string;
-  type: FlashcardType;
-}
-
-const sampleFlashcards: Flashcard[] = [
-  { id: 1, front: "Quelle est la formule de la loi de Beer-Lambert ?", back: "A = ε × l × c\n\nA : absorbance\nε : coefficient d'extinction molaire\nl : longueur du trajet optique\nc : concentration", type: "text" },
-  { id: 2, front: "Quel est le potentiel de repos d'un neurone typique ?", back: "-70 mV\n\nMaintenu principalement par la pompe Na⁺/K⁺ ATPase (3 Na⁺ sortent, 2 K⁺ entrent)", type: "text" },
-  { id: 3, front: "Quelle enzyme catalyse la transcription de l'ADN en ARN ?", back: "L'ARN polymérase\n\nElle synthétise un brin d'ARN complémentaire à partir d'une matrice d'ADN, dans le sens 5' → 3'.", type: "text" },
-  { id: 4, front: "Quels sont les 3 feuillets embryonnaires et leurs dérivés principaux ?", back: "1. Ectoderme → SNC, peau\n2. Mésoderme → muscles, os, cœur\n3. Endoderme → tube digestif, poumons", type: "text" },
-  { id: 5, front: "Citez les 4 bases azotées de l'ADN", back: "Purines : Adénine (A), Guanine (G)\nPyrimidines : Cytosine (C), Thymine (T)\n\nA=T (2 liaisons H)\nG≡C (3 liaisons H)", type: "text" },
-];
+type Mode = "select" | "restitution" | "result";
 
 // Courses mock per subject
 const coursesBySubject: Record<string, string[]> = {
@@ -36,28 +21,19 @@ const coursesBySubject: Record<string, string[]> = {
 };
 
 export default function ActiveLearning() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("select");
-  const [currentCard, setCurrentCard] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [ratings, setRatings] = useState<Record<number, string>>({});
   const [restitutionText, setRestitutionText] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
+  const [subjects, setSubjects] = useState<{ id: string; name: string; icon: string }[]>([]);
 
-  const card = sampleFlashcards[currentCard];
-
-  const rateCard = (rating: string) => {
-    setRatings((prev) => ({ ...prev, [card.id]: rating }));
-    if (currentCard + 1 >= sampleFlashcards.length) {
-      setMode("result");
-    } else {
-      setCurrentCard((c) => c + 1);
-      setIsFlipped(false);
-    }
-  };
-
-  const goodCount = Object.values(ratings).filter((r) => r === "good" || r === "easy").length;
+  useEffect(() => {
+    supabase.from("subjects").select("id, name, icon").then(({ data }) => {
+      if (data) setSubjects(data);
+    });
+  }, []);
 
   if (mode === "select") {
     return (
@@ -72,19 +48,19 @@ export default function ActiveLearning() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="rounded-xl border border-border bg-card p-6 hover:shadow-lg transition-all cursor-pointer group"
-            onClick={() => setMode("flashcards")}
+            onClick={() => navigate("/flashcards")}
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4 group-hover:scale-110 transition-transform">
               <Layers className="h-7 w-7" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">Flashcards</h3>
             <p className="text-sm text-muted-foreground">
-              Révise avec des flashcards style Anki. Importe des photos, crée des occlusions d'image ou du texte. L'IA génère aussi des questions.
+              Révise avec des flashcards style Anki. Importe des fichiers et l'IA génère automatiquement des flashcards pour toi.
             </p>
             <div className="flex gap-2 mt-3">
               <Badge variant="secondary" className="text-xs"><Type className="h-3 w-3 mr-1" />Texte</Badge>
               <Badge variant="secondary" className="text-xs"><Image className="h-3 w-3 mr-1" />Occlusion</Badge>
-              <Badge variant="secondary" className="text-xs"><Upload className="h-3 w-3 mr-1" />Import</Badge>
+              <Badge variant="secondary" className="text-xs"><Upload className="h-3 w-3 mr-1" />Import IA</Badge>
             </div>
           </motion.div>
 
@@ -108,95 +84,6 @@ export default function ActiveLearning() {
     );
   }
 
-  if (mode === "flashcards") {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => { setMode("select"); setCurrentCard(0); setIsFlipped(false); setRatings({}); }}>← Retour</Button>
-          <Badge variant="secondary">Carte {currentCard + 1}/{sampleFlashcards.length}</Badge>
-        </div>
-        <Progress value={((currentCard + 1) / sampleFlashcards.length) * 100} className="h-2" />
-
-        {/* Flashcard */}
-        <motion.div
-          key={currentCard}
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="relative"
-        >
-          <div
-            onClick={() => setIsFlipped(!isFlipped)}
-            className="rounded-xl border border-border bg-card p-8 min-h-[280px] flex flex-col items-center justify-center cursor-pointer hover:shadow-lg transition-all select-none"
-          >
-            {!isFlipped ? (
-              <div className="text-center space-y-4">
-                <Badge variant="outline" className="text-xs mb-2">Question</Badge>
-                <h3 className="text-lg font-semibold text-foreground">{card.front}</h3>
-                <p className="text-sm text-muted-foreground mt-4">Clique pour voir la réponse</p>
-              </div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0, rotateY: 90 }}
-                animate={{ opacity: 1, rotateY: 0 }}
-                transition={{ duration: 0.3 }}
-                className="text-center space-y-4 w-full"
-              >
-                <Badge variant="outline" className="text-xs mb-2 border-success text-success">Réponse</Badge>
-                <div className="text-sm text-foreground whitespace-pre-line leading-relaxed">{card.back}</div>
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Rating buttons (Anki style) */}
-        {isFlipped && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-4 gap-2"
-          >
-            <Button
-              variant="outline"
-              className="flex flex-col py-3 h-auto border-destructive/30 hover:bg-destructive/10 text-destructive"
-              onClick={() => rateCard("again")}
-            >
-              <RotateCcw className="h-4 w-4 mb-1" />
-              <span className="text-xs font-semibold">À revoir</span>
-              <span className="text-[10px] text-muted-foreground">&lt;1 min</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col py-3 h-auto border-warning/30 hover:bg-warning/10 text-warning"
-              onClick={() => rateCard("hard")}
-            >
-              <span className="text-sm mb-1">😓</span>
-              <span className="text-xs font-semibold">Difficile</span>
-              <span className="text-[10px] text-muted-foreground">1 jour</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col py-3 h-auto border-success/30 hover:bg-success/10 text-success"
-              onClick={() => rateCard("good")}
-            >
-              <span className="text-sm mb-1">😊</span>
-              <span className="text-xs font-semibold">Bien</span>
-              <span className="text-[10px] text-muted-foreground">3 jours</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex flex-col py-3 h-auto border-primary/30 hover:bg-primary/10 text-primary"
-              onClick={() => rateCard("easy")}
-            >
-              <span className="text-sm mb-1">🎯</span>
-              <span className="text-xs font-semibold">Facile</span>
-              <span className="text-[10px] text-muted-foreground">7 jours</span>
-            </Button>
-          </motion.div>
-        )}
-      </div>
-    );
-  }
-
   if (mode === "restitution") {
     const availableCourses = selectedSubject ? (coursesBySubject[selectedSubject] || []) : [];
 
@@ -209,7 +96,6 @@ export default function ActiveLearning() {
             Choisis ta matière et ton cours, puis écris tout ce que tu as retenu.
           </p>
 
-          {/* Subject & Course selection */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Matière</label>
@@ -288,38 +174,5 @@ export default function ActiveLearning() {
     );
   }
 
-  // Result
-  return (
-    <div className="max-w-md mx-auto text-center space-y-6">
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-        <div className="text-6xl mb-4">{goodCount === sampleFlashcards.length ? "🎉" : "📊"}</div>
-        <h2 className="text-2xl font-bold text-foreground">Résultats</h2>
-        <p className="text-lg text-muted-foreground mt-2">
-          {goodCount}/{sampleFlashcards.length} cartes maîtrisées
-        </p>
-        <Progress value={(goodCount / sampleFlashcards.length) * 100} className="h-3 mt-4" />
-        <div className="grid grid-cols-4 gap-2 mt-4 text-sm">
-          <div className="rounded-lg bg-destructive/10 p-2">
-            <p className="font-bold text-destructive">{Object.values(ratings).filter(r => r === "again").length}</p>
-            <p className="text-xs text-muted-foreground">À revoir</p>
-          </div>
-          <div className="rounded-lg bg-warning/10 p-2">
-            <p className="font-bold text-warning">{Object.values(ratings).filter(r => r === "hard").length}</p>
-            <p className="text-xs text-muted-foreground">Difficile</p>
-          </div>
-          <div className="rounded-lg bg-success/10 p-2">
-            <p className="font-bold text-success">{Object.values(ratings).filter(r => r === "good").length}</p>
-            <p className="text-xs text-muted-foreground">Bien</p>
-          </div>
-          <div className="rounded-lg bg-primary/10 p-2">
-            <p className="font-bold text-primary">{Object.values(ratings).filter(r => r === "easy").length}</p>
-            <p className="text-xs text-muted-foreground">Facile</p>
-          </div>
-        </div>
-      </motion.div>
-      <Button onClick={() => { setMode("select"); setCurrentCard(0); setIsFlipped(false); setRatings({}); }}>
-        Recommencer
-      </Button>
-    </div>
-  );
+  return null;
 }
