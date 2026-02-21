@@ -163,13 +163,10 @@ export default function SubjectDetail() {
           continue;
         }
 
-        const { data: urlData } = supabase.storage
-          .from("course-files")
-          .getPublicUrl(filePath);
-
         const sizeMB = file.size / (1024 * 1024);
         const estimatedMinutes = Math.max(5, Math.round(sizeMB * 15));
 
+        // Store the storage path, not the public URL
         const { data: course, error: insertError } = await supabase
           .from("courses")
           .insert({
@@ -177,7 +174,7 @@ export default function SubjectDetail() {
             title: file.name.replace(/\.(pdf|docx?|txt)$/i, ""),
             source: "fac",
             reading_time: `${estimatedMinutes} min`,
-            file_url: urlData.publicUrl,
+            file_url: filePath,
           })
           .select()
           .single();
@@ -345,7 +342,16 @@ export default function SubjectDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => window.open(course.file_url!, '_blank')}
+                      onClick={async () => {
+                        const { data } = await supabase.storage
+                          .from("course-files")
+                          .createSignedUrl(course.file_url!, 3600);
+                        if (data?.signedUrl) {
+                          window.open(data.signedUrl, '_blank');
+                        } else {
+                          toast.error("Impossible d'ouvrir le fichier");
+                        }
+                      }}
                     >
                       <Eye className="h-4 w-4 mr-1" /> Consulter
                     </Button>
