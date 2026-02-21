@@ -11,20 +11,48 @@ import {
   Puzzle,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
 import logo from "@/assets/logo.png";
 
-const allNavItems = [
-  { title: "Matières", path: "/", icon: BookOpen, restricted: false },
-  { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false },
-  { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false },
-  { title: "Cahier d'erreurs", path: "/errors", icon: BookX, restricted: false },
-  { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
-  { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
-  { title: "Annales", path: "/annales", icon: Archive, restricted: true },
-  { title: "Modules", path: "/modules", icon: Puzzle, restricted: false },
+interface NavItem {
+  title: string;
+  path: string;
+  icon: any;
+  restricted: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+const allNavGroups: NavGroup[] = [
+  {
+    label: "📚 Apprentissage",
+    items: [
+      { title: "Matières", path: "/", icon: BookOpen, restricted: false },
+      { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false },
+      { title: "Modules", path: "/modules", icon: Puzzle, restricted: false },
+      { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false },
+    ],
+  },
+  {
+    label: "📊 Performance",
+    items: [
+      { title: "Cahier d'erreurs", path: "/errors", icon: BookX, restricted: false },
+      { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
+      { title: "Annales", path: "/annales", icon: Archive, restricted: true },
+    ],
+  },
+  {
+    label: "🎓 Communauté",
+    items: [
+      { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -32,10 +60,15 @@ export function AppSidebar() {
   const location = useLocation();
   const { role } = useAuth();
 
-  const navItems = allNavItems.filter((item) => {
-    if (item.restricted && !canAccessExamsKhollesAnnales(role)) return false;
-    return true;
-  });
+  const filteredGroups = allNavGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        if (item.restricted && !canAccessExamsKhollesAnnales(role)) return false;
+        return true;
+      }),
+    }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <aside
@@ -55,29 +88,44 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path || 
-            (item.path !== "/" && location.pathname.startsWith(item.path));
-          const isHome = item.path === "/" && location.pathname === "/";
-          const active = isActive || isHome;
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+        {filteredGroups.map((group) => (
+          <div key={group.label}>
+            {!collapsed && (
+              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                {group.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {group.items.map((navItem) => {
+                const isActive = location.pathname === navItem.path ||
+                  (navItem.path !== "/" && location.pathname.startsWith(navItem.path));
+                const isHome = navItem.path === "/" && location.pathname === "/";
+                const active = isActive || isHome;
 
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                active
-                  ? "bg-sidebar-accent text-sidebar-primary"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
-              )}
-            >
-              <item.icon className={cn("h-5 w-5 shrink-0", active && "text-sidebar-primary")} />
-              {!collapsed && <span>{item.title}</span>}
-            </Link>
-          );
-        })}
+                return (
+                  <Link
+                    key={navItem.path}
+                    to={navItem.path}
+                    className={cn(
+                      "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                      active
+                        ? "bg-sidebar-accent text-sidebar-primary"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
+                    )}
+                  >
+                    {/* Active indicator bar */}
+                    {active && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-sidebar-primary" />
+                    )}
+                    <navItem.icon className={cn("h-5 w-5 shrink-0", active && "text-sidebar-primary")} />
+                    {!collapsed && <span>{navItem.title}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Collapse toggle */}
