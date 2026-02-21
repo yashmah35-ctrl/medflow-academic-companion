@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { subjects, subjectColorMap } from "@/data/mockData";
 import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Clock, Sparkles } from "lucide-react";
 import { useAuth, canAccessTC } from "@/hooks/useAuth";
+import { useUserStats, xpForNextLevel, xpForCurrentLevel } from "@/hooks/useUserStats";
 import { useState } from "react";
 
 const container = {
@@ -38,6 +39,7 @@ function ProgressCircle({ value, size = 64 }: { value: number; size?: number }) 
 const Index = () => {
   const navigate = useNavigate();
   const { role, user } = useAuth();
+  const { stats, rank } = useUserStats();
   const [search, setSearch] = useState("");
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Étudiant";
@@ -95,23 +97,29 @@ const Index = () => {
             <span className="text-sm font-semibold text-muted-foreground">Série actuelle</span>
           </div>
           <p className="text-3xl font-bold text-foreground">
-            6 <span className="text-lg font-medium text-muted-foreground">jours</span>
+            {stats?.streak_days ?? 0} <span className="text-lg font-medium text-muted-foreground">jours</span>
           </p>
           <div className="mt-3">
-            <Progress value={60} className="h-2.5" />
+            {stats ? (
+              <Progress value={Math.min(100, ((stats.xp - xpForCurrentLevel(stats.level)) / Math.max(1, xpForNextLevel(stats.level) - xpForCurrentLevel(stats.level))) * 100)} className="h-2.5" />
+            ) : (
+              <Progress value={0} className="h-2.5" />
+            )}
           </div>
           <div className="mt-3 flex items-center gap-4">
             <div className="flex items-center gap-1.5">
               <Trophy className="h-4 w-4 text-primary" />
-              <span className="text-sm text-foreground font-medium">Niveau 5</span>
+              <span className="text-sm text-foreground font-medium">Niveau {stats?.level ?? 1}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Sparkles className="h-4 w-4 text-primary" />
-              <span className="text-sm text-muted-foreground">Rang 12<sup>e</sup></span>
+              <span className="text-sm text-muted-foreground">Rang {rank ?? "—"}<sup>e</sup></span>
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground italic">
-            "Tu maîtrises {totalProgress}% du programme. Continue comme ça 💪"
+            {stats && stats.xp > 0
+              ? `"${stats.xp} XP accumulés · ${xpForNextLevel(stats.level) - stats.xp} XP avant le niveau ${stats.level + 1} 🚀"`
+              : `"Tu maîtrises ${totalProgress}% du programme. Continue comme ça 💪"`}
           </p>
         </div>
       </motion.div>
