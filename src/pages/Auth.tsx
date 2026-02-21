@@ -66,35 +66,41 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 relative overflow-hidden">
+      {/* Background glow effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary/10 blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[400px] h-[400px] rounded-full bg-primary/8 blur-[100px]" />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md space-y-6"
+        className="w-full max-w-md space-y-6 relative z-10"
       >
         {/* Logo */}
         <div className="text-center">
-          <img src={logo} alt="La Prépa du Peuple" className="h-24 w-auto mx-auto mb-3 object-contain" />
-          <h1 className="text-2xl font-bold text-foreground">La Prépa du Peuple</h1>
-          <p className="text-muted-foreground mt-1">
+          <img src={logo} alt="La Prépa du Peuple" className="h-28 w-auto mx-auto mb-4 object-contain drop-shadow-2xl" />
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">La Prépa du Peuple</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
             {mode === "login" ? "Connecte-toi pour continuer" : "Crée ton compte pour commencer"}
           </p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+        <div className="rounded-2xl border border-border bg-card/90 backdrop-blur-sm p-6 space-y-5 shadow-xl shadow-black/20">
           {/* Tabs */}
-          <div className="flex rounded-lg bg-muted p-1">
+          <div className="flex rounded-xl bg-muted p-1">
             <button
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                mode === "login" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-all ${
+                mode === "login" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setMode("login")}
             >
               Connexion
             </button>
             <button
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition-all ${
-                mode === "register" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-all ${
+                mode === "register" ? "bg-primary text-primary-foreground shadow-md" : "text-muted-foreground hover:text-foreground"
               }`}
               onClick={() => setMode("register")}
             >
@@ -113,6 +119,7 @@ export default function Auth() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
+                    className="bg-muted border-border"
                   />
                 </div>
                 <div className="space-y-3">
@@ -121,10 +128,10 @@ export default function Auth() {
                     {roleOptions.map((opt) => (
                       <label
                         key={opt.value}
-                        className={`cursor-pointer rounded-lg border p-3 text-center text-sm transition-all ${
+                        className={`cursor-pointer rounded-xl border p-3 text-center text-sm transition-all ${
                           role === opt.value
-                            ? "border-primary bg-primary/5 text-foreground"
-                            : "border-border text-muted-foreground"
+                            ? "border-primary bg-primary/15 text-foreground shadow-md shadow-primary/20"
+                            : "border-border bg-muted/50 text-muted-foreground hover:border-primary/40"
                         }`}
                       >
                         <RadioGroupItem value={opt.value} className="sr-only" />
@@ -140,19 +147,23 @@ export default function Auth() {
 
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="ton.email@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input id="email" type="email" placeholder="ton.email@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="bg-muted border-border" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Mot de passe</Label>
-              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required className="bg-muted border-border" />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full rounded-xl py-3 font-bold text-base shadow-lg shadow-primary/30" disabled={loading}>
               {loading ? "Chargement..." : mode === "login" ? "Se connecter" : "Créer mon compte"}
             </Button>
           </form>
         </div>
+
+        <p className="text-center text-xs text-muted-foreground">
+          © 2026 La Prépa du Peuple — Tous droits réservés
+        </p>
       </motion.div>
     </div>
   );
