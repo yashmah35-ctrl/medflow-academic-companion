@@ -16,6 +16,7 @@ import Annales from "./pages/Annales";
 import InteractiveModules from "./pages/InteractiveModules";
 import Flashcards from "./pages/Flashcards";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<Index />} />
         <Route path="/subject/:subjectId" element={<SubjectDetail />} />
