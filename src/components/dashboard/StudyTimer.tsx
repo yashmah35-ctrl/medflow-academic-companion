@@ -9,57 +9,95 @@ interface StudyTimerProps {
   onMinutesUpdate?: (totalMinutes: number) => void;
 }
 
+const STORAGE_KEY = "study-timer-state";
+
+interface TimerState {
+  startedAt: number | null; // timestamp when timer was started/resumed
+  accumulatedSeconds: number; // seconds accumulated before last pause
+  isRunning: boolean;
+}
+
+function loadTimerState(): TimerState {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { startedAt: null, accumulatedSeconds: 0, isRunning: false };
+}
+
+function saveTimerState(state: TimerState) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function clearTimerState() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+function getCurrentSeconds(state: TimerState): number {
+  const base = state.accumulatedSeconds;
+  if (state.isRunning && state.startedAt) {
+    return base + Math.floor((Date.now() - state.startedAt) / 1000);
+  }
+  return base;
+}
+
 const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
   const { user } = useAuth();
-  const [isRunning, setIsRunning] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [totalStudyMinutes, setTotalStudyMinutes] = useState(0);
+  const [timerState, setTimerState] = useState<TimerState>(loadTimerState);
+  const [displaySeconds, setDisplaySeconds] = useState(() => getCurrentSeconds(loadTimerState()));
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastReportedMinutes = useRef(0);
 
-  // Load total study minutes from user_stats
+  // Tick display
   useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data } = await supabase
-        .from("user_stats")
-        .select("xp")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      // We'll use xp as a proxy — or we just track locally
-      // For now, track session time only
-    };
-    load();
-  }, [user]);
-
-  useEffect(() => {
-    if (isRunning) {
+    if (timerState.isRunning) {
+      setDisplaySeconds(getCurrentSeconds(timerState));
       intervalRef.current = setInterval(() => {
-        setSeconds((s) => s + 1);
+        setDisplaySeconds(getCurrentSeconds(timerState));
       }, 1000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
+    } else {
+      setDisplaySeconds(getCurrentSeconds(timerState));
+      if (intervalRef.current) clearInterval(intervalRef.current);
     }
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isRunning]);
+  }, [timerState]);
 
-  // Every minute, update callback
+  // Report minutes to parent
   useEffect(() => {
-    const mins = Math.floor(seconds / 60);
-    if (mins > 0 && mins !== totalStudyMinutes) {
-      setTotalStudyMinutes(mins);
+    const mins = Math.floor(displaySeconds / 60);
+    if (mins !== lastReportedMinutes.current) {
+      lastReportedMinutes.current = mins;
       onMinutesUpdate?.(mins);
     }
-  }, [seconds, totalStudyMinutes, onMinutesUpdate]);
+  }, [displaySeconds, onMinutesUpdate]);
 
-  const handleStart = () => setIsRunning(true);
-  const handlePause = () => setIsRunning(false);
+  const handleStart = () => {
+    const newState: TimerState = {
+      ...timerState,
+      startedAt: Date.now(),
+      isRunning: true,
+    };
+    setTimerState(newState);
+    saveTimerState(newState);
+  };
+
+  const handlePause = () => {
+    const newState: TimerState = {
+      accumulatedSeconds: getCurrentSeconds(timerState),
+      startedAt: null,
+      isRunning: false,
+    };
+    setTimerState(newState);
+    saveTimerState(newState);
+  };
+
   const handleStop = useCallback(async () => {
-    setIsRunning(false);
-    const earnedMinutes = Math.floor(seconds / 60);
+    const totalSeconds = getCurrentSeconds(timerState);
+    const earnedMinutes = Math.floor(totalSeconds / 60);
+
     if (earnedMinutes > 0 && user) {
-      // Award XP: 2 XP per minute studied
       const xpEarned = earnedMinutes * 2;
       const { data: stats } = await supabase
         .from("user_stats")
@@ -70,19 +108,17 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
       if (stats) {
         const today = new Date().toISOString().slice(0, 10);
         const newXp = stats.xp + xpEarned;
-        // Level up: each level = level * 100 XP
         let newLevel = stats.level;
         while (newXp >= newLevel * 100) {
           newLevel++;
         }
-        // Streak
         let newStreak = stats.streak_days;
         if (stats.last_active_date !== today) {
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           if (stats.last_active_date === yesterday.toISOString().slice(0, 10)) {
             newStreak += 1;
-          } else if (stats.last_active_date !== today) {
+          } else {
             newStreak = 1;
           }
         }
@@ -98,9 +134,14 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
           .eq("user_id", user.id);
       }
     }
-    setSeconds(0);
-    setTotalStudyMinutes(0);
-  }, [seconds, user]);
+
+    const resetState: TimerState = { startedAt: null, accumulatedSeconds: 0, isRunning: false };
+    setTimerState(resetState);
+    clearTimerState();
+    setDisplaySeconds(0);
+    lastReportedMinutes.current = 0;
+    onMinutesUpdate?.(0);
+  }, [timerState, user, onMinutesUpdate]);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -108,6 +149,8 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
     const sec = s % 60;
     return `${h > 0 ? `${h}:` : ""}${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
   };
+
+  const isRunning = timerState.isRunning;
 
   return (
     <motion.div
@@ -129,7 +172,7 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
             exit={{ opacity: 0, y: -5 }}
             className="text-3xl font-bold text-foreground font-mono tabular-nums"
           >
-            {formatTime(seconds)}
+            {formatTime(displaySeconds)}
           </motion.p>
         </AnimatePresence>
 
@@ -141,7 +184,7 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
               className="rounded-xl gap-1.5 font-semibold"
             >
               <Play className="h-4 w-4" />
-              {seconds > 0 ? "Reprendre" : "Démarrer"}
+              {displaySeconds > 0 ? "Reprendre" : "Démarrer"}
             </Button>
           ) : (
             <Button
@@ -154,7 +197,7 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
               Pause
             </Button>
           )}
-          {seconds > 0 && (
+          {displaySeconds > 0 && (
             <Button
               size="sm"
               variant="destructive"
@@ -168,9 +211,9 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
         </div>
       </div>
 
-      {seconds > 0 && (
+      {displaySeconds > 0 && (
         <p className="text-xs text-muted-foreground mt-2">
-          +{Math.floor(seconds / 60) * 2} XP gagnés · {Math.floor(seconds / 60)} min étudiées
+          +{Math.floor(displaySeconds / 60) * 2} XP gagnés · {Math.floor(displaySeconds / 60)} min étudiées
         </p>
       )}
     </motion.div>
