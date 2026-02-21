@@ -14,6 +14,7 @@ import Kholles from "./pages/Kholles";
 import ExamsBlancs from "./pages/ExamsBlancs";
 import Annales from "./pages/Annales";
 import InteractiveModules from "./pages/InteractiveModules";
+import Flashcards from "./pages/Flashcards";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="/exams" element={<ExamsBlancs />} />
         <Route path="/annales" element={<Annales />} />
         <Route path="/modules" element={<InteractiveModules />} />
+        <Route path="/flashcards" element={<Flashcards />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
