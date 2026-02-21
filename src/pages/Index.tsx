@@ -2,12 +2,13 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { subjects, subjectColorMap } from "@/data/mockData";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { BookOpen, BarChart3 } from "lucide-react";
 
 const container = {
   hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
+  show: { opacity: 1, transition: { staggerChildren: 0.04 } },
 };
 const item = {
   hidden: { opacity: 0, y: 16 },
@@ -38,31 +39,36 @@ const Index = () => {
             <motion.div
               key={s.id}
               variants={item}
-              className="group rounded-xl border border-border bg-card p-5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 cursor-pointer flex flex-col"
+              className={`group rounded-xl border border-border ${colors.light} p-5 hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col`}
               onClick={() => navigate(`/subject/${s.id}`)}
             >
-              {/* Icon + color bar */}
-              <div className="flex items-start justify-between mb-4">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${colors.light} text-2xl`}>
+              {/* Badge + Icon */}
+              <div className="flex items-start justify-between mb-3">
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                  Matière
+                </Badge>
+                <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-card text-3xl shadow-sm">
                   {s.icon}
                 </div>
-                <div className={`h-2 w-2 rounded-full ${colors.bg}`} />
               </div>
 
               {/* Name */}
-              <h3 className="font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
+              <h3 className="font-bold text-foreground mb-3 text-base leading-tight">
                 {s.name}
               </h3>
 
               {/* Stats */}
-              <div className="flex gap-3 text-xs text-muted-foreground mb-4">
-                <span>{s.courseCount} Cours</span>
-                <span>•</span>
-                <span>{s.exerciseCount} Exercices</span>
+              <div className="flex gap-4 text-xs text-muted-foreground mb-3">
+                <span className="flex items-center gap-1">
+                  <BookOpen className="h-3 w-3" /> {s.courseCount} Cours
+                </span>
+                <span className="flex items-center gap-1">
+                  <BarChart3 className="h-3 w-3" /> {s.exerciseCount} Exercices
+                </span>
               </div>
 
               {/* Progress */}
-              <div className="mt-auto space-y-2">
+              <div className="space-y-1.5 mb-4">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Progression</span>
                   <span className="font-semibold text-foreground">{s.progress}%</span>
@@ -70,18 +76,11 @@ const Index = () => {
                 <Progress value={s.progress} className="h-2" />
               </div>
 
-              {/* Professors */}
-              <div className="flex items-center gap-1 mt-4">
-                {s.professors.map((p, i) => (
-                  <Avatar key={i} className="h-6 w-6 border-2 border-card -ml-1 first:ml-0">
-                    <AvatarFallback className="text-[10px] bg-secondary text-secondary-foreground">
-                      {p.split(" ").map((w) => w[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                ))}
-                <span className="text-xs text-muted-foreground ml-2">
-                  {s.professors.join(", ")}
-                </span>
+              {/* Accéder button */}
+              <div className="mt-auto flex justify-end">
+                <Button size="sm" className="rounded-lg font-semibold">
+                  Accéder
+                </Button>
               </div>
             </motion.div>
           );

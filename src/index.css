@@ -53,6 +53,20 @@
     --subject-pharmacology-light: 210 60% 94%;
     --subject-embryology: 15 70% 60%;
     --subject-embryology-light: 15 70% 94%;
+    --subject-biomolgen: 280 60% 55%;
+    --subject-biomolgen-light: 280 60% 94%;
+    --subject-shs: 260 45% 55%;
+    --subject-shs-light: 260 45% 94%;
+    --subject-biostatistique: 200 70% 50%;
+    --subject-biostatistique-light: 200 70% 94%;
+    --subject-medicament: 350 60% 65%;
+    --subject-medicament-light: 350 60% 94%;
+    --subject-santepublique: 0 55% 55%;
+    --subject-santepublique-light: 0 55% 94%;
+    --subject-microbiologie: 80 55% 45%;
+    --subject-microbiologie-light: 80 55% 94%;
+    --subject-specialite: 210 40% 60%;
+    --subject-specialite-light: 210 40% 94%;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;

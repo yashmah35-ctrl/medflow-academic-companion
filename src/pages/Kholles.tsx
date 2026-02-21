@@ -1,17 +1,56 @@
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Upload, Camera, Plus, BookOpen, Play } from "lucide-react";
+import { toast } from "sonner";
 
-const kholles = [
+const khollesMock = [
   { id: 1, subject: "Chimie", date: "20 Jan 2025", questionCount: 12, extracted: true },
   { id: 2, subject: "Anatomie", date: "18 Jan 2025", questionCount: 8, extracted: true },
   { id: 3, subject: "Biophysique", date: "15 Jan 2025", questionCount: 10, extracted: false },
 ];
 
 export default function Kholles() {
+  const [kholles] = useState(khollesMock);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      toast.success(`${files.length} fichier(s) importé(s) avec succès ! L'extraction est en cours...`);
+    }
+    e.target.value = "";
+  };
+
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      toast.success("Photo capturée ! L'extraction est en cours...");
+    }
+    e.target.value = "";
+  };
+
   return (
     <div className="space-y-6">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf"
+        multiple
+        className="hidden"
+        onChange={handleFileUpload}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleCameraCapture}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Khôlles & Tutorat</h1>
@@ -19,7 +58,7 @@ export default function Kholles() {
             Importe tes sujets de khôlles et entraîne-toi dessus.
           </p>
         </div>
-        <Button>
+        <Button onClick={() => fileInputRef.current?.click()}>
           <Plus className="h-4 w-4 mr-2" /> Ajouter une Khôlle
         </Button>
       </div>
@@ -31,12 +70,18 @@ export default function Kholles() {
         className="rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 text-center"
       >
         <div className="flex justify-center gap-4 mb-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
+          >
             <Upload className="h-6 w-6" />
-          </div>
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info">
+          </button>
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info hover:bg-info/20 transition-colors cursor-pointer"
+          >
             <Camera className="h-6 w-6" />
-          </div>
+          </button>
         </div>
         <p className="font-medium text-foreground">Importer un sujet de khôlle</p>
         <p className="text-sm text-muted-foreground mt-1">
