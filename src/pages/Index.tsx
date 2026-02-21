@@ -5,6 +5,19 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
 import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil } from "lucide-react";
+import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
+import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
+import shsImg from "@/assets/subjects/shs.png";
+import santePubliqueImg from "@/assets/subjects/sante-publique.png";
+
+const subjectImageMap: Record<string, string> = {
+  "Anatomie OS": anatomieOsImg,
+  "Anatomie TC": anatomieTcImg,
+  "SHS TC": shsImg,
+  "SHS OS": shsImg,
+  "Santé Publique OS": santePubliqueImg,
+  "Santé Publique TC": santePubliqueImg,
+};
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth, canAccessTC } from "@/hooks/useAuth";
@@ -245,9 +258,15 @@ const Index = () => {
                 </Button>
               </div>
               <div className="flex items-start justify-between mb-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card/80 text-2xl shadow-sm">
-                  {s.icon}
-                </div>
+                {subjectImageMap[s.name] ? (
+                  <div className="h-12 w-12 rounded-xl overflow-hidden shadow-sm">
+                    <img src={subjectImageMap[s.name]} alt={s.name} className="h-full w-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card/80 text-2xl shadow-sm">
+                    {s.icon}
+                  </div>
+                )}
               </div>
               {renamingSubject === s.id ? (
                 <div className="flex items-center gap-2 mb-2" onClick={(e) => e.stopPropagation()}>
