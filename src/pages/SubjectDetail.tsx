@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, BookOpen, Dumbbell, Upload, FolderPlus, Eye, Lock } from "lucide-react";
+import { ArrowLeft, BookOpen, Dumbbell, Upload, FolderPlus, Eye, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -15,8 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import {
   subjects,
-  foldersBySubject,
-  coursesByFolder,
   subjectColorMap,
 } from "@/data/mockData";
 import { useState, useRef, useEffect } from "react";
@@ -33,6 +31,15 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
+interface DBFolder {
+  id: string;
+  subject_id: string;
+  name: string;
+  course_count: number;
+  exercise_count: number;
+  created_at: string;
+}
+
 interface DBCourse {
   id: string;
   title: string;
@@ -47,9 +54,7 @@ export default function SubjectDetail() {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const subject = subjects.find((s) => s.id === subjectId);
-  const [localFolders, setLocalFolders] = useState(foldersBySubject[subjectId || ""] || []);
-  const mockCourses = folderId ? coursesByFolder[folderId] || [] : [];
-  const currentFolder = localFolders.find((f) => f.id === folderId);
+  const [dbFolders, setDbFolders] = useState<DBFolder[]>([]);
   const [newFolderName, setNewFolderName] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +63,20 @@ export default function SubjectDetail() {
   const [viewingCourse, setViewingCourse] = useState<DBCourse | null>(null);
 
   const isMedicalStudent = role === "medical_student";
+
+  // Fetch folders from DB
+  useEffect(() => {
+    if (!subjectId) return;
+    const fetchFolders = async () => {
+      const { data } = await supabase
+        .from("folders")
+        .select("*")
+        .eq("subject_id", subjectId)
+        .order("created_at", { ascending: true });
+      if (data) setDbFolders(data);
+    };
+    fetchFolders();
+  }, [subjectId]);
 
   // Fetch DB courses for this folder
   useEffect(() => {
@@ -73,6 +92,8 @@ export default function SubjectDetail() {
     fetchCourses();
   }, [folderId]);
 
+  const currentFolder = dbFolders.find((f) => f.id === folderId);
+
   if (!subject) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
@@ -84,20 +105,29 @@ export default function SubjectDetail() {
 
   const colors = subjectColorMap[subject.color];
 
-  const handleAddFolder = () => {
+  const handleAddFolder = async () => {
     if (!newFolderName.trim()) return;
-    const newFolder = {
-      id: `f-new-${Date.now()}`,
-      subjectId: subjectId!,
-      name: newFolderName.trim(),
-      courseCount: 0,
-      exerciseCount: 0,
-      progress: 0,
-    };
-    setLocalFolders((prev) => [...prev, newFolder]);
-    setNewFolderName("");
-    setDialogOpen(false);
-    toast.success(`Dossier "${newFolder.name}" créé !`);
+    const { data, error } = await supabase
+      .from("folders")
+      .insert({
+        subject_id: subjectId!,
+        name: newFolderName.trim(),
+        course_count: 0,
+        exercise_count: 0,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast.error("Erreur lors de la création du dossier");
+      return;
+    }
+    if (data) {
+      setDbFolders((prev) => [...prev, data]);
+      setNewFolderName("");
+      setDialogOpen(false);
+      toast.success(`Dossier "${data.name}" créé !`);
+    }
   };
 
   const handleCourseImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,7 +139,6 @@ export default function SubjectDetail() {
 
     for (const file of Array.from(files)) {
       try {
-        // Upload to storage
         const filePath = `${user.id}/${folderId}/${Date.now()}-${file.name}`;
         const { error: uploadError } = await supabase.storage
           .from("course-files")
@@ -124,11 +153,9 @@ export default function SubjectDetail() {
           .from("course-files")
           .getPublicUrl(filePath);
 
-        // Estimate reading time
         const sizeMB = file.size / (1024 * 1024);
         const estimatedMinutes = Math.max(5, Math.round(sizeMB * 15));
 
-        // Insert course in DB
         const { data: course, error: insertError } = await supabase
           .from("courses")
           .insert({
@@ -161,19 +188,6 @@ export default function SubjectDetail() {
     setUploading(false);
     e.target.value = "";
   };
-
-  // Merge mock + DB courses
-  const allCourses = [
-    ...mockCourses.map((c) => ({
-      id: c.id,
-      title: c.title,
-      source: c.source,
-      reading_time: c.readingTime,
-      created_at: c.addedDate,
-      file_url: null as string | null,
-    })),
-    ...dbCourses.filter((dc) => !mockCourses.some((mc) => mc.id === dc.id)),
-  ];
 
   const formatDate = (dateStr: string) => {
     try {
@@ -237,11 +251,6 @@ export default function SubjectDetail() {
               </DialogContent>
             </Dialog>
           )}
-          {folderId && isMedicalStudent && (
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-              <Upload className="h-4 w-4 mr-2" /> {uploading ? "Import en cours..." : "Importer un cours"}
-            </Button>
-          )}
         </div>
       </div>
 
@@ -253,7 +262,7 @@ export default function SubjectDetail() {
           initial="hidden"
           animate="show"
         >
-          {localFolders.map((folder) => (
+          {dbFolders.map((folder) => (
             <motion.div
               key={folder.id}
               variants={item}
@@ -263,22 +272,39 @@ export default function SubjectDetail() {
               <div className={`h-1.5 w-12 rounded-full ${colors.bg} mb-4`} />
               <h3 className="font-semibold text-foreground mb-2">{folder.name}</h3>
               <div className="flex gap-3 text-xs text-muted-foreground mb-4">
-                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folder.courseCount} Cours</span>
-                <span className="flex items-center gap-1"><Dumbbell className="h-3 w-3" /> {folder.exerciseCount} Exercices</span>
-              </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Progression</span>
-                  <span className="font-medium">{folder.progress}%</span>
-                </div>
-                <Progress value={folder.progress} className="h-1.5" />
+                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folder.course_count} Cours</span>
+                <span className="flex items-center gap-1"><Dumbbell className="h-3 w-3" /> {folder.exercise_count} Exercices</span>
               </div>
             </motion.div>
           ))}
+
+          {dbFolders.length === 0 && (
+            <div className="col-span-full text-center py-12 text-muted-foreground">
+              <FolderPlus className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="font-medium">Aucun dossier</p>
+              <p className="text-sm mt-1">Crée un dossier pour commencer à organiser tes cours.</p>
+            </div>
+          )}
         </motion.div>
       ) : (
         <motion.div className="space-y-3" variants={container} initial="hidden" animate="show">
-          {allCourses
+          {/* Nouveau cours button */}
+          {isMedicalStudent && (
+            <motion.div
+              variants={item}
+              className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-card/50 p-4 hover:bg-card hover:shadow-sm transition-all cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted">
+                <Plus className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <span className="font-medium text-muted-foreground">
+                {uploading ? "Import en cours..." : "Nouveau cours"}
+              </span>
+            </motion.div>
+          )}
+
+          {dbCourses
             .sort((a, b) => (a.source === "fac" ? -1 : 1))
             .map((course) => (
               <motion.div
@@ -317,22 +343,17 @@ export default function SubjectDetail() {
               </motion.div>
             ))}
 
-          {allCourses.length === 0 && (
+          {dbCourses.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="font-medium">Aucun cours disponible</p>
               <p className="text-sm mt-1">Importe des cours pour commencer.</p>
-              {isMedicalStudent && (
-                <Button variant="outline" className="mt-4" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="h-4 w-4 mr-2" /> Importer un cours
-                </Button>
-              )}
             </div>
           )}
         </motion.div>
       )}
 
-      {/* Course viewer dialog - no download, protected */}
+      {/* Course viewer dialog */}
       <Dialog open={!!viewingCourse} onOpenChange={(open) => !open && setViewingCourse(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh]">
           <DialogHeader>
@@ -363,7 +384,6 @@ export default function SubjectDetail() {
                   <p>Aperçu non disponible pour ce type de fichier. Utilisez le bouton Étudier.</p>
                 </div>
               )}
-              {/* Overlay to prevent right-click save on bonus courses */}
               {viewingCourse.source === "bonus" && (
                 <div className="absolute inset-0 z-10" onContextMenu={(e) => e.preventDefault()} />
               )}
