@@ -11,7 +11,7 @@ import {
   Puzzle,
   ChevronLeft,
   ChevronRight,
-  BarChart3,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
@@ -35,6 +35,7 @@ const allNavGroups: NavGroup[] = [
     items: [
       { title: "Matières", path: "/", icon: BookOpen, restricted: false },
       { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false },
+      { title: "Flashcards", path: "/flashcards", icon: Layers, restricted: false },
       { title: "Modules", path: "/modules", icon: Puzzle, restricted: false },
       { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false },
     ],
