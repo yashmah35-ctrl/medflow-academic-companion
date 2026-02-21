@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Search, Layers, BarChart3, Flame, Clock, Trash2, Edit3, Play,
-  RotateCcw, ArrowLeft, BookOpen, ChevronRight, X, Type, ImageIcon
+  RotateCcw, ArrowLeft, BookOpen, ChevronRight, X, Type, ImageIcon, Upload, FileText, Sparkles, Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -109,6 +109,13 @@ export default function Flashcards() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [reviewRatings, setReviewRatings] = useState<Record<string, string>>({});
   const [reviewStartTime, setReviewStartTime] = useState<number>(0);
+
+  // AI Import
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importCardCount, setImportCardCount] = useState("10");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedCards, setGeneratedCards] = useState<{ front: string; back: string; explanation?: string }[]>([]);
 
   // ─── Fetch decks ─────────────────────────────────
   const fetchDecks = useCallback(async () => {
@@ -255,6 +262,56 @@ export default function Flashcards() {
     await supabase.from("flashcards").delete().eq("id", cardId);
     toast.success("Carte supprimée");
     if (selectedDeck) fetchCards(selectedDeck.id);
+    fetchDecks();
+  };
+
+  // ─── AI Import ──────────────────────────────────
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setImportText(text);
+  };
+
+  const handleGenerateFlashcards = async () => {
+    if (!importText.trim() || !selectedDeck || !user) return;
+    setIsGenerating(true);
+    setGeneratedCards([]);
+    try {
+      const subj = subjects.find(s => s.id === selectedDeck.subject_id);
+      const { data, error } = await supabase.functions.invoke("generate-flashcards", {
+        body: { content: importText, subject: subj?.name, cardCount: parseInt(importCardCount) || 10 },
+      });
+      if (error) throw error;
+      if (data?.error) { toast.error(data.error); setIsGenerating(false); return; }
+      const cards = data?.flashcards || [];
+      if (cards.length === 0) { toast.error("Aucune flashcard générée."); setIsGenerating(false); return; }
+      setGeneratedCards(cards);
+      toast.success(`${cards.length} flashcards générées !`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Erreur lors de la génération IA.");
+    }
+    setIsGenerating(false);
+  };
+
+  const handleImportGeneratedCards = async () => {
+    if (!user || !selectedDeck || generatedCards.length === 0) return;
+    const inserts = generatedCards.map(c => ({
+      deck_id: selectedDeck.id,
+      user_id: user.id,
+      card_type: "qr",
+      front: c.front,
+      back: c.back,
+      explanation: c.explanation || null,
+    }));
+    const { error } = await supabase.from("flashcards").insert(inserts);
+    if (error) { toast.error("Erreur lors de l'import"); return; }
+    toast.success(`${generatedCards.length} cartes importées !`);
+    setShowImportDialog(false);
+    setImportText("");
+    setGeneratedCards([]);
+    fetchCards(selectedDeck.id);
     fetchDecks();
   };
 
@@ -492,6 +549,78 @@ export default function Flashcards() {
           <Button variant="secondary" onClick={() => openCardEditor()} className="rounded-xl font-semibold">
             <Plus className="h-4 w-4 mr-2" /> Ajouter une carte
           </Button>
+          <Dialog open={showImportDialog} onOpenChange={(open) => { setShowImportDialog(open); if (!open) { setImportText(""); setGeneratedCards([]); } }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="rounded-xl font-semibold">
+                <Upload className="h-4 w-4 mr-2" /> Importer (IA)
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+              <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Générer des flashcards par IA</DialogTitle></DialogHeader>
+              <div className="space-y-4 mt-2">
+                <p className="text-sm text-muted-foreground">Colle le contenu de ton cours ou importe un fichier texte. L'IA générera automatiquement des flashcards.</p>
+
+                {/* File upload */}
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-2"><FileText className="h-4 w-4" /> Importer un fichier (.txt, .md)</Label>
+                  <Input type="file" accept=".txt,.md,.csv" onChange={handleFileUpload} />
+                </div>
+
+                {/* Text area */}
+                <div className="space-y-1.5">
+                  <Label>Ou colle ton contenu ici</Label>
+                  <Textarea
+                    placeholder="Colle le contenu de ton cours ici..."
+                    className="min-h-[150px] font-mono text-xs"
+                    value={importText}
+                    onChange={(e) => setImportText(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">{importText.length} caractères</p>
+                </div>
+
+                {/* Card count */}
+                <div className="space-y-1.5">
+                  <Label>Nombre de flashcards à générer</Label>
+                  <Select value={importCardCount} onValueChange={setImportCardCount}>
+                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["5", "10", "15", "20", "30"].map(n => (
+                        <SelectItem key={n} value={n}>{n} cartes</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Generate button */}
+                <Button
+                  onClick={handleGenerateFlashcards}
+                  disabled={importText.trim().length < 20 || isGenerating}
+                  className="w-full rounded-xl font-semibold"
+                >
+                  {isGenerating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération en cours...</> : <><Sparkles className="h-4 w-4 mr-2" /> Générer les flashcards</>}
+                </Button>
+
+                {/* Preview generated cards */}
+                {generatedCards.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-foreground">{generatedCards.length} flashcards générées :</h4>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                      {generatedCards.map((c, i) => (
+                        <div key={i} className="rounded-lg border border-border bg-muted/50 p-3 space-y-1">
+                          <p className="text-xs font-semibold text-primary">Q: {c.front}</p>
+                          <p className="text-xs text-foreground">R: {c.back}</p>
+                          {c.explanation && <p className="text-[10px] text-muted-foreground italic">{c.explanation}</p>}
+                        </div>
+                      ))}
+                    </div>
+                    <Button onClick={handleImportGeneratedCards} className="w-full rounded-xl font-semibold">
+                      <Plus className="h-4 w-4 mr-2" /> Importer {generatedCards.length} cartes dans le deck
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Cards list */}
