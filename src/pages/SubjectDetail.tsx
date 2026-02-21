@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, BookOpen, Dumbbell, Upload, FolderPlus, Eye, Lock, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,7 @@ export default function SubjectDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dbCourses, setDbCourses] = useState<DBCourse[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [viewingCourse, setViewingCourse] = useState<DBCourse | null>(null);
+  
 
   const isMedicalStudent = role === "medical_student";
 
@@ -345,12 +345,11 @@ export default function SubjectDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setViewingCourse(course)}
+                      onClick={() => window.open(course.file_url!, '_blank')}
                     >
                       <Eye className="h-4 w-4 mr-1" /> Consulter
                     </Button>
                   )}
-                  <Button size="sm" variant="outline">Étudier</Button>
                 </div>
               </motion.div>
             ))}
@@ -365,44 +364,7 @@ export default function SubjectDetail() {
         </motion.div>
       )}
 
-      {/* Course viewer dialog */}
-      <Dialog open={!!viewingCourse} onOpenChange={(open) => !open && setViewingCourse(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle>{viewingCourse?.title}</DialogTitle>
-            <DialogDescription className="sr-only">Visualisation du cours</DialogDescription>
-          </DialogHeader>
-          {viewingCourse?.file_url && (
-            <div
-              className="relative w-full h-[70vh] select-none"
-              onContextMenu={(e) => e.preventDefault()}
-              style={{ userSelect: "none" }}
-            >
-              {viewingCourse.file_url.match(/\.(pdf)$/i) || viewingCourse.file_url.includes(".pdf") ? (
-                <iframe
-                  src={`${viewingCourse.file_url}#toolbar=0&navpanes=0&scrollbar=1`}
-                  className="w-full h-full rounded-lg border border-border"
-                  title={viewingCourse.title}
-                />
-              ) : viewingCourse.file_url.match(/\.(jpe?g|png|gif|webp)$/i) ? (
-                <img
-                  src={viewingCourse.file_url}
-                  alt={viewingCourse.title}
-                  className="w-full h-full object-contain rounded-lg pointer-events-none"
-                  draggable={false}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <p>Aperçu non disponible pour ce type de fichier. Utilisez le bouton Étudier.</p>
-                </div>
-              )}
-              {viewingCourse.source === "bonus" && (
-                <div className="absolute inset-0 z-10" onContextMenu={(e) => e.preventDefault()} />
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
     </div>
   );
 }
