@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Plus, BookOpen, Play, Trash2, ArrowLeft, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
+import { Plus, BookOpen, Play, Trash2, ArrowLeft, CheckCircle2, XCircle, ChevronRight, Upload, Camera, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,6 +66,10 @@ export default function Kholles() {
     { id: "D", text: "", isCorrect: false },
     { id: "E", text: "", isCorrect: false },
   ]);
+
+  // Import state
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // Training state
   const [currentQIndex, setCurrentQIndex] = useState(0);
@@ -193,6 +197,67 @@ export default function Kholles() {
       .eq("id", selectedKholle.id);
     setSelectedKholle({ ...selectedKholle, questions_json: updated });
     fetchKholles();
+  };
+
+  // --- Import logic ---
+  const handleFileImport = async (file: File) => {
+    if (!selectedKholle || !user) return;
+    setImporting(true);
+
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("extract-kholle-questions", {
+        body: {
+          fileBase64: base64,
+          fileMimeType: file.type,
+          format: selectedKholle.format,
+        },
+      });
+
+      if (error) throw error;
+
+      const extractedQuestions: Question[] = (data.questions || []).map((q: any) => ({
+        id: crypto.randomUUID(),
+        question: q.question,
+        propositions: (q.propositions || []).map((p: any) => ({
+          id: p.id,
+          text: p.text,
+          isCorrect: p.isCorrect,
+        })),
+      }));
+
+      if (extractedQuestions.length === 0) {
+        toast.error("Aucune question détectée dans le document");
+        return;
+      }
+
+      const updatedQuestions = [...(selectedKholle.questions_json || []), ...extractedQuestions];
+      const { error: updateError } = await supabase
+        .from("kholles")
+        .update({ questions_json: updatedQuestions as any })
+        .eq("id", selectedKholle.id);
+
+      if (updateError) throw updateError;
+
+      setSelectedKholle({ ...selectedKholle, questions_json: updatedQuestions });
+      toast.success(`${extractedQuestions.length} question(s) importée(s) !`);
+      setShowImport(false);
+      fetchKholles();
+    } catch (e: any) {
+      console.error("Import error:", e);
+      toast.error(e?.message || "Erreur lors de l'import");
+    } finally {
+      setImporting(false);
+    }
   };
 
   // --- Training logic ---
@@ -327,9 +392,14 @@ export default function Kholles() {
           </Button>
         </div>
 
-        <Button variant="outline" onClick={() => setShowAddQuestion(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Ajouter une question
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowAddQuestion(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Ajouter une question
+          </Button>
+          <Button variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4 mr-2" /> Importer / Scanner
+          </Button>
+        </div>
 
         <div className="space-y-3">
           {questions.map((q, i) => (
@@ -418,6 +488,62 @@ export default function Kholles() {
               <Button variant="outline" onClick={() => setShowAddQuestion(false)}>Annuler</Button>
               <Button onClick={handleAddQuestion}>Ajouter</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Import dialog */}
+        <Dialog open={showImport} onOpenChange={setShowImport}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Importer des questions</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Importe un fichier ou prends une photo de ton sujet. L'IA extraira automatiquement les questions et propositions.
+            </p>
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <label className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border p-6 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Importer un fichier</span>
+                <span className="text-xs text-muted-foreground">PDF, Image</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*,application/pdf"
+                  disabled={importing}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileImport(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              <label className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-border p-6 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all">
+                <Camera className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">Prendre une photo</span>
+                <span className="text-xs text-muted-foreground">Appareil photo</span>
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  capture="environment"
+                  disabled={importing}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileImport(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {importing && (
+              <div className="flex items-center gap-3 rounded-lg bg-muted p-4 mt-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Extraction en cours…</p>
+                  <p className="text-xs text-muted-foreground">L'IA analyse le document</p>
+                </div>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       </div>
