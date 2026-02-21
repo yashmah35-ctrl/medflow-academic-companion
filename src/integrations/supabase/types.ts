@@ -389,7 +389,9 @@ export type Database = {
         Row: {
           created_at: string
           date: string | null
+          format: string
           id: string
+          name: string | null
           questions_json: Json | null
           subject_id: string | null
           user_id: string
@@ -397,7 +399,9 @@ export type Database = {
         Insert: {
           created_at?: string
           date?: string | null
+          format?: string
           id?: string
+          name?: string | null
           questions_json?: Json | null
           subject_id?: string | null
           user_id: string
@@ -405,7 +409,9 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string | null
+          format?: string
           id?: string
+          name?: string | null
           questions_json?: Json | null
           subject_id?: string | null
           user_id?: string

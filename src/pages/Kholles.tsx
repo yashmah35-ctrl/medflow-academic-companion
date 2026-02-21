@@ -1,125 +1,674 @@
-import { useState, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Camera, Plus, BookOpen, Play } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Plus, BookOpen, Play, Trash2, ArrowLeft, CheckCircle2, XCircle, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-const khollesMock = [
-  { id: 1, subject: "Chimie", date: "20 Jan 2025", questionCount: 12, extracted: true },
-  { id: 2, subject: "Anatomie", date: "18 Jan 2025", questionCount: 8, extracted: true },
-  { id: 3, subject: "Biophysique", date: "15 Jan 2025", questionCount: 10, extracted: false },
-];
+interface Proposition {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+interface Question {
+  id: string;
+  question: string;
+  propositions: Proposition[];
+}
+
+interface Kholle {
+  id: string;
+  name: string;
+  format: string;
+  subject_id: string | null;
+  subject_name?: string;
+  date: string | null;
+  questions_json: Question[] | null;
+  created_at: string;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+}
+
+type View = "list" | "detail" | "train";
 
 export default function Kholles() {
-  const [kholles] = useState(khollesMock);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const [kholles, setKholles] = useState<Kholle[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState<View>("list");
+  const [selectedKholle, setSelectedKholle] = useState<Kholle | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      toast.success(`${files.length} fichier(s) importé(s) avec succès ! L'extraction est en cours...`);
-    }
-    e.target.value = "";
+  // Create dialog
+  const [showCreate, setShowCreate] = useState(false);
+  const [newSubjectId, setNewSubjectId] = useState("");
+  const [newFormat, setNewFormat] = useState<"QIM" | "QCM">("QCM");
+
+  // Add question dialog
+  const [showAddQuestion, setShowAddQuestion] = useState(false);
+  const [questionText, setQuestionText] = useState("");
+  const [propositions, setPropositions] = useState<Proposition[]>([
+    { id: "A", text: "", isCorrect: false },
+    { id: "B", text: "", isCorrect: false },
+    { id: "C", text: "", isCorrect: false },
+    { id: "D", text: "", isCorrect: false },
+    { id: "E", text: "", isCorrect: false },
+  ]);
+
+  // Training state
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  const [userAnswers, setUserAnswers] = useState<Record<string, Record<string, boolean>>>({});
+  const [showResults, setShowResults] = useState(false);
+  const [trainingFinished, setTrainingFinished] = useState(false);
+
+  useEffect(() => {
+    fetchSubjects();
+    if (user) fetchKholles();
+  }, [user]);
+
+  const fetchSubjects = async () => {
+    const { data } = await supabase.from("subjects").select("id, name").order("name");
+    if (data) setSubjects(data);
   };
 
-  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      toast.success("Photo capturée ! L'extraction est en cours...");
+  const fetchKholles = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("kholles")
+      .select("*, subjects(name)")
+      .eq("user_id", user!.id)
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setKholles(
+        data.map((k: any) => ({
+          ...k,
+          subject_name: k.subjects?.name ?? "Inconnue",
+          questions_json: k.questions_json as Question[] | null,
+        }))
+      );
     }
-    e.target.value = "";
+    setLoading(false);
   };
 
+  const handleCreate = async () => {
+    if (!newSubjectId || !user) return;
+    const subject = subjects.find((s) => s.id === newSubjectId);
+    if (!subject) return;
+
+    const name = `Khôlle — ${subject.name}`;
+    const { error } = await supabase.from("kholles").insert({
+      user_id: user.id,
+      name,
+      format: newFormat,
+      subject_id: newSubjectId,
+      date: new Date().toISOString().split("T")[0],
+      questions_json: [],
+    });
+
+    if (error) {
+      toast.error("Erreur lors de la création");
+      return;
+    }
+    toast.success("Khôlle créée !");
+    setShowCreate(false);
+    setNewSubjectId("");
+    setNewFormat("QCM");
+    fetchKholles();
+  };
+
+  const handleAddQuestion = async () => {
+    if (!selectedKholle || !questionText.trim()) return;
+    const filledProps = propositions.filter((p) => p.text.trim());
+    if (filledProps.length < 2) {
+      toast.error("Ajoute au moins 2 propositions");
+      return;
+    }
+
+    const newQuestion: Question = {
+      id: crypto.randomUUID(),
+      question: questionText.trim(),
+      propositions: filledProps,
+    };
+
+    const updatedQuestions = [...(selectedKholle.questions_json || []), newQuestion];
+    const { error } = await supabase
+      .from("kholles")
+      .update({ questions_json: updatedQuestions as any })
+      .eq("id", selectedKholle.id);
+
+    if (error) {
+      toast.error("Erreur lors de l'ajout");
+      return;
+    }
+
+    setSelectedKholle({ ...selectedKholle, questions_json: updatedQuestions });
+    setShowAddQuestion(false);
+    resetQuestionForm();
+    toast.success("Question ajoutée !");
+    fetchKholles();
+  };
+
+  const resetQuestionForm = () => {
+    setQuestionText("");
+    setPropositions([
+      { id: "A", text: "", isCorrect: false },
+      { id: "B", text: "", isCorrect: false },
+      { id: "C", text: "", isCorrect: false },
+      { id: "D", text: "", isCorrect: false },
+      { id: "E", text: "", isCorrect: false },
+    ]);
+  };
+
+  const handleDeleteKholle = async (id: string) => {
+    const { error } = await supabase.from("kholles").delete().eq("id", id);
+    if (!error) {
+      toast.success("Khôlle supprimée");
+      fetchKholles();
+      if (selectedKholle?.id === id) {
+        setView("list");
+        setSelectedKholle(null);
+      }
+    }
+  };
+
+  const handleDeleteQuestion = async (qId: string) => {
+    if (!selectedKholle) return;
+    const updated = (selectedKholle.questions_json || []).filter((q) => q.id !== qId);
+    await supabase
+      .from("kholles")
+      .update({ questions_json: updated as any })
+      .eq("id", selectedKholle.id);
+    setSelectedKholle({ ...selectedKholle, questions_json: updated });
+    fetchKholles();
+  };
+
+  // --- Training logic ---
+  const startTraining = () => {
+    if (!selectedKholle?.questions_json?.length) {
+      toast.error("Aucune question à réviser");
+      return;
+    }
+    setCurrentQIndex(0);
+    setUserAnswers({});
+    setShowResults(false);
+    setTrainingFinished(false);
+    setView("train");
+  };
+
+  const currentQuestion = selectedKholle?.questions_json?.[currentQIndex];
+
+  const toggleAnswer = (qId: string, propId: string) => {
+    if (showResults) return;
+    setUserAnswers((prev) => ({
+      ...prev,
+      [qId]: {
+        ...(prev[qId] || {}),
+        [propId]: !(prev[qId]?.[propId] ?? false),
+      },
+    }));
+  };
+
+  const validateQuestion = () => {
+    setShowResults(true);
+  };
+
+  const nextQuestion = async () => {
+    const questions = selectedKholle!.questions_json!;
+    if (currentQIndex < questions.length - 1) {
+      setCurrentQIndex((i) => i + 1);
+      setShowResults(false);
+    } else {
+      setTrainingFinished(true);
+      await saveErrors();
+    }
+  };
+
+  const computeScore = () => {
+    if (!selectedKholle?.questions_json) return { score: 0, total: 0, wrong: [] as Question[] };
+    const questions = selectedKholle.questions_json;
+    const isQIM = selectedKholle.format === "QIM";
+    let totalScore = 0;
+    const totalMax = questions.length;
+    const wrongQuestions: Question[] = [];
+
+    questions.forEach((q) => {
+      const answers = userAnswers[q.id] || {};
+      let qScore = 0;
+      let hasWrong = false;
+
+      q.propositions.forEach((p) => {
+        const userSaidTrue = answers[p.id] ?? false;
+        if (isQIM) {
+          if (userSaidTrue === p.isCorrect) {
+            qScore += 1 / q.propositions.length;
+          } else {
+            qScore -= 0.2;
+            hasWrong = true;
+          }
+        } else {
+          if (userSaidTrue && p.isCorrect) {
+            qScore += 1 / q.propositions.filter((x) => x.isCorrect).length;
+          } else if (userSaidTrue && !p.isCorrect) {
+            hasWrong = true;
+          }
+        }
+      });
+
+      totalScore += Math.max(0, qScore);
+      if (hasWrong) wrongQuestions.push(q);
+    });
+
+    return { score: Math.round(totalScore * 100) / 100, total: totalMax, wrong: wrongQuestions };
+  };
+
+  const saveErrors = async () => {
+    if (!user || !selectedKholle) return;
+    const { wrong } = computeScore();
+    if (wrong.length === 0) return;
+
+    const subjectName = selectedKholle.subject_name || "Inconnue";
+
+    const errorInserts = wrong.map((q) => {
+      const correctProps = q.propositions.filter((p) => p.isCorrect).map((p) => p.text).join(", ");
+      const answers = userAnswers[q.id] || {};
+      const wrongProps = q.propositions
+        .filter((p) => (answers[p.id] ?? false) !== p.isCorrect)
+        .map((p) => p.text)
+        .join(", ");
+
+      return {
+        user_id: user.id,
+        question: q.question,
+        wrong_answer: wrongProps || "Réponse incorrecte",
+        correct_answer: correctProps,
+        subject_name: subjectName,
+        error_type: "comprehension",
+        occurrence_count: 1,
+      };
+    });
+
+    const { error } = await supabase.from("errors").insert(errorInserts);
+    if (!error) {
+      toast.success(`${wrong.length} erreur(s) ajoutée(s) au cahier d'erreurs`);
+    }
+  };
+
+  // --- Renders ---
+
+  if (view === "detail" && selectedKholle) {
+    const questions = selectedKholle.questions_json || [];
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => { setView("list"); setSelectedKholle(null); }}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-foreground">{selectedKholle.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              {selectedKholle.subject_name} • Format {selectedKholle.format} • {questions.length} question(s)
+            </p>
+          </div>
+          <Button onClick={startTraining} disabled={questions.length === 0}>
+            <Play className="h-4 w-4 mr-2" /> S'entraîner
+          </Button>
+        </div>
+
+        <Button variant="outline" onClick={() => setShowAddQuestion(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Ajouter une question
+        </Button>
+
+        <div className="space-y-3">
+          {questions.map((q, i) => (
+            <motion.div
+              key={q.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-xl border border-border bg-card p-4"
+            >
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-medium text-foreground">Q{i + 1}. {q.question}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {q.propositions.map((p) => (
+                      <Badge
+                        key={p.id}
+                        variant={p.isCorrect ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {p.id}. {p.text} {p.isCorrect ? "✓" : "✗"}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => handleDeleteQuestion(q.id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </motion.div>
+          ))}
+          {questions.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              Aucune question. Clique sur "Ajouter une question" pour commencer.
+            </div>
+          )}
+        </div>
+
+        {/* Add question dialog */}
+        <Dialog open={showAddQuestion} onOpenChange={setShowAddQuestion}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Ajouter une question</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Énoncé de la question</Label>
+                <Input
+                  value={questionText}
+                  onChange={(e) => setQuestionText(e.target.value)}
+                  placeholder="Ex: Quelle est la structure de l'ADN ?"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Propositions (coche les réponses correctes)</Label>
+                <div className="mt-2 space-y-2">
+                  {propositions.map((p, idx) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={p.isCorrect}
+                        onChange={() => {
+                          const updated = [...propositions];
+                          updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect };
+                          setPropositions(updated);
+                        }}
+                        className="h-4 w-4 rounded border-border accent-primary"
+                      />
+                      <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
+                      <Input
+                        value={p.text}
+                        onChange={(e) => {
+                          const updated = [...propositions];
+                          updated[idx] = { ...updated[idx], text: e.target.value };
+                          setPropositions(updated);
+                        }}
+                        placeholder={`Proposition ${p.id}`}
+                        className="flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowAddQuestion(false)}>Annuler</Button>
+              <Button onClick={handleAddQuestion}>Ajouter</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  if (view === "train" && selectedKholle) {
+    const questions = selectedKholle.questions_json || [];
+    const isQIM = selectedKholle.format === "QIM";
+
+    if (trainingFinished) {
+      const { score, total, wrong } = computeScore();
+      return (
+        <div className="space-y-6 max-w-2xl mx-auto">
+          <div className="text-center py-8">
+            <h1 className="text-3xl font-bold text-foreground mb-2">Résultats</h1>
+            <p className="text-lg text-muted-foreground">{selectedKholle.name}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-8 text-center">
+            <p className="text-5xl font-bold text-primary">{score}/{total}</p>
+            <Progress value={(score / total) * 100} className="mt-4 h-3" />
+            <p className="text-sm text-muted-foreground mt-2">
+              {wrong.length === 0 ? "Parfait ! 🎉" : `${wrong.length} erreur(s) ajoutée(s) au cahier d'erreurs`}
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center">
+            <Button variant="outline" onClick={() => { setView("detail"); setTrainingFinished(false); }}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+            </Button>
+            <Button onClick={startTraining}>
+              <Play className="h-4 w-4 mr-2" /> Recommencer
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    if (!currentQuestion) return null;
+    const answers = userAnswers[currentQuestion.id] || {};
+
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="icon" onClick={() => { setView("detail"); }}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <Badge variant="secondary">
+            Question {currentQIndex + 1}/{questions.length}
+          </Badge>
+          <Badge>{selectedKholle.format}</Badge>
+        </div>
+
+        <Progress value={((currentQIndex + 1) / questions.length) * 100} className="h-2" />
+
+        <motion.div
+          key={currentQuestion.id}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="rounded-xl border border-border bg-card p-6"
+        >
+          <h2 className="text-lg font-semibold text-foreground mb-4">{currentQuestion.question}</h2>
+          <p className="text-xs text-muted-foreground mb-4">
+            {isQIM ? "Pour chaque proposition, indique si c'est Vrai ou Faux" : "Sélectionne la/les bonne(s) réponse(s)"}
+          </p>
+
+          <div className="space-y-2">
+            {currentQuestion.propositions.map((p) => {
+              const selected = answers[p.id] ?? false;
+              let borderClass = "border-border";
+              let bgClass = "bg-card";
+
+              if (showResults) {
+                if (p.isCorrect) {
+                  borderClass = "border-green-500";
+                  bgClass = "bg-green-500/10";
+                } else if (selected && !p.isCorrect) {
+                  borderClass = "border-destructive";
+                  bgClass = "bg-destructive/10";
+                }
+              }
+
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => toggleAnswer(currentQuestion.id, p.id)}
+                  className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${borderClass} ${bgClass} ${
+                    !showResults && selected ? "border-primary bg-primary/10" : ""
+                  }`}
+                >
+                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">
+                    {p.id}
+                  </span>
+                  <span className="flex-1 text-sm text-foreground">{p.text}</span>
+                  {showResults && (
+                    p.isCorrect
+                      ? <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      : selected ? <XCircle className="h-5 w-5 text-destructive" /> : null
+                  )}
+                  {!showResults && selected && isQIM && (
+                    <Badge variant="outline" className="text-xs">Vrai</Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        <div className="flex justify-end">
+          {!showResults ? (
+            <Button onClick={validateQuestion}>Valider</Button>
+          ) : (
+            <Button onClick={nextQuestion}>
+              {currentQIndex < questions.length - 1 ? "Suivante" : "Voir les résultats"}
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // --- List view ---
   return (
     <div className="space-y-6">
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,.pdf"
-        multiple
-        className="hidden"
-        onChange={handleFileUpload}
-      />
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={handleCameraCapture}
-      />
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Khôlles & Tutorat</h1>
           <p className="text-muted-foreground mt-1">
-            Importe tes sujets de khôlles et entraîne-toi dessus.
+            Crée tes sujets de khôlles et entraîne-toi dessus.
           </p>
         </div>
-        <Button onClick={() => fileInputRef.current?.click()}>
+        <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-4 w-4 mr-2" /> Ajouter une Khôlle
         </Button>
       </div>
 
-      {/* Upload zone */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="rounded-xl border-2 border-dashed border-border bg-muted/30 p-8 text-center"
-      >
-        <div className="flex justify-center gap-4 mb-4">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer"
-          >
-            <Upload className="h-6 w-6" />
-          </button>
-          <button
-            onClick={() => cameraInputRef.current?.click()}
-            className="flex h-12 w-12 items-center justify-center rounded-xl bg-info/10 text-info hover:bg-info/20 transition-colors cursor-pointer"
-          >
-            <Camera className="h-6 w-6" />
-          </button>
-        </div>
-        <p className="font-medium text-foreground">Importer un sujet de khôlle</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          Glisse-dépose tes fichiers ou prends une photo du sujet + correction
-        </p>
-      </motion.div>
-
-      {/* Existing kholles */}
       <div className="space-y-3">
-        {kholles.map((k) => (
-          <motion.div
-            key={k.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between rounded-xl border border-border bg-card p-4"
-          >
-            <div className="flex items-center gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-                <BookOpen className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-medium text-foreground">Khôlle — {k.subject}</h4>
-                  <Badge variant={k.extracted ? "default" : "secondary"} className="text-xs">
-                    {k.extracted ? "Extrait" : "En cours"}
-                  </Badge>
+        <AnimatePresence>
+          {kholles.map((k) => {
+            const qCount = (k.questions_json as Question[] | null)?.length ?? 0;
+            return (
+              <motion.div
+                key={k.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="flex items-center justify-between rounded-xl border border-border bg-card p-4 cursor-pointer hover:bg-accent/30 transition-colors"
+                onClick={() => { setSelectedKholle(k); setView("detail"); }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium text-foreground">{k.name || `Khôlle — ${k.subject_name}`}</h4>
+                      <Badge variant="outline" className="text-xs">{k.format}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {k.date} • {qCount} question(s)
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {k.date} • {k.questionCount} questions
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" disabled={!k.extracted}>
-              <Play className="h-3 w-3 mr-1" /> S'entraîner
-            </Button>
-          </motion.div>
-        ))}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={qCount === 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedKholle(k);
+                      setView("detail");
+                      setTimeout(() => startTraining(), 100);
+                    }}
+                  >
+                    <Play className="h-3 w-3 mr-1" /> S'entraîner
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteKholle(k.id); }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+
+        {!loading && kholles.length === 0 && (
+          <div className="text-center py-16 text-muted-foreground">
+            <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
+            <p className="font-medium">Aucune khôlle pour le moment</p>
+            <p className="text-sm mt-1">Clique sur "Ajouter une Khôlle" pour commencer</p>
+          </div>
+        )}
       </div>
+
+      {/* Create kholle dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nouvelle Khôlle</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Matière</Label>
+              <Select value={newSubjectId} onValueChange={setNewSubjectId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Choisir une matière" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Format</Label>
+              <RadioGroup
+                value={newFormat}
+                onValueChange={(v) => setNewFormat(v as "QIM" | "QCM")}
+                className="mt-2"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-lg border border-border p-3 flex-1">
+                    <RadioGroupItem value="QCM" id="qcm" />
+                    <Label htmlFor="qcm" className="cursor-pointer">
+                      <span className="font-medium">QCM</span>
+                      <p className="text-xs text-muted-foreground">Sélectionne les bonnes réponses</p>
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg border border-border p-3 flex-1">
+                    <RadioGroupItem value="QIM" id="qim" />
+                    <Label htmlFor="qim" className="cursor-pointer">
+                      <span className="font-medium">QIM</span>
+                      <p className="text-xs text-muted-foreground">Vrai / Faux • −0.2 par erreur</p>
+                    </Label>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>Annuler</Button>
+            <Button onClick={handleCreate} disabled={!newSubjectId}>Créer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
