@@ -77,9 +77,9 @@ export default function Kholles() {
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
 
-  // Training state
+  // Training state — values: "selected" for QCM, "vrai"/"faux" for QIM, absent = not answered
   const [currentQIndex, setCurrentQIndex] = useState(0);
-  const [userAnswers, setUserAnswers] = useState<Record<string, Record<string, boolean>>>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, Record<string, string>>>({});
   const [showResults, setShowResults] = useState(false);
   const [trainingFinished, setTrainingFinished] = useState(false);
 
@@ -325,15 +325,25 @@ export default function Kholles() {
 
   const currentQuestion = selectedKholle?.questions_json?.[currentQIndex];
 
-  const toggleAnswer = (qId: string, propId: string) => {
+  const toggleAnswer = (qId: string, propId: string, value?: string) => {
     if (showResults) return;
-    setUserAnswers((prev) => ({
-      ...prev,
-      [qId]: {
-        ...(prev[qId] || {}),
-        [propId]: !(prev[qId]?.[propId] ?? false),
-      },
-    }));
+    setUserAnswers((prev) => {
+      const current = prev[qId] || {};
+      if (value) {
+        // QIM: cycle vrai/faux/remove
+        const newVal = current[propId] === value ? undefined : value;
+        const updated = { ...current };
+        if (newVal) updated[propId] = newVal;
+        else delete updated[propId];
+        return { ...prev, [qId]: updated };
+      } else {
+        // QCM: toggle selected
+        const updated = { ...current };
+        if (updated[propId]) delete updated[propId];
+        else updated[propId] = "selected";
+        return { ...prev, [qId]: updated };
+      }
+    });
   };
 
   const validateQuestion = () => {
@@ -364,23 +374,35 @@ export default function Kholles() {
       let qScore = 0;
       let hasWrong = false;
 
-      q.propositions.forEach((p) => {
-        const userSaidTrue = answers[p.id] ?? false;
-        if (isQIM) {
-          if (userSaidTrue === p.isCorrect) {
-            qScore += 1 / q.propositions.length;
+      if (isQIM) {
+        // QIM: +0.2 per correct answer, -0.2 per wrong, 0 if not answered
+        q.propositions.forEach((p) => {
+          const userAnswer = answers[p.id]; // "vrai", "faux", or undefined
+          if (!userAnswer) return; // not answered = 0 points
+          const userSaysTrue = userAnswer === "vrai";
+          if (userSaysTrue === p.isCorrect) {
+            qScore += 0.2;
           } else {
             qScore -= 0.2;
             hasWrong = true;
           }
+        });
+      } else {
+        // QCM: all-or-nothing — must select exactly the correct set
+        const correctIds = new Set(q.propositions.filter((p) => p.isCorrect).map((p) => p.id));
+        const selectedIds = new Set(
+          q.propositions.filter((p) => answers[p.id] === "selected").map((p) => p.id)
+        );
+        const isExactMatch =
+          correctIds.size === selectedIds.size &&
+          [...correctIds].every((id) => selectedIds.has(id));
+        if (isExactMatch) {
+          qScore = 1;
         } else {
-          if (userSaidTrue && p.isCorrect) {
-            qScore += 1 / q.propositions.filter((x) => x.isCorrect).length;
-          } else if (userSaidTrue && !p.isCorrect) {
-            hasWrong = true;
-          }
+          qScore = 0;
+          if (selectedIds.size > 0) hasWrong = true;
         }
-      });
+      }
 
       totalScore += Math.max(0, qScore);
       if (hasWrong) wrongQuestions.push(q);
@@ -392,16 +414,24 @@ export default function Kholles() {
   const saveErrors = async () => {
     if (!user || !selectedKholle) return;
     const { wrong } = computeScore();
+    const isQIM = selectedKholle.format === "QIM";
     if (wrong.length === 0) return;
 
     const subjectName = selectedKholle.subject_name || "Inconnue";
 
     const errorInserts = wrong.map((q) => {
-      const correctProps = q.propositions.filter((p) => p.isCorrect).map((p) => p.text).join(", ");
+      const correctProps = q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(", ");
       const answers = userAnswers[q.id] || {};
       const wrongProps = q.propositions
-        .filter((p) => (answers[p.id] ?? false) !== p.isCorrect)
-        .map((p) => p.text)
+        .filter((p) => {
+          const a = answers[p.id];
+          if (isQIM) {
+            if (!a) return false; // not answered = not wrong
+            return (a === "vrai") !== p.isCorrect;
+          }
+          return (a === "selected") !== p.isCorrect;
+        })
+        .map((p) => `${p.id}. ${p.text}`)
         .join(", ");
 
       return {
@@ -719,18 +749,81 @@ export default function Kholles() {
 
           <div className="space-y-2">
             {currentQuestion.propositions.map((p) => {
-              const selected = answers[p.id] ?? false;
+              const userAnswer = answers[p.id]; // "vrai", "faux", "selected", or undefined
               let borderClass = "border-border";
               let bgClass = "bg-card";
 
               if (showResults) {
-                if (p.isCorrect) {
-                  borderClass = "border-green-500";
-                  bgClass = "bg-green-500/10";
-                } else if (selected && !p.isCorrect) {
-                  borderClass = "border-destructive";
-                  bgClass = "bg-destructive/10";
+                if (isQIM) {
+                  const userSaysTrue = userAnswer === "vrai";
+                  const userSaysFalse = userAnswer === "faux";
+                  const isCorrectAnswer = userAnswer ? (userSaysTrue === p.isCorrect) : false;
+                  if (userAnswer && isCorrectAnswer) {
+                    borderClass = "border-green-500";
+                    bgClass = "bg-green-500/10";
+                  } else if (userAnswer && !isCorrectAnswer) {
+                    borderClass = "border-destructive";
+                    bgClass = "bg-destructive/10";
+                  }
+                } else {
+                  if (p.isCorrect) {
+                    borderClass = "border-green-500";
+                    bgClass = "bg-green-500/10";
+                  } else if (userAnswer === "selected" && !p.isCorrect) {
+                    borderClass = "border-destructive";
+                    bgClass = "bg-destructive/10";
+                  }
                 }
+              }
+
+              if (isQIM) {
+                return (
+                  <div
+                    key={p.id}
+                    className={`w-full flex items-center gap-3 rounded-lg border p-3 transition-all ${borderClass} ${bgClass}`}
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">
+                      {p.id}
+                    </span>
+                    <span className="flex-1 text-sm text-foreground">{p.text}</span>
+                    {!showResults ? (
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant={userAnswer === "vrai" ? "default" : "outline"}
+                          className="h-7 px-2 text-xs"
+                          onClick={() => toggleAnswer(currentQuestion.id, p.id, "vrai")}
+                        >
+                          Vrai
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={userAnswer === "faux" ? "destructive" : "outline"}
+                          className="h-7 px-2 text-xs"
+                          onClick={() => toggleAnswer(currentQuestion.id, p.id, "faux")}
+                        >
+                          Faux
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {userAnswer && (
+                          <Badge variant="outline" className="text-xs">
+                            {userAnswer === "vrai" ? "Vrai" : "Faux"}
+                          </Badge>
+                        )}
+                        {!userAnswer && (
+                          <Badge variant="secondary" className="text-xs">—</Badge>
+                        )}
+                        {showResults && (
+                          <Badge variant={p.isCorrect ? "default" : "secondary"} className="text-xs">
+                            {p.isCorrect ? "✓ Vrai" : "✗ Faux"}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
               }
 
               return (
@@ -738,7 +831,7 @@ export default function Kholles() {
                   key={p.id}
                   onClick={() => toggleAnswer(currentQuestion.id, p.id)}
                   className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${borderClass} ${bgClass} ${
-                    !showResults && selected ? "border-primary bg-primary/10" : ""
+                    !showResults && userAnswer === "selected" ? "border-primary bg-primary/10" : ""
                   }`}
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">
@@ -748,10 +841,7 @@ export default function Kholles() {
                   {showResults && (
                     p.isCorrect
                       ? <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      : selected ? <XCircle className="h-5 w-5 text-destructive" /> : null
-                  )}
-                  {!showResults && selected && isQIM && (
-                    <Badge variant="outline" className="text-xs">Vrai</Badge>
+                      : userAnswer === "selected" ? <XCircle className="h-5 w-5 text-destructive" /> : null
                   )}
                 </button>
               );
