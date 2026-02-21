@@ -2,13 +2,21 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { subjects, subjectColorMap } from "@/data/mockData";
+import { subjectColorMap, type SubjectColor } from "@/data/mockData";
 import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine } from "lucide-react";
 import { useAuth, canAccessTC } from "@/hooks/useAuth";
 import { useUserStats, xpForNextLevel, xpForCurrentLevel } from "@/hooks/useUserStats";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import BloomingTree from "@/components/dashboard/BloomingTree";
 import StudyTimer from "@/components/dashboard/StudyTimer";
+import { supabase } from "@/integrations/supabase/client";
+
+interface DBSubject {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+}
 
 const container = {
   hidden: { opacity: 0 },
@@ -44,6 +52,18 @@ const Index = () => {
   const { stats, rank } = useUserStats();
   const [search, setSearch] = useState("");
   const [studyMinutes, setStudyMinutes] = useState(0);
+  const [subjects, setSubjects] = useState<DBSubject[]>([]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const { data } = await supabase
+        .from("subjects")
+        .select("id, name, icon, color")
+        .order("name");
+      if (data) setSubjects(data);
+    };
+    fetchSubjects();
+  }, []);
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
@@ -55,7 +75,7 @@ const Index = () => {
     return true;
   });
 
-  const totalProgress = Math.round(filteredSubjects.reduce((a, s) => a + s.progress, 0) / filteredSubjects.length);
+  const totalProgress = filteredSubjects.length > 0 ? 0 : 0; // Progress tracking not yet implemented
 
   // Bloom level: based on accumulated XP (each 50 XP = ~1% bloom, max at 5000 XP)
   const bloomLevel = Math.min(100, ((stats?.xp ?? 0) / 5000) * 100 + studyMinutes * 0.5);
@@ -178,8 +198,7 @@ const Index = () => {
         animate="show"
       >
         {filteredSubjects.map((s) => {
-          const colors = subjectColorMap[s.color];
-          const progressColor = s.progress >= 70 ? "text-success" : s.progress >= 40 ? "text-warning" : "text-destructive";
+          const colors = subjectColorMap[s.color as SubjectColor] ?? subjectColorMap.chemistry;
           return (
             <motion.div
               key={s.id}
@@ -191,16 +210,8 @@ const Index = () => {
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card/80 text-2xl shadow-sm">
                   {s.icon}
                 </div>
-                <div className="relative flex items-center justify-center">
-                  <ProgressCircle value={s.progress} size={44} />
-                  <span className={`absolute text-[10px] font-bold ${progressColor}`}>{s.progress}%</span>
-                </div>
               </div>
               <h3 className="font-bold text-foreground text-sm leading-tight mb-2">{s.name}</h3>
-              <div className="flex gap-3 text-xs text-muted-foreground mb-3">
-                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {s.courseCount} Cours</span>
-                <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" /> {s.exerciseCount} Flashcards</span>
-              </div>
               <div className="mt-auto">
                 <Button size="sm" className="w-full rounded-lg font-semibold text-xs">
                   Continuer
