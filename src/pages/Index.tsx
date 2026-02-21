@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Trash2 } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useAuth, canAccessTC } from "@/hooks/useAuth";
@@ -86,19 +86,7 @@ const Index = () => {
     toast.success("Matière renommée !");
   };
 
-  const handleDeleteSubject = async (subject: DBSubject) => {
-    if (!confirm(`Supprimer la matière "${subject.name}" et tout son contenu ?`)) return;
-    const { data: folders } = await supabase.from("folders").select("id").eq("subject_id", subject.id);
-    if (folders && folders.length > 0) {
-      const folderIds = folders.map((f) => f.id);
-      await supabase.from("courses").delete().in("folder_id", folderIds);
-      await supabase.from("folders").delete().eq("subject_id", subject.id);
-    }
-    const { error } = await supabase.from("subjects").delete().eq("id", subject.id);
-    if (error) { toast.error("Erreur lors de la suppression"); return; }
-    setSubjects((prev) => prev.filter((s) => s.id !== subject.id));
-    toast.success("Matière supprimée !");
-  };
+
 
   const filteredSubjects = subjects.filter((s) => {
     if (!canAccessTC(role) && s.name.includes(" TC")) return false;
@@ -237,14 +225,10 @@ const Index = () => {
               className={`group relative overflow-hidden rounded-2xl border border-border ${colors.light} p-5 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col`}
               onClick={() => navigate(`/subject/${s.id}`)}
             >
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
+              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
                 <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Renommer"
                   onClick={() => { setRenamingSubject(s.id); setRenameSubjectValue(s.name); }}>
                   <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Supprimer"
-                  onClick={() => handleDeleteSubject(s)}>
-                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
               <div className="flex items-start justify-between mb-3">
