@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -415,7 +415,7 @@ export default function Flashcards() {
                 <Button className="rounded-xl font-semibold"><Plus className="h-4 w-4 mr-2" /> Nouveau Deck</Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Créer un deck</DialogTitle></DialogHeader>
+                <DialogHeader><DialogTitle>Créer un deck</DialogTitle><DialogDescription className="sr-only">Formulaire de création d'un nouveau deck de flashcards</DialogDescription></DialogHeader>
                 <div className="space-y-4 mt-2">
                   <div className="space-y-1.5">
                     <Label>Nom du deck</Label>
@@ -567,7 +567,7 @@ export default function Flashcards() {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-              <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Générer des flashcards par IA</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Générer des flashcards par IA</DialogTitle><DialogDescription className="sr-only">Importer un fichier ou du texte pour générer des flashcards avec l'IA</DialogDescription></DialogHeader>
               <div className="space-y-4 mt-2">
                 <p className="text-sm text-muted-foreground">Importe un fichier PDF ou Word, ou colle le contenu de ton cours. L'IA générera automatiquement des flashcards.</p>
 
