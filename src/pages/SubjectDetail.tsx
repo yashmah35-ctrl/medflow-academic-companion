@@ -62,6 +62,8 @@ export default function SubjectDetail() {
   const [uploading, setUploading] = useState(false);
   const [renamingCourse, setRenamingCourse] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
+  const [renameFolderValue, setRenameFolderValue] = useState("");
 
   const isMedicalStudent = role === "medical_student";
 
@@ -143,6 +145,35 @@ export default function SubjectDetail() {
       setDialogOpen(false);
       toast.success(`Dossier "${data.name}" créé !`);
     }
+  };
+
+  const handleRenameFolder = async (folderId: string) => {
+    if (!renameFolderValue.trim()) return;
+    const { error } = await supabase
+      .from("folders")
+      .update({ name: renameFolderValue.trim() })
+      .eq("id", folderId);
+    if (error) {
+      toast.error("Erreur lors du renommage");
+      return;
+    }
+    setDbFolders((prev) => prev.map((f) => f.id === folderId ? { ...f, name: renameFolderValue.trim() } : f));
+    setRenamingFolder(null);
+    setRenameFolderValue("");
+    toast.success("Dossier renommé !");
+  };
+
+  const handleDeleteFolder = async (folder: DBFolder) => {
+    if (!confirm(`Supprimer le dossier "${folder.name}" et tous ses cours ?`)) return;
+    // Delete courses in this folder first
+    await supabase.from("courses").delete().eq("folder_id", folder.id);
+    const { error } = await supabase.from("folders").delete().eq("id", folder.id);
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setDbFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    toast.success("Dossier supprimé !");
   };
 
   const handleCourseImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -309,14 +340,48 @@ export default function SubjectDetail() {
             <motion.div
               key={folder.id}
               variants={item}
-              className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-all cursor-pointer"
+              className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-all cursor-pointer relative group"
               onClick={() => navigate(`/subject/${subjectId}/folder/${folder.id}`)}
             >
               <div className={`h-1.5 w-12 rounded-full ${colors.bg} mb-4`} />
-              <h3 className="font-semibold text-foreground mb-2">{folder.name}</h3>
+              {renamingFolder === folder.id ? (
+                <div className="flex items-center gap-2 mb-2" onClick={(e) => e.stopPropagation()}>
+                  <Input
+                    value={renameFolderValue}
+                    onChange={(e) => setRenameFolderValue(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleRenameFolder(folder.id)}
+                    className="h-7 text-sm"
+                    autoFocus
+                  />
+                  <Button size="sm" variant="ghost" onClick={() => handleRenameFolder(folder.id)}>OK</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setRenamingFolder(null)}>✕</Button>
+                </div>
+              ) : (
+                <h3 className="font-semibold text-foreground mb-2">{folder.name}</h3>
+              )}
               <div className="flex gap-3 text-xs text-muted-foreground mb-4">
                 <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folder.course_count} Cours</span>
                 <span className="flex items-center gap-1"><Dumbbell className="h-3 w-3" /> {folder.exercise_count} Exercices</span>
+              </div>
+              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={() => { setRenamingFolder(folder.id); setRenameFolderValue(folder.name); }}
+                  title="Renommer"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                  onClick={() => handleDeleteFolder(folder)}
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </motion.div>
           ))}
