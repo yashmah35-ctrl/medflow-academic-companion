@@ -113,6 +113,7 @@ export default function Flashcards() {
   // AI Import
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importText, setImportText] = useState("");
+  const [importFile, setImportFile] = useState<{ base64: string; mimeType: string; name: string } | null>(null);
   const [importCardCount, setImportCardCount] = useState("10");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<{ front: string; back: string; explanation?: string }[]>([]);
@@ -269,19 +270,29 @@ export default function Flashcards() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const text = await file.text();
-    setImportText(text);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = (reader.result as string).split(",")[1];
+      setImportFile({ base64, mimeType: file.type, name: file.name });
+      setImportText("");
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleGenerateFlashcards = async () => {
-    if (!importText.trim() || !selectedDeck || !user) return;
+    if ((!importText.trim() && !importFile) || !selectedDeck || !user) return;
     setIsGenerating(true);
     setGeneratedCards([]);
     try {
       const subj = subjects.find(s => s.id === selectedDeck.subject_id);
-      const { data, error } = await supabase.functions.invoke("generate-flashcards", {
-        body: { content: importText, subject: subj?.name, cardCount: parseInt(importCardCount) || 10 },
-      });
+      const body: any = { subject: subj?.name, cardCount: parseInt(importCardCount) || 10 };
+      if (importFile) {
+        body.fileBase64 = importFile.base64;
+        body.fileMimeType = importFile.mimeType;
+      } else {
+        body.content = importText;
+      }
+      const { data, error } = await supabase.functions.invoke("generate-flashcards", { body });
       if (error) throw error;
       if (data?.error) { toast.error(data.error); setIsGenerating(false); return; }
       const cards = data?.flashcards || [];
@@ -549,7 +560,7 @@ export default function Flashcards() {
           <Button variant="secondary" onClick={() => openCardEditor()} className="rounded-xl font-semibold">
             <Plus className="h-4 w-4 mr-2" /> Ajouter une carte
           </Button>
-          <Dialog open={showImportDialog} onOpenChange={(open) => { setShowImportDialog(open); if (!open) { setImportText(""); setGeneratedCards([]); } }}>
+          <Dialog open={showImportDialog} onOpenChange={(open) => { setShowImportDialog(open); if (!open) { setImportText(""); setImportFile(null); setGeneratedCards([]); } }}>
             <DialogTrigger asChild>
               <Button variant="outline" className="rounded-xl font-semibold">
                 <Upload className="h-4 w-4 mr-2" /> Importer (IA)
@@ -558,12 +569,15 @@ export default function Flashcards() {
             <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader><DialogTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Générer des flashcards par IA</DialogTitle></DialogHeader>
               <div className="space-y-4 mt-2">
-                <p className="text-sm text-muted-foreground">Colle le contenu de ton cours ou importe un fichier texte. L'IA générera automatiquement des flashcards.</p>
+                <p className="text-sm text-muted-foreground">Importe un fichier PDF ou Word, ou colle le contenu de ton cours. L'IA générera automatiquement des flashcards.</p>
 
                 {/* File upload */}
                 <div className="space-y-1.5">
-                  <Label className="flex items-center gap-2"><FileText className="h-4 w-4" /> Importer un fichier (.txt, .md)</Label>
-                  <Input type="file" accept=".txt,.md,.csv" onChange={handleFileUpload} />
+                  <Label className="flex items-center gap-2"><FileText className="h-4 w-4" /> Importer un fichier (PDF, Word)</Label>
+                  <Input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={handleFileUpload} />
+                  {importFile && (
+                    <p className="text-xs text-success flex items-center gap-1">✓ {importFile.name} chargé</p>
+                  )}
                 </div>
 
                 {/* Text area */}
@@ -594,7 +608,7 @@ export default function Flashcards() {
                 {/* Generate button */}
                 <Button
                   onClick={handleGenerateFlashcards}
-                  disabled={importText.trim().length < 20 || isGenerating}
+                  disabled={(!importText.trim() && !importFile) || isGenerating}
                   className="w-full rounded-xl font-semibold"
                 >
                   {isGenerating ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Génération en cours...</> : <><Sparkles className="h-4 w-4 mr-2" /> Générer les flashcards</>}
