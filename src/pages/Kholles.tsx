@@ -8,7 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Plus, BookOpen, Play, Trash2, ArrowLeft, CheckCircle2, XCircle, ChevronRight, Upload, Camera, Loader2 } from "lucide-react";
+import { Plus, BookOpen, Play, Trash2, ArrowLeft, CheckCircle2, XCircle, ChevronRight, Upload, Camera, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -66,6 +66,12 @@ export default function Kholles() {
     { id: "D", text: "", isCorrect: false },
     { id: "E", text: "", isCorrect: false },
   ]);
+
+  // Edit question state
+  const [showEditQuestion, setShowEditQuestion] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [editQuestionText, setEditQuestionText] = useState("");
+  const [editPropositions, setEditPropositions] = useState<Proposition[]>([]);
 
   // Import state
   const [showImport, setShowImport] = useState(false);
@@ -196,6 +202,50 @@ export default function Kholles() {
       .update({ questions_json: updated as any })
       .eq("id", selectedKholle.id);
     setSelectedKholle({ ...selectedKholle, questions_json: updated });
+    fetchKholles();
+  };
+
+  const openEditQuestion = (q: Question) => {
+    setEditingQuestion(q);
+    setEditQuestionText(q.question);
+    const allIds = ["A", "B", "C", "D", "E"];
+    setEditPropositions(
+      allIds.map((id) => {
+        const existing = q.propositions.find((p) => p.id === id);
+        return existing ? { ...existing } : { id, text: "", isCorrect: false };
+      })
+    );
+    setShowEditQuestion(true);
+  };
+
+  const handleEditQuestion = async () => {
+    if (!selectedKholle || !editingQuestion || !editQuestionText.trim()) return;
+    const filledProps = editPropositions.filter((p) => p.text.trim());
+    if (filledProps.length < 2) {
+      toast.error("Ajoute au moins 2 propositions");
+      return;
+    }
+
+    const updatedQuestions = (selectedKholle.questions_json || []).map((q) =>
+      q.id === editingQuestion.id
+        ? { ...q, question: editQuestionText.trim(), propositions: filledProps }
+        : q
+    );
+
+    const { error } = await supabase
+      .from("kholles")
+      .update({ questions_json: updatedQuestions as any })
+      .eq("id", selectedKholle.id);
+
+    if (error) {
+      toast.error("Erreur lors de la modification");
+      return;
+    }
+
+    setSelectedKholle({ ...selectedKholle, questions_json: updatedQuestions });
+    setShowEditQuestion(false);
+    setEditingQuestion(null);
+    toast.success("Question modifiée !");
     fetchKholles();
   };
 
@@ -424,9 +474,14 @@ export default function Kholles() {
                     ))}
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => handleDeleteQuestion(q.id)}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <div className="flex gap-1">
+                  <Button variant="ghost" size="icon" onClick={() => openEditQuestion(q)}>
+                    <Pencil className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => handleDeleteQuestion(q.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -487,6 +542,59 @@ export default function Kholles() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddQuestion(false)}>Annuler</Button>
               <Button onClick={handleAddQuestion}>Ajouter</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit question dialog */}
+        <Dialog open={showEditQuestion} onOpenChange={setShowEditQuestion}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Modifier la question</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Énoncé de la question</Label>
+                <Input
+                  value={editQuestionText}
+                  onChange={(e) => setEditQuestionText(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Propositions (coche les réponses correctes)</Label>
+                <div className="mt-2 space-y-2">
+                  {editPropositions.map((p, idx) => (
+                    <div key={p.id} className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={p.isCorrect}
+                        onChange={() => {
+                          const updated = [...editPropositions];
+                          updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect };
+                          setEditPropositions(updated);
+                        }}
+                        className="h-4 w-4 rounded border-border accent-primary"
+                      />
+                      <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
+                      <Input
+                        value={p.text}
+                        onChange={(e) => {
+                          const updated = [...editPropositions];
+                          updated[idx] = { ...updated[idx], text: e.target.value };
+                          setEditPropositions(updated);
+                        }}
+                        placeholder={`Proposition ${p.id}`}
+                        className="flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEditQuestion(false)}>Annuler</Button>
+              <Button onClick={handleEditQuestion}>Enregistrer</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
