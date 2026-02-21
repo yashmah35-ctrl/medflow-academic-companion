@@ -289,20 +289,18 @@ export default function SubjectDetail() {
       ) : (
         <motion.div className="space-y-3" variants={container} initial="hidden" animate="show">
           {/* Nouveau cours button */}
-          {isMedicalStudent && (
-            <motion.div
-              variants={item}
-              className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-card/50 p-4 hover:bg-card hover:shadow-sm transition-all cursor-pointer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted">
-                <Plus className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <span className="font-medium text-muted-foreground">
-                {uploading ? "Import en cours..." : "Nouveau cours"}
-              </span>
-            </motion.div>
-          )}
+          <motion.div
+            variants={item}
+            className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-card/50 p-4 hover:bg-card hover:shadow-sm transition-all cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-muted">
+              <Plus className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <span className="font-medium text-muted-foreground">
+              {uploading ? "Import en cours..." : "Nouveau cours"}
+            </span>
+          </motion.div>
 
           {dbCourses
             .sort((a, b) => (a.source === "fac" ? -1 : 1))
@@ -314,7 +312,7 @@ export default function SubjectDetail() {
               >
                 <div className="flex items-center gap-4">
                   <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-xs shrink-0">
-                    {course.source === "fac" ? "Cours de la Fac" : "Cours Bonus"}
+                    {course.source === "fac" ? "Cours de la Fac" : "Cours de la Prépa du Peuple"}
                   </Badge>
                   {course.source === "bonus" && (
                     <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
