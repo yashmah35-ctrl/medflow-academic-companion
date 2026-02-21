@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { subjects } from "@/data/mockData";
 import { toast } from "sonner";
 
 // ─── Types ──────────────────────────────────────────
@@ -84,6 +83,7 @@ export default function Flashcards() {
   const { user } = useAuth();
   const [view, setView] = useState<View>("decks");
   const [decks, setDecks] = useState<Deck[]>([]);
+  const [subjects, setSubjects] = useState<{ id: string; name: string; icon: string }[]>([]);
   const [selectedDeck, setSelectedDeck] = useState<Deck | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -153,6 +153,13 @@ export default function Flashcards() {
   }, [user]);
 
   useEffect(() => { fetchDecks(); }, [fetchDecks]);
+
+  // Fetch subjects from DB
+  useEffect(() => {
+    supabase.from("subjects").select("id, name, icon").then(({ data }) => {
+      if (data) setSubjects(data);
+    });
+  }, []);
 
   // ─── Fetch cards for a deck ──────────────────────
   const fetchCards = async (deckId: string) => {
