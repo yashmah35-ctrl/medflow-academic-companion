@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Bell, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,14 +12,21 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { notifications } from "@/data/mockData";
-import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 
-interface TopBarProps {
-  sidebarCollapsed?: boolean;
-}
-
-export function TopBar({ sidebarCollapsed }: TopBarProps) {
+export function TopBar() {
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth");
+  };
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Étudiant";
+  const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-6">
@@ -30,7 +36,6 @@ export function TopBar({ sidebarCollapsed }: TopBarProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Notifications */}
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="ghost" size="icon" className="relative">
@@ -48,12 +53,7 @@ export function TopBar({ sidebarCollapsed }: TopBarProps) {
             </div>
             <div className="max-h-64 overflow-y-auto">
               {notifications.map((n) => (
-                <div
-                  key={n.id}
-                  className={`px-4 py-3 border-b border-border/50 last:border-0 ${
-                    !n.read ? "bg-accent/30" : ""
-                  }`}
-                >
+                <div key={n.id} className={`px-4 py-3 border-b border-border/50 last:border-0 ${!n.read ? "bg-accent/30" : ""}`}>
                   <p className="text-sm text-foreground">{n.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">{n.date}</p>
                 </div>
@@ -62,23 +62,20 @@ export function TopBar({ sidebarCollapsed }: TopBarProps) {
           </PopoverContent>
         </Popover>
 
-        {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-semibold">
-                ET
+                {initials}
               </div>
-              <span className="text-sm font-medium text-foreground hidden sm:inline">
-                Étudiant
-              </span>
+              <span className="text-sm font-medium text-foreground hidden sm:inline">{displayName}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" /> Mon profil
             </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" /> Déconnexion
             </DropdownMenuItem>
           </DropdownMenuContent>
