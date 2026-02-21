@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { scheduleBlocks, days, subjectColorMap, subjects, type SubjectColor, type ScheduleBlock } from "@/data/mockData";
 import { Trash2, AlertCircle, CheckCircle2, Plus, Circle, CircleDot, CircleCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -33,7 +33,13 @@ const blockTypes: ScheduleBlock["type"][] = ["Découverte", "Révision", "Flashc
 export default function Schedule() {
   const [blocks, setBlocks] = useState(scheduleBlocks);
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
-  const [completionMap, setCompletionMap] = useState<Record<string, CompletionStatus>>({});
+  const [completionMap, setCompletionMap] = useState<Record<string, CompletionStatus>>(() => {
+    try {
+      const saved = localStorage.getItem("schedule-completion");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return {};
+  });
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // New block form state
@@ -57,6 +63,7 @@ export default function Schedule() {
     setCompletionMap((prev) => {
       const next = { ...prev };
       delete next[id];
+      localStorage.setItem("schedule-completion", JSON.stringify(next));
       return next;
     });
   };
@@ -66,7 +73,9 @@ export default function Schedule() {
       const current = prev[id] || "not_done";
       const idx = statusCycle.indexOf(current);
       const next = statusCycle[(idx + 1) % statusCycle.length];
-      return { ...prev, [id]: next };
+      const updated = { ...prev, [id]: next };
+      localStorage.setItem("schedule-completion", JSON.stringify(updated));
+      return updated;
     });
   };
 

@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { scheduleBlocks } from "@/data/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
@@ -94,7 +95,19 @@ const Index = () => {
     return true;
   });
 
-  const totalProgress = filteredSubjects.length > 0 ? 0 : 0; // Progress tracking not yet implemented
+  // Compute global schedule progress from localStorage
+  const totalProgress = (() => {
+    try {
+      const saved = localStorage.getItem("schedule-completion");
+      if (!saved) return 0;
+      const completionMap: Record<string, string> = JSON.parse(saved);
+      const total = scheduleBlocks.length;
+      if (total === 0) return 0;
+      const doneCount = Object.values(completionMap).filter((s) => s === "done").length;
+      const partialCount = Object.values(completionMap).filter((s) => s === "partial").length;
+      return Math.round(((doneCount + partialCount * 0.5) / total) * 100);
+    } catch { return 0; }
+  })();
 
   // Bloom level: based on accumulated XP (each 50 XP = ~1% bloom, max at 5000 XP)
   const bloomLevel = Math.min(100, ((stats?.xp ?? 0) / 5000) * 100 + studyMinutes * 0.5);
