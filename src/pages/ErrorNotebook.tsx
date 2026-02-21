@@ -177,9 +177,22 @@ export default function ErrorNotebook() {
     fetchErrors();
   }, [user]);
 
-  // Group errors by subject (normalized names)
+  // Group errors by subject - show ALL subjects (even empty ones)
   const subjectGroups = useMemo(() => {
     const groups: Record<string, SubjectGroup> = {};
+    
+    // Initialize all subjects from DB as empty groups
+    subjectNames.forEach((sn) => {
+      groups[sn] = {
+        name: sn,
+        color: guessSubjectColor(sn),
+        errors: [],
+        criticalCount: 0,
+        masteredCount: 0,
+      };
+    });
+    
+    // Add errors to their matching group
     errors.forEach((err) => {
       const rawName = err.subject_name || "Autre";
       const name = normalizeSubjectName(rawName, subjectNames);
@@ -196,7 +209,12 @@ export default function ErrorNotebook() {
       if (err.occurrence_count >= 4) groups[name].criticalCount++;
       if (err.mastered) groups[name].masteredCount++;
     });
-    return Object.values(groups).sort((a, b) => b.errors.length - a.errors.length);
+    
+    // Sort: subjects with errors first, then alphabetically
+    return Object.values(groups).sort((a, b) => {
+      if (b.errors.length !== a.errors.length) return b.errors.length - a.errors.length;
+      return a.name.localeCompare(b.name);
+    });
   }, [errors, subjectNames]);
 
   // Stats
