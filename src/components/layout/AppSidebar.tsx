@@ -13,22 +13,29 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { NavLink } from "@/components/NavLink";
+import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
+import logo from "@/assets/logo.png";
 
-const navItems = [
-  { title: "Matières", path: "/", icon: BookOpen },
-  { title: "Emploi du temps", path: "/schedule", icon: Calendar },
-  { title: "Apprentissage", path: "/learning", icon: Brain },
-  { title: "Cahier d'erreurs", path: "/errors", icon: BookX },
-  { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap },
-  { title: "Examens Blancs", path: "/exams", icon: FileText },
-  { title: "Annales", path: "/annales", icon: Archive },
-  { title: "Modules", path: "/modules", icon: Puzzle },
+const allNavItems = [
+  { title: "Matières", path: "/", icon: BookOpen, restricted: false },
+  { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false },
+  { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false },
+  { title: "Cahier d'erreurs", path: "/errors", icon: BookX, restricted: false },
+  { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
+  { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
+  { title: "Annales", path: "/annales", icon: Archive, restricted: true },
+  { title: "Modules", path: "/modules", icon: Puzzle, restricted: false },
 ];
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { role } = useAuth();
+
+  const navItems = allNavItems.filter((item) => {
+    if (item.restricted && !canAccessExamsKhollesAnnales(role)) return false;
+    return true;
+  });
 
   return (
     <aside
@@ -39,12 +46,10 @@ export function AppSidebar() {
     >
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
-          M
-        </div>
+        <img src={logo} alt="Logo" className="h-9 w-9 shrink-0 rounded-lg object-contain" />
         {!collapsed && (
-          <span className="text-lg font-bold text-foreground tracking-tight">
-            MedFlow
+          <span className="text-sm font-bold text-foreground tracking-tight leading-tight">
+            La Prépa<br />du Peuple
           </span>
         )}
       </div>

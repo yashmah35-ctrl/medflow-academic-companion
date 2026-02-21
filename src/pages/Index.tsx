@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { subjects, subjectColorMap } from "@/data/mockData";
 import { BookOpen, BarChart3 } from "lucide-react";
+import { useAuth, canAccessTC } from "@/hooks/useAuth";
 
 const container = {
   hidden: { opacity: 0 },
@@ -17,6 +18,13 @@ const item = {
 
 const Index = () => {
   const navigate = useNavigate();
+  const { role } = useAuth();
+
+  // LASS users cannot see TC subjects
+  const filteredSubjects = subjects.filter((s) => {
+    if (!canAccessTC(role) && s.name.includes(" TC")) return false;
+    return true;
+  });
 
   return (
     <div className="space-y-6">
@@ -33,7 +41,7 @@ const Index = () => {
         initial="hidden"
         animate="show"
       >
-        {subjects.map((s) => {
+        {filteredSubjects.map((s) => {
           const colors = subjectColorMap[s.color];
           return (
             <motion.div
@@ -42,32 +50,17 @@ const Index = () => {
               className={`group rounded-xl border border-border ${colors.light} p-5 hover:shadow-lg transition-all duration-300 cursor-pointer flex flex-col`}
               onClick={() => navigate(`/subject/${s.id}`)}
             >
-              {/* Badge + Icon */}
               <div className="flex items-start justify-between mb-3">
-                <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
-                  Matière
-                </Badge>
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5">Matière</Badge>
                 <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-card text-3xl shadow-sm">
                   {s.icon}
                 </div>
               </div>
-
-              {/* Name */}
-              <h3 className="font-bold text-foreground mb-3 text-base leading-tight">
-                {s.name}
-              </h3>
-
-              {/* Stats */}
+              <h3 className="font-bold text-foreground mb-3 text-base leading-tight">{s.name}</h3>
               <div className="flex gap-4 text-xs text-muted-foreground mb-3">
-                <span className="flex items-center gap-1">
-                  <BookOpen className="h-3 w-3" /> {s.courseCount} Cours
-                </span>
-                <span className="flex items-center gap-1">
-                  <BarChart3 className="h-3 w-3" /> {s.exerciseCount} Exercices
-                </span>
+                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {s.courseCount} Cours</span>
+                <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" /> {s.exerciseCount} Exercices</span>
               </div>
-
-              {/* Progress */}
               <div className="space-y-1.5 mb-4">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Progression</span>
@@ -75,12 +68,8 @@ const Index = () => {
                 </div>
                 <Progress value={s.progress} className="h-2" />
               </div>
-
-              {/* Accéder button */}
               <div className="mt-auto flex justify-end">
-                <Button size="sm" className="rounded-lg font-semibold">
-                  Accéder
-                </Button>
+                <Button size="sm" className="rounded-lg font-semibold">Accéder</Button>
               </div>
             </motion.div>
           );
