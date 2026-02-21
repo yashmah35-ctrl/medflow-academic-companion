@@ -83,7 +83,7 @@ function guessSubjectColor(name: string | null): SubjectColor {
   if (n.includes("histologie") || n.includes("embryologie")) return "histology";
   if (n.includes("physiologie")) return "physiology";
   if (n.includes("pharmacologie")) return "pharmacology";
-  if (n.includes("bio mol") || n.includes("génétique")) return "biomolgen";
+  if (n.includes("bio mol") || n.includes("biologie moléculaire") || n.includes("génétique")) return "biomolgen";
   if (n.includes("shs")) return "shs";
   if (n.includes("biostatistique")) return "biostatistique";
   if (n.includes("médicament")) return "medicament";
@@ -93,9 +93,56 @@ function guessSubjectColor(name: string | null): SubjectColor {
   return "chemistry";
 }
 
+// Normalize short/inconsistent subject names to official subject names
+function normalizeSubjectName(name: string, subjectNames: string[]): string {
+  // If it already matches a real subject name exactly, return it
+  if (subjectNames.includes(name)) return name;
+
+  const n = name.toLowerCase();
+
+  // Try to find the best matching subject from the DB
+  // Priority: exact inclusion match, then keyword match
+  for (const sn of subjectNames) {
+    if (sn.toLowerCase() === n) return sn;
+  }
+
+  // Keyword-based matching for legacy short names
+  const keywordMap: { keywords: string[]; excludeKeywords?: string[]; suffix?: string }[] = [
+    { keywords: ["chimie", "biochimie"], suffix: "Chimie / Biochimie OS" },
+    { keywords: ["biologie cellulaire", "bio cell"], suffix: "Biologie Cellulaire OS" },
+    { keywords: ["biophysique"], suffix: "Biophysique OS" },
+    { keywords: ["anatomie"], suffix: "Anatomie OS" },
+    { keywords: ["histologie", "embryologie"], suffix: "Histologie - Embryologie TC" },
+    { keywords: ["physiologie"], suffix: "Physiologie TC" },
+    { keywords: ["biologie moléculaire", "bio mol"], suffix: "Biologie Moléculaire Génétique TC" },
+    { keywords: ["shs"], suffix: "SHS TC" },
+    { keywords: ["biostatistique"], suffix: "Biostatistique OS" },
+    { keywords: ["médicament"], suffix: "Médicament OS" },
+    { keywords: ["santé publique"], suffix: "Santé Publique OS" },
+    { keywords: ["microbiologie"], suffix: "Microbiologie TC" },
+    { keywords: ["spécialité"], suffix: "Spécialité Médecine" },
+  ];
+
+  for (const mapping of keywordMap) {
+    if (mapping.keywords.some((kw) => n.includes(kw))) {
+      // Check if the mapped name exists in actual subjects
+      const match = subjectNames.find((sn) => sn === mapping.suffix);
+      if (match) return match;
+      // Fallback: find any subject containing the keyword
+      const fallback = subjectNames.find((sn) =>
+        mapping.keywords.some((kw) => sn.toLowerCase().includes(kw))
+      );
+      if (fallback) return fallback;
+    }
+  }
+
+  return name;
+}
+
 export default function ErrorNotebook() {
   const { user } = useAuth();
   const [errors, setErrors] = useState<DBError[]>([]);
+  const [subjectNames, setSubjectNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -104,6 +151,15 @@ export default function ErrorNotebook() {
   const [filterType, setFilterType] = useState("all");
   const [personalNote, setPersonalNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+
+  // Fetch subjects list for name normalization
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const { data } = await supabase.from("subjects").select("name").order("name");
+      if (data) setSubjectNames(data.map((s) => s.name));
+    };
+    fetchSubjects();
+  }, []);
 
   // Fetch errors from DB
   useEffect(() => {
@@ -121,11 +177,12 @@ export default function ErrorNotebook() {
     fetchErrors();
   }, [user]);
 
-  // Group errors by subject
+  // Group errors by subject (normalized names)
   const subjectGroups = useMemo(() => {
     const groups: Record<string, SubjectGroup> = {};
     errors.forEach((err) => {
-      const name = err.subject_name || "Autre";
+      const rawName = err.subject_name || "Autre";
+      const name = normalizeSubjectName(rawName, subjectNames);
       if (!groups[name]) {
         groups[name] = {
           name,
@@ -140,7 +197,7 @@ export default function ErrorNotebook() {
       if (err.mastered) groups[name].masteredCount++;
     });
     return Object.values(groups).sort((a, b) => b.errors.length - a.errors.length);
-  }, [errors]);
+  }, [errors, subjectNames]);
 
   // Stats
   const totalErrors = errors.length;
