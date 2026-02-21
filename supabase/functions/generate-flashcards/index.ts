@@ -12,11 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const { content, subject, cardCount } = await req.json();
+    const { content, fileBase64, fileMimeType, subject, cardCount } = await req.json();
 
-    if (!content || content.trim().length < 20) {
+    if (!content && !fileBase64) {
       return new Response(
-        JSON.stringify({ error: "Le contenu est trop court (minimum 20 caractères)." }),
+        JSON.stringify({ error: "Aucun contenu fourni." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -27,6 +27,30 @@ serve(async (req) => {
     }
 
     const count = cardCount || 10;
+    const subjectHint = subject ? ` (matière : ${subject})` : "";
+
+    // Build message content - either text or multimodal with file
+    const userContent: any[] = [];
+
+    if (fileBase64) {
+      // Send file as image_url (works for PDF/images with Gemini)
+      const mimeType = fileMimeType || "application/pdf";
+      userContent.push({
+        type: "image_url",
+        image_url: {
+          url: `data:${mimeType};base64,${fileBase64}`,
+        },
+      });
+      userContent.push({
+        type: "text",
+        text: `À partir de ce document${subjectHint}, génère exactement ${count} flashcards de qualité pour aider à mémoriser les concepts clés. Extrais les informations importantes et crée des questions/réponses précises.`,
+      });
+    } else {
+      userContent.push({
+        type: "text",
+        text: `À partir du contenu suivant${subjectHint}, génère exactement ${count} flashcards de qualité.\n\nContenu :\n${content.substring(0, 8000)}`,
+      });
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -39,16 +63,11 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Tu es un expert en pédagogie médicale. Tu crées des flashcards de haute qualité pour aider les étudiants à mémoriser efficacement. Chaque flashcard doit être claire, concise et tester un concept précis.`,
+            content: "Tu es un expert en pédagogie médicale. Tu crées des flashcards de haute qualité pour aider les étudiants à mémoriser efficacement. Chaque flashcard doit être claire, concise et tester un concept précis. Pour les documents PDF ou Word, extrais d'abord le contenu puis génère les flashcards.",
           },
           {
             role: "user",
-            content: `À partir du contenu suivant${subject ? ` (matière : ${subject})` : ""}, génère exactement ${count} flashcards de qualité.
-
-Contenu :
-${content.substring(0, 8000)}
-
-Génère les flashcards au format JSON.`,
+            content: userContent,
           },
         ],
         tools: [
