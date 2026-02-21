@@ -14,8 +14,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  subjects,
   subjectColorMap,
+  type SubjectColor,
 } from "@/data/mockData";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
@@ -53,7 +53,7 @@ export default function SubjectDetail() {
   const { subjectId, folderId } = useParams();
   const navigate = useNavigate();
   const { user, role } = useAuth();
-  const subject = subjects.find((s) => s.id === subjectId);
+  const [subject, setSubject] = useState<{ id: string; name: string; icon: string; color: string } | null>(null);
   const [dbFolders, setDbFolders] = useState<DBFolder[]>([]);
   const [newFolderName, setNewFolderName] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -63,6 +63,20 @@ export default function SubjectDetail() {
   const [viewingCourse, setViewingCourse] = useState<DBCourse | null>(null);
 
   const isMedicalStudent = role === "medical_student";
+
+  // Fetch subject from DB
+  useEffect(() => {
+    if (!subjectId) return;
+    const fetchSubject = async () => {
+      const { data } = await supabase
+        .from("subjects")
+        .select("id, name, icon, color")
+        .eq("id", subjectId)
+        .single();
+      if (data) setSubject(data);
+    };
+    fetchSubject();
+  }, [subjectId]);
 
   // Fetch folders from DB
   useEffect(() => {
@@ -97,13 +111,13 @@ export default function SubjectDetail() {
   if (!subject) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-        <p>Matière introuvable.</p>
+        <p>Chargement...</p>
         <Button variant="ghost" onClick={() => navigate("/")} className="mt-2">Retour</Button>
       </div>
     );
   }
 
-  const colors = subjectColorMap[subject.color];
+  const colors = subjectColorMap[subject.color as SubjectColor] ?? subjectColorMap.chemistry;
 
   const handleAddFolder = async () => {
     if (!newFolderName.trim()) return;
