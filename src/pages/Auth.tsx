@@ -158,6 +158,23 @@ export default function Auth() {
             <Button type="submit" className="w-full rounded-xl py-3 font-bold text-base shadow-lg shadow-primary/30" disabled={loading}>
               {loading ? "Chargement..." : mode === "login" ? "Se connecter" : "Créer mon compte"}
             </Button>
+
+            {mode === "login" && (
+              <button
+                type="button"
+                className="w-full text-sm text-primary hover:underline mt-2"
+                onClick={async () => {
+                  if (!email) { toast.error("Entre ton email d'abord"); return; }
+                  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                    redirectTo: `${window.location.origin}/reset-password`,
+                  });
+                  if (error) toast.error(error.message);
+                  else toast.success("Email de réinitialisation envoyé ! Vérifie ta boîte mail.");
+                }}
+              >
+                Mot de passe oublié ?
+              </button>
+            )}
           </form>
         </div>
 
