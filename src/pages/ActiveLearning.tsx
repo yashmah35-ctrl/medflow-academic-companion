@@ -11,15 +11,6 @@ import { supabase } from "@/integrations/supabase/client";
 
 type Mode = "select" | "restitution" | "result";
 
-// Courses mock per subject
-const coursesBySubject: Record<string, string[]> = {
-  '1': ['Chimie Organique - Alcools', 'Chimie Générale - Atomistique', 'Biochimie - Enzymes'],
-  '2': ['Membrane & Transport', 'Cycle Cellulaire', 'Organites'],
-  '3': ['Optique', 'Radioactivité', 'Mécanique des fluides'],
-  '4': ['Membre supérieur', 'Membre inférieur', 'Tronc'],
-  '5': ['Réplication ADN', 'Transcription', 'Traduction'],
-};
-
 export default function ActiveLearning() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("select");
@@ -28,12 +19,39 @@ export default function ActiveLearning() {
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
   const [subjects, setSubjects] = useState<{ id: string; name: string; icon: string }[]>([]);
+  const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
 
   useEffect(() => {
     supabase.from("subjects").select("id, name, icon").then(({ data }) => {
       if (data) setSubjects(data);
     });
   }, []);
+
+  // Fetch courses when subject changes
+  useEffect(() => {
+    if (!selectedSubject) {
+      setCourses([]);
+      return;
+    }
+    const fetchCourses = async () => {
+      // Get folders for this subject, then courses for those folders
+      const { data: folders } = await supabase
+        .from("folders")
+        .select("id")
+        .eq("subject_id", selectedSubject);
+      if (folders && folders.length > 0) {
+        const folderIds = folders.map((f) => f.id);
+        const { data: coursesData } = await supabase
+          .from("courses")
+          .select("id, title")
+          .in("folder_id", folderIds);
+        setCourses(coursesData || []);
+      } else {
+        setCourses([]);
+      }
+    };
+    fetchCourses();
+  }, [selectedSubject]);
 
   if (mode === "select") {
     return (
@@ -85,7 +103,6 @@ export default function ActiveLearning() {
   }
 
   if (mode === "restitution") {
-    const availableCourses = selectedSubject ? (coursesBySubject[selectedSubject] || []) : [];
 
     return (
       <div className="max-w-2xl mx-auto space-y-6">
@@ -117,8 +134,8 @@ export default function ActiveLearning() {
                   <SelectValue placeholder="Choisis un cours" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableCourses.map((c, i) => (
-                    <SelectItem key={i} value={c}>{c}</SelectItem>
+                  {courses.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
