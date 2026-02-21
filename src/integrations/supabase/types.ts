@@ -17,9 +17,13 @@ export type Database = {
       annales: {
         Row: {
           analysis_json: Json | null
+          city: string | null
           created_at: string
+          format: string
           id: string
+          name: string | null
           pages_json: Json | null
+          questions_json: Json | null
           session: string | null
           subject_id: string | null
           user_id: string
@@ -27,9 +31,13 @@ export type Database = {
         }
         Insert: {
           analysis_json?: Json | null
+          city?: string | null
           created_at?: string
+          format?: string
           id?: string
+          name?: string | null
           pages_json?: Json | null
+          questions_json?: Json | null
           session?: string | null
           subject_id?: string | null
           user_id: string
@@ -37,9 +45,13 @@ export type Database = {
         }
         Update: {
           analysis_json?: Json | null
+          city?: string | null
           created_at?: string
+          format?: string
           id?: string
+          name?: string | null
           pages_json?: Json | null
+          questions_json?: Json | null
           session?: string | null
           subject_id?: string | null
           user_id?: string
@@ -110,6 +122,7 @@ export type Database = {
           occurrence_count: number
           personal_notes: string | null
           question: string
+          source: string
           subject_name: string | null
           user_id: string
           wrong_answer: string
@@ -127,6 +140,7 @@ export type Database = {
           occurrence_count?: number
           personal_notes?: string | null
           question: string
+          source?: string
           subject_name?: string | null
           user_id: string
           wrong_answer: string
@@ -144,6 +158,7 @@ export type Database = {
           occurrence_count?: number
           personal_notes?: string | null
           question?: string
+          source?: string
           subject_name?: string | null
           user_id?: string
           wrong_answer?: string
@@ -162,6 +177,7 @@ export type Database = {
         Row: {
           created_at: string
           date: string | null
+          format: string
           id: string
           name: string
           questions_json: Json | null
@@ -172,6 +188,7 @@ export type Database = {
         Insert: {
           created_at?: string
           date?: string | null
+          format?: string
           id?: string
           name: string
           questions_json?: Json | null
@@ -182,6 +199,7 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string | null
+          format?: string
           id?: string
           name?: string
           questions_json?: Json | null

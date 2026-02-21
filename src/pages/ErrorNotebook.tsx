@@ -32,6 +32,7 @@ interface DBError {
   mastered: boolean;
   next_review: string | null;
   correction_count: number;
+  source: string;
 }
 
 interface SubjectGroup {
@@ -40,6 +41,11 @@ interface SubjectGroup {
   errors: DBError[];
   criticalCount: number;
   masteredCount: number;
+  bySource: {
+    kholle: DBError[];
+    exam: DBError[];
+    annale: DBError[];
+  };
 }
 
 const errorReasons = [
@@ -149,6 +155,7 @@ export default function ErrorNotebook() {
   const [selectedError, setSelectedError] = useState<DBError | null>(null);
   const [tab, setTab] = useState("active");
   const [filterType, setFilterType] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "kholle" | "exam" | "annale">("all");
   const [personalNote, setPersonalNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
@@ -189,6 +196,7 @@ export default function ErrorNotebook() {
         errors: [],
         criticalCount: 0,
         masteredCount: 0,
+        bySource: { kholle: [], exam: [], annale: [] },
       };
     });
     
@@ -203,11 +211,18 @@ export default function ErrorNotebook() {
           errors: [],
           criticalCount: 0,
           masteredCount: 0,
+          bySource: { kholle: [], exam: [], annale: [] },
         };
       }
       groups[name].errors.push(err);
       if (err.occurrence_count >= 4) groups[name].criticalCount++;
       if (err.mastered) groups[name].masteredCount++;
+      
+      // Group by source
+      const source = err.source || "kholle";
+      if (source === "exam") groups[name].bySource.exam.push(err);
+      else if (source === "annale") groups[name].bySource.annale.push(err);
+      else groups[name].bySource.kholle.push(err);
     });
     
     // Sort: subjects with errors first, then alphabetically
@@ -238,7 +253,12 @@ export default function ErrorNotebook() {
     if (!selectedSubject) return [];
     const group = subjectGroups.find((g) => g.name === selectedSubject);
     if (!group) return [];
-    let list = group.errors;
+    
+    // Source filter first
+    let list = sourceFilter === "all" ? group.errors 
+      : sourceFilter === "kholle" ? group.bySource.kholle
+      : sourceFilter === "exam" ? group.bySource.exam
+      : group.bySource.annale;
 
     // Tab filter
     if (tab === "active") list = list.filter((e) => !e.mastered);
@@ -256,7 +276,7 @@ export default function ErrorNotebook() {
     if (search) list = list.filter((e) => e.question.toLowerCase().includes(search.toLowerCase()));
 
     return list;
-  }, [selectedSubject, subjectGroups, tab, filterType, search]);
+  }, [selectedSubject, subjectGroups, tab, filterType, search, sourceFilter]);
 
   // Schedule review
   const scheduleReview = async (errId: string, days: number) => {
@@ -476,7 +496,7 @@ export default function ErrorNotebook() {
 
     return (
       <div className="space-y-5">
-        <Button variant="ghost" size="sm" onClick={() => { setSelectedSubject(null); setTab("active"); setFilterType("all"); setSearch(""); }} className="gap-1.5">
+        <Button variant="ghost" size="sm" onClick={() => { setSelectedSubject(null); setTab("active"); setFilterType("all"); setSearch(""); setSourceFilter("all"); }} className="gap-1.5">
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
 
@@ -496,6 +516,28 @@ export default function ErrorNotebook() {
               <span className="absolute text-xs font-bold text-foreground">{subjectRate}%</span>
             </div>
           </div>
+        </div>
+
+        {/* Source filter */}
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: "all" as const, label: "Toutes", count: group?.errors.length || 0 },
+            { value: "kholle" as const, label: "Khôlles / Tutorat", count: group?.bySource.kholle.length || 0 },
+            { value: "exam" as const, label: "Examens Blancs", count: group?.bySource.exam.length || 0 },
+            { value: "annale" as const, label: "Annales", count: group?.bySource.annale.length || 0 },
+          ].map((s) => (
+            <button
+              key={s.value}
+              onClick={() => setSourceFilter(s.value)}
+              className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-all ${
+                sourceFilter === s.value
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+              }`}
+            >
+              {s.label} ({s.count})
+            </button>
+          ))}
         </div>
 
         {/* Tabs */}
@@ -680,6 +722,17 @@ export default function ErrorNotebook() {
                   <p>→ {group.errors.length} erreur{group.errors.length > 1 ? "s" : ""}</p>
                   <p>→ {group.criticalCount} critique{group.criticalCount > 1 ? "s" : ""}</p>
                   <p>→ {rate}% corrigées</p>
+                </div>
+                <div className="flex gap-1.5 flex-wrap">
+                  {group.bySource.kholle.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Khôlles: {group.bySource.kholle.length}</Badge>
+                  )}
+                  {group.bySource.exam.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">EB: {group.bySource.exam.length}</Badge>
+                  )}
+                  {group.bySource.annale.length > 0 && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Annales: {group.bySource.annale.length}</Badge>
+                  )}
                 </div>
                 <Progress value={rate} className="h-1.5" />
               </motion.div>
