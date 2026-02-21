@@ -539,20 +539,55 @@ export default function Kholles() {
                 />
               </div>
               <div>
-                <Label>Propositions (coche les réponses correctes)</Label>
+                <Label>
+                  {selectedKholle?.format === "QIM"
+                    ? "Propositions (indique Vrai ou Faux pour chaque)"
+                    : "Propositions (coche les réponses correctes)"}
+                </Label>
                 <div className="mt-2 space-y-2">
                   {propositions.map((p, idx) => (
                     <div key={p.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={p.isCorrect}
-                        onChange={() => {
-                          const updated = [...propositions];
-                          updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect };
-                          setPropositions(updated);
-                        }}
-                        className="h-4 w-4 rounded border-border accent-primary"
-                      />
+                      {selectedKholle?.format === "QIM" ? (
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={p.isCorrect ? "default" : "outline"}
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              const updated = [...propositions];
+                              updated[idx] = { ...updated[idx], isCorrect: true };
+                              setPropositions(updated);
+                            }}
+                          >
+                            V
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={!p.isCorrect ? "destructive" : "outline"}
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              const updated = [...propositions];
+                              updated[idx] = { ...updated[idx], isCorrect: false };
+                              setPropositions(updated);
+                            }}
+                          >
+                            F
+                          </Button>
+                        </div>
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={p.isCorrect}
+                          onChange={() => {
+                            const updated = [...propositions];
+                            updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect };
+                            setPropositions(updated);
+                          }}
+                          className="h-4 w-4 rounded border-border accent-primary"
+                        />
+                      )}
                       <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
                       <Input
                         value={p.text}
@@ -592,20 +627,55 @@ export default function Kholles() {
                 />
               </div>
               <div>
-                <Label>Propositions (coche les réponses correctes)</Label>
+                <Label>
+                  {selectedKholle?.format === "QIM"
+                    ? "Propositions (indique Vrai ou Faux pour chaque)"
+                    : "Propositions (coche les réponses correctes)"}
+                </Label>
                 <div className="mt-2 space-y-2">
                   {editPropositions.map((p, idx) => (
                     <div key={p.id} className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={p.isCorrect}
-                        onChange={() => {
-                          const updated = [...editPropositions];
-                          updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect };
-                          setEditPropositions(updated);
-                        }}
-                        className="h-4 w-4 rounded border-border accent-primary"
-                      />
+                      {selectedKholle?.format === "QIM" ? (
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={p.isCorrect ? "default" : "outline"}
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              const updated = [...editPropositions];
+                              updated[idx] = { ...updated[idx], isCorrect: true };
+                              setEditPropositions(updated);
+                            }}
+                          >
+                            V
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant={!p.isCorrect ? "destructive" : "outline"}
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              const updated = [...editPropositions];
+                              updated[idx] = { ...updated[idx], isCorrect: false };
+                              setEditPropositions(updated);
+                            }}
+                          >
+                            F
+                          </Button>
+                        </div>
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={p.isCorrect}
+                          onChange={() => {
+                            const updated = [...editPropositions];
+                            updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect };
+                            setEditPropositions(updated);
+                          }}
+                          className="h-4 w-4 rounded border-border accent-primary"
+                        />
+                      )}
                       <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
                       <Input
                         value={p.text}
