@@ -3,10 +3,12 @@ import { motion } from "framer-motion";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjects, subjectColorMap } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Clock, Sparkles } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine } from "lucide-react";
 import { useAuth, canAccessTC } from "@/hooks/useAuth";
 import { useUserStats, xpForNextLevel, xpForCurrentLevel } from "@/hooks/useUserStats";
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import BloomingTree from "@/components/dashboard/BloomingTree";
+import StudyTimer from "@/components/dashboard/StudyTimer";
 
 const container = {
   hidden: { opacity: 0 },
@@ -41,8 +43,11 @@ const Index = () => {
   const { role, user } = useAuth();
   const { stats, rank } = useUserStats();
   const [search, setSearch] = useState("");
+  const [studyMinutes, setStudyMinutes] = useState(0);
 
-  const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Étudiant";
+  const handleMinutesUpdate = useCallback((mins: number) => {
+    setStudyMinutes(mins);
+  }, []);
 
   const filteredSubjects = subjects.filter((s) => {
     if (!canAccessTC(role) && s.name.includes(" TC")) return false;
@@ -51,8 +56,9 @@ const Index = () => {
   });
 
   const totalProgress = Math.round(filteredSubjects.reduce((a, s) => a + s.progress, 0) / filteredSubjects.length);
-  const totalExercises = filteredSubjects.reduce((a, s) => a + s.exerciseCount, 0);
-  const doneExercises = Math.round(totalExercises * totalProgress / 100);
+
+  // Bloom level: based on accumulated XP (each 50 XP = ~1% bloom, max at 5000 XP)
+  const bloomLevel = Math.min(100, ((stats?.xp ?? 0) / 5000) * 100 + studyMinutes * 0.5);
 
   return (
     <div className="space-y-6">
@@ -62,7 +68,7 @@ const Index = () => {
         animate={{ opacity: 1, y: 0 }}
         className="grid grid-cols-1 md:grid-cols-2 gap-4"
       >
-        {/* Objectif du jour */}
+        {/* Objectif du jour → Emploi du temps */}
         <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-5">
           <div className="absolute top-0 right-0 w-40 h-40 bg-primary/5 rounded-full -translate-y-10 translate-x-10 blur-2xl" />
           <div className="flex items-center gap-4">
@@ -71,15 +77,17 @@ const Index = () => {
                 <Target className="h-5 w-5 text-primary" />
                 <span className="text-sm font-semibold text-muted-foreground">Objectif du jour</span>
               </div>
-              <p className="text-3xl font-bold text-foreground">
-                {totalExercises - doneExercises} <span className="text-lg font-medium text-muted-foreground">QCM restants</span>
+              <p className="text-xl font-bold text-foreground">
+                Emploi du temps
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Progression globale : {totalProgress}%
               </p>
               <div className="mt-3">
                 <Progress value={totalProgress} className="h-2.5" />
-                <p className="text-xs text-muted-foreground mt-1">{doneExercises}/{totalExercises} QCM</p>
               </div>
-              <Button size="sm" className="mt-3 rounded-lg font-semibold" onClick={() => navigate("/learning")}>
-                Continuer
+              <Button size="sm" className="mt-3 rounded-lg font-semibold" onClick={() => navigate("/schedule")}>
+                Voir mon planning
               </Button>
             </div>
             <div className="relative flex items-center justify-center">
@@ -118,11 +126,31 @@ const Index = () => {
           </div>
           <p className="mt-3 text-xs text-muted-foreground italic">
             {stats && stats.xp > 0
-              ? `"${stats.xp} XP accumulés · ${xpForNextLevel(stats.level) - stats.xp} XP avant le niveau ${stats.level + 1} 🚀"`
-              : `"Tu maîtrises ${totalProgress}% du programme. Continue comme ça 💪"`}
+              ? `${stats.xp} XP · ${xpForNextLevel(stats.level) - stats.xp} XP avant le niveau ${stats.level + 1} 🚀`
+              : `Commence à étudier pour gagner des XP 💪`}
           </p>
         </div>
       </motion.div>
+
+      {/* Timer + Blooming Tree */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <StudyTimer onMinutesUpdate={handleMinutesUpdate} />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 }}
+          className="rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-4 flex flex-col items-center justify-center"
+        >
+          <div className="flex items-center gap-2 mb-2 self-start">
+            <TreePine className="h-5 w-5 text-success" />
+            <span className="text-sm font-semibold text-muted-foreground">Ton arbre de savoir</span>
+          </div>
+          <BloomingTree bloomLevel={bloomLevel} size={140} />
+          <p className="text-xs text-muted-foreground mt-2">
+            {bloomLevel < 20 ? "🌱 Ton arbre germe…" : bloomLevel < 50 ? "🌿 Il pousse bien !" : bloomLevel < 80 ? "🌳 Belles branches !" : "🌸 En pleine floraison !"}
+          </p>
+        </motion.div>
+      </div>
 
       {/* Subjects Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -171,7 +199,7 @@ const Index = () => {
               <h3 className="font-bold text-foreground text-sm leading-tight mb-2">{s.name}</h3>
               <div className="flex gap-3 text-xs text-muted-foreground mb-3">
                 <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {s.courseCount} Cours</span>
-                <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" /> {s.exerciseCount} QCM</span>
+                <span className="flex items-center gap-1"><BarChart3 className="h-3 w-3" /> {s.exerciseCount} Flashcards</span>
               </div>
               <div className="mt-auto">
                 <Button size="sm" className="w-full rounded-lg font-semibold text-xs">
@@ -192,14 +220,14 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             className="rounded-2xl border border-border bg-gradient-to-r from-primary/10 to-primary/5 p-5 flex items-center gap-4 cursor-pointer hover:shadow-lg transition-all"
-            onClick={() => navigate("/learning")}
+            onClick={() => navigate("/flashcards")}
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/20">
-              <Clock className="h-6 w-6 text-primary" />
+              <BarChart3 className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="font-bold text-foreground text-sm">100 QCM d'Anatomie à réviser</p>
-              <p className="text-xs text-muted-foreground">Chapitre 7 : Système digestif</p>
+              <p className="font-bold text-foreground text-sm">Révise tes Flashcards</p>
+              <p className="text-xs text-muted-foreground">Renforce ta mémoire active</p>
             </div>
             <Button size="sm" className="rounded-lg font-semibold">Commencer</Button>
           </motion.div>
