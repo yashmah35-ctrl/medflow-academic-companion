@@ -1,4 +1,8 @@
-export type SubjectColor = 'chemistry' | 'cellbio' | 'biophysics' | 'anatomy' | 'histology' | 'physiology' | 'pharmacology' | 'embryology';
+export type SubjectColor = 
+  | 'chemistry' | 'cellbio' | 'biophysics' | 'anatomy' | 'histology' 
+  | 'physiology' | 'pharmacology' | 'embryology' | 'biomolgen' 
+  | 'shs' | 'biostatistique' | 'medicament' | 'santepublique' 
+  | 'microbiologie' | 'specialite';
 
 export interface Subject {
   id: string;
@@ -8,7 +12,6 @@ export interface Subject {
   courseCount: number;
   exerciseCount: number;
   progress: number;
-  professors: string[];
 }
 
 export interface Folder {
@@ -36,7 +39,7 @@ export interface ScheduleBlock {
   title: string;
   duration: string;
   type: 'Découverte' | 'Révision' | 'Flashcards' | 'Erreurs à revoir';
-  day: number; // 0=Monday ... 6=Sunday
+  day: number;
   hour: number;
 }
 
@@ -53,93 +56,37 @@ export interface ErrorEntry {
 }
 
 export const subjects: Subject[] = [
-  {
-    id: '1',
-    name: 'Chimie / Biochimie',
-    icon: '🧪',
-    color: 'chemistry',
-    courseCount: 21,
-    exerciseCount: 603,
-    progress: 45,
-    professors: ['Dr. Martin', 'Dr. Dupont'],
-  },
-  {
-    id: '2',
-    name: 'Biologie Cellulaire',
-    icon: '🔬',
-    color: 'cellbio',
-    courseCount: 14,
-    exerciseCount: 380,
-    progress: 62,
-    professors: ['Pr. Lefèvre'],
-  },
-  {
-    id: '3',
-    name: 'Biophysique',
-    icon: '⚛️',
-    color: 'biophysics',
-    courseCount: 12,
-    exerciseCount: 290,
-    progress: 30,
-    professors: ['Dr. Bernard'],
-  },
-  {
-    id: '4',
-    name: 'Anatomie',
-    icon: '🦴',
-    color: 'anatomy',
-    courseCount: 18,
-    exerciseCount: 450,
-    progress: 55,
-    professors: ['Pr. Moreau', 'Dr. Petit'],
-  },
-  {
-    id: '5',
-    name: 'Histologie',
-    icon: '🔎',
-    color: 'histology',
-    courseCount: 10,
-    exerciseCount: 220,
-    progress: 78,
-    professors: ['Dr. Roux'],
-  },
-  {
-    id: '6',
-    name: 'Physiologie',
-    icon: '❤️',
-    color: 'physiology',
-    courseCount: 15,
-    exerciseCount: 340,
-    progress: 20,
-    professors: ['Pr. Simon'],
-  },
-  {
-    id: '7',
-    name: 'Pharmacologie',
-    icon: '💊',
-    color: 'pharmacology',
-    courseCount: 8,
-    exerciseCount: 180,
-    progress: 10,
-    professors: ['Dr. Blanc'],
-  },
-  {
-    id: '8',
-    name: 'Embryologie',
-    icon: '🧬',
-    color: 'embryology',
-    courseCount: 9,
-    exerciseCount: 150,
-    progress: 40,
-    professors: ['Pr. Laurent'],
-  },
+  { id: '1', name: 'Chimie / Biochimie OS', icon: '🧪', color: 'chemistry', courseCount: 21, exerciseCount: 603, progress: 95 },
+  { id: '2', name: 'Biologie Cellulaire OS', icon: '🔬', color: 'cellbio', courseCount: 37, exerciseCount: 367, progress: 49 },
+  { id: '3', name: 'Biophysique OS', icon: '⚛️', color: 'biophysics', courseCount: 17, exerciseCount: 388, progress: 59 },
+  { id: '4', name: 'Anatomie OS', icon: '🦴', color: 'anatomy', courseCount: 18, exerciseCount: 677, progress: 100 },
+  { id: '5', name: 'Biologie Moléculaire Génétique TC', icon: '🧬', color: 'biomolgen', courseCount: 17, exerciseCount: 371, progress: 35 },
+  { id: '6', name: 'Histologie - Embryologie TC', icon: '🔎', color: 'histology', courseCount: 11, exerciseCount: 596, progress: 64 },
+  { id: '7', name: 'Physiologie TC', icon: '❤️', color: 'physiology', courseCount: 9, exerciseCount: 564, progress: 67 },
+  { id: '8', name: 'Anatomie TC', icon: '✋', color: 'anatomy', courseCount: 12, exerciseCount: 494, progress: 67 },
+  { id: '9', name: 'SHS TC', icon: '📚', color: 'shs', courseCount: 12, exerciseCount: 377, progress: 92 },
+  { id: '10', name: 'Biostatistique OS', icon: '📊', color: 'biostatistique', courseCount: 15, exerciseCount: 198, progress: 0 },
+  { id: '11', name: 'Histologie - Embryologie OS', icon: '🔎', color: 'histology', courseCount: 16, exerciseCount: 594, progress: 6 },
+  { id: '12', name: 'Médicament OS', icon: '💊', color: 'medicament', courseCount: 16, exerciseCount: 396, progress: 0 },
+  { id: '13', name: 'SHS OS', icon: '♿', color: 'shs', courseCount: 4, exerciseCount: 119, progress: 25 },
+  { id: '14', name: 'Santé Publique OS', icon: '📈', color: 'santepublique', courseCount: 12, exerciseCount: 454, progress: 50 },
+  { id: '15', name: 'Biophysique TC', icon: '⚛️', color: 'biophysics', courseCount: 19, exerciseCount: 266, progress: 21 },
+  { id: '16', name: 'Biostatistique TC', icon: '📊', color: 'biostatistique', courseCount: 17, exerciseCount: 190, progress: 6 },
+  { id: '17', name: 'Santé Publique TC', icon: '📈', color: 'santepublique', courseCount: 12, exerciseCount: 344, progress: 0 },
+  { id: '18', name: 'Médicament TC', icon: '💊', color: 'medicament', courseCount: 16, exerciseCount: 496, progress: 0 },
+  { id: '19', name: 'Microbiologie TC', icon: '🦠', color: 'microbiologie', courseCount: 17, exerciseCount: 476, progress: 0 },
+  { id: '20', name: 'Physiologie OS', icon: '❤️', color: 'physiology', courseCount: 13, exerciseCount: 414, progress: 8 },
+  { id: '21', name: 'Spécialité Médecine', icon: '🩺', color: 'specialite', courseCount: 60, exerciseCount: 622, progress: 10 },
+  { id: '22', name: 'Spécialité Dentaire', icon: '🦷', color: 'specialite', courseCount: 85, exerciseCount: 652, progress: 2 },
+  { id: '23', name: 'Spécialité Pharmacie', icon: '💉', color: 'specialite', courseCount: 55, exerciseCount: 322, progress: 13 },
+  { id: '24', name: 'Spécialité Maïeutique', icon: '👶', color: 'specialite', courseCount: 47, exerciseCount: 554, progress: 2 },
 ];
 
 export const foldersBySubject: Record<string, Folder[]> = {
   '1': [
-    { id: 'f1', subjectId: '1', name: 'Chimie Organique', courseCount: 4, exerciseCount: 155, progress: 60 },
-    { id: 'f2', subjectId: '1', name: 'Chimie Générale', courseCount: 5, exerciseCount: 169, progress: 40 },
-    { id: 'f3', subjectId: '1', name: 'Biochimie', courseCount: 10, exerciseCount: 280, progress: 35 },
+    { id: 'f1', subjectId: '1', name: 'Chimie Organique', courseCount: 4, exerciseCount: 155, progress: 100 },
+    { id: 'f2', subjectId: '1', name: 'Chimie Générale', courseCount: 5, exerciseCount: 169, progress: 100 },
+    { id: 'f3', subjectId: '1', name: 'Biochimie', courseCount: 10, exerciseCount: 280, progress: 100 },
   ],
   '2': [
     { id: 'f4', subjectId: '2', name: 'Membrane & Transport', courseCount: 4, exerciseCount: 95, progress: 70 },
@@ -174,9 +121,10 @@ export const scheduleBlocks: ScheduleBlock[] = [
   { id: 's5', subjectColor: 'physiology', title: 'Physiologie cardiaque', duration: '1h30', type: 'Découverte', day: 2, hour: 10 },
   { id: 's6', subjectColor: 'histology', title: 'Histo - Tissu épithélial', duration: '1h', type: 'Révision', day: 2, hour: 16 },
   { id: 's7', subjectColor: 'chemistry', title: 'Biochimie - Enzymes', duration: '2h', type: 'Découverte', day: 3, hour: 8 },
-  { id: 's8', subjectColor: 'pharmacology', title: 'Pharmaco - Introduction', duration: '1h', type: 'Découverte', day: 3, hour: 14 },
-  { id: 's9', subjectColor: 'embryology', title: 'Embryo - Gastrulation', duration: '1h30', type: 'Révision', day: 4, hour: 9 },
+  { id: 's8', subjectColor: 'medicament', title: 'Médicament - Introduction', duration: '1h', type: 'Découverte', day: 3, hour: 14 },
+  { id: 's9', subjectColor: 'biomolgen', title: 'Bio Mol - Réplication ADN', duration: '1h30', type: 'Révision', day: 4, hour: 9 },
   { id: 's10', subjectColor: 'anatomy', title: 'Anatomie - Erreurs', duration: '45min', type: 'Erreurs à revoir', day: 4, hour: 16 },
+  { id: 's11', subjectColor: 'santepublique', title: 'Santé Publique - Épidémio', duration: '1h', type: 'Découverte', day: 5, hour: 20 },
 ];
 
 export const errors: ErrorEntry[] = [
@@ -184,7 +132,7 @@ export const errors: ErrorEntry[] = [
   { id: 'e2', subjectId: '4', subjectName: 'Anatomie', subjectColor: 'anatomy', question: 'Quel muscle est innervé par le nerf médian ?', wrongAnswer: 'Biceps brachial', correctAnswer: 'Fléchisseur radial du carpe', date: '18 Jan 2025', occurrenceCount: 2 },
   { id: 'e3', subjectId: '2', subjectName: 'Bio Cellulaire', subjectColor: 'cellbio', question: 'Quelle protéine assure le transport actif du Na+ ?', wrongAnswer: 'Aquaporine', correctAnswer: 'Na+/K+ ATPase', date: '20 Jan 2025', occurrenceCount: 5 },
   { id: 'e4', subjectId: '3', subjectName: 'Biophysique', subjectColor: 'biophysics', question: 'Formule de la loi de Beer-Lambert ?', wrongAnswer: 'A = ε × l × c²', correctAnswer: 'A = ε × l × c', date: '22 Jan 2025', occurrenceCount: 1 },
-  { id: 'e5', subjectId: '6', subjectName: 'Physiologie', subjectColor: 'physiology', question: 'Quel est le potentiel de repos d\'un neurone ?', wrongAnswer: '-50 mV', correctAnswer: '-70 mV', date: '25 Jan 2025', occurrenceCount: 3 },
+  { id: 'e5', subjectId: '7', subjectName: 'Physiologie', subjectColor: 'physiology', question: 'Quel est le potentiel de repos d\'un neurone ?', wrongAnswer: '-50 mV', correctAnswer: '-70 mV', date: '25 Jan 2025', occurrenceCount: 3 },
 ];
 
 export const notifications = [
@@ -205,4 +153,11 @@ export const subjectColorMap: Record<SubjectColor, { bg: string; text: string; l
   physiology: { bg: 'bg-subject-physiology', text: 'text-subject-physiology', light: 'bg-subject-physiology-light' },
   pharmacology: { bg: 'bg-subject-pharmacology', text: 'text-subject-pharmacology', light: 'bg-subject-pharmacology-light' },
   embryology: { bg: 'bg-subject-embryology', text: 'text-subject-embryology', light: 'bg-subject-embryology-light' },
+  biomolgen: { bg: 'bg-subject-biomolgen', text: 'text-subject-biomolgen', light: 'bg-subject-biomolgen-light' },
+  shs: { bg: 'bg-subject-shs', text: 'text-subject-shs', light: 'bg-subject-shs-light' },
+  biostatistique: { bg: 'bg-subject-biostatistique', text: 'text-subject-biostatistique', light: 'bg-subject-biostatistique-light' },
+  medicament: { bg: 'bg-subject-medicament', text: 'text-subject-medicament', light: 'bg-subject-medicament-light' },
+  santepublique: { bg: 'bg-subject-santepublique', text: 'text-subject-santepublique', light: 'bg-subject-santepublique-light' },
+  microbiologie: { bg: 'bg-subject-microbiologie', text: 'text-subject-microbiologie', light: 'bg-subject-microbiologie-light' },
+  specialite: { bg: 'bg-subject-specialite', text: 'text-subject-specialite', light: 'bg-subject-specialite-light' },
 };
