@@ -59,6 +59,7 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string
+          file_url: string | null
           folder_id: string
           id: string
           reading_time: string | null
@@ -68,6 +69,7 @@ export type Database = {
         Insert: {
           content?: string | null
           created_at?: string
+          file_url?: string | null
           folder_id: string
           id?: string
           reading_time?: string | null
@@ -77,6 +79,7 @@ export type Database = {
         Update: {
           content?: string | null
           created_at?: string
+          file_url?: string | null
           folder_id?: string
           id?: string
           reading_time?: string | null
@@ -551,6 +554,39 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      user_stats: {
+        Row: {
+          created_at: string
+          id: string
+          last_active_date: string | null
+          level: number
+          streak_days: number
+          updated_at: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_active_date?: string | null
+          level?: number
+          streak_days?: number
+          updated_at?: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_active_date?: string | null
+          level?: number
+          streak_days?: number
+          updated_at?: string
+          user_id?: string
+          xp?: number
         }
         Relationships: []
       }
