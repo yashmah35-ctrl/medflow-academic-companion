@@ -99,11 +99,16 @@ export type Database = {
       errors: {
         Row: {
           correct_answer: string
+          correction_count: number | null
           course_id: string | null
           created_at: string
+          error_type: string | null
           id: string
           last_seen: string
+          mastered: boolean | null
+          next_review: string | null
           occurrence_count: number
+          personal_notes: string | null
           question: string
           subject_name: string | null
           user_id: string
@@ -111,11 +116,16 @@ export type Database = {
         }
         Insert: {
           correct_answer: string
+          correction_count?: number | null
           course_id?: string | null
           created_at?: string
+          error_type?: string | null
           id?: string
           last_seen?: string
+          mastered?: boolean | null
+          next_review?: string | null
           occurrence_count?: number
+          personal_notes?: string | null
           question: string
           subject_name?: string | null
           user_id: string
@@ -123,11 +133,16 @@ export type Database = {
         }
         Update: {
           correct_answer?: string
+          correction_count?: number | null
           course_id?: string | null
           created_at?: string
+          error_type?: string | null
           id?: string
           last_seen?: string
+          mastered?: boolean | null
+          next_review?: string | null
           occurrence_count?: number
+          personal_notes?: string | null
           question?: string
           subject_name?: string | null
           user_id?: string
