@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus } from "lucide-react";
+import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -60,7 +60,8 @@ export default function SubjectDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dbCourses, setDbCourses] = useState<DBCourse[]>([]);
   const [uploading, setUploading] = useState(false);
-  
+  const [renamingCourse, setRenamingCourse] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const isMedicalStudent = role === "medical_student";
 
@@ -200,6 +201,37 @@ export default function SubjectDetail() {
     e.target.value = "";
   };
 
+  const handleRenameCourse = async (courseId: string) => {
+    if (!renameValue.trim()) return;
+    const { error } = await supabase
+      .from("courses")
+      .update({ title: renameValue.trim() })
+      .eq("id", courseId);
+    if (error) {
+      toast.error("Erreur lors du renommage");
+      return;
+    }
+    setDbCourses((prev) => prev.map((c) => c.id === courseId ? { ...c, title: renameValue.trim() } : c));
+    setRenamingCourse(null);
+    setRenameValue("");
+    toast.success("Cours renommé !");
+  };
+
+  const handleDeleteCourse = async (course: DBCourse) => {
+    if (!confirm(`Supprimer "${course.title}" ?`)) return;
+    // Delete file from storage if exists
+    if (course.file_url) {
+      await supabase.storage.from("course-files").remove([course.file_url]);
+    }
+    const { error } = await supabase.from("courses").delete().eq("id", course.id);
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+      return;
+    }
+    setDbCourses((prev) => prev.filter((c) => c.id !== course.id));
+    toast.success("Cours supprimé !");
+  };
+
   const formatDate = (dateStr: string) => {
     try {
       return new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -321,15 +353,29 @@ export default function SubjectDetail() {
                 variants={item}
                 className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:shadow-sm transition-all"
               >
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 min-w-0 flex-1">
                   <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-xs shrink-0">
                     {course.source === "fac" ? "Cours de la Fac" : "Cours de la Prépa du Peuple"}
                   </Badge>
                   {course.source === "bonus" && (
                     <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   )}
-                  <div>
-                    <h4 className="font-medium text-foreground">{course.title}</h4>
+                  <div className="min-w-0">
+                    {renamingCourse === course.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleRenameCourse(course.id)}
+                          className="h-7 text-sm"
+                          autoFocus
+                        />
+                        <Button size="sm" variant="ghost" onClick={() => handleRenameCourse(course.id)}>OK</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setRenamingCourse(null)}>✕</Button>
+                      </div>
+                    ) : (
+                      <h4 className="font-medium text-foreground truncate">{course.title}</h4>
+                    )}
                     <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
                       <span>{formatDate(course.created_at)}</span>
                       <span>•</span>
@@ -337,7 +383,7 @@ export default function SubjectDetail() {
                     </div>
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-1 shrink-0">
                   {course.file_url && (
                     <Button
                       size="sm"
@@ -356,6 +402,23 @@ export default function SubjectDetail() {
                       <Eye className="h-4 w-4 mr-1" /> Consulter
                     </Button>
                   )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => { setRenamingCourse(course.id); setRenameValue(course.title); }}
+                    title="Renommer"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => handleDeleteCourse(course)}
+                    title="Supprimer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </motion.div>
             ))}
