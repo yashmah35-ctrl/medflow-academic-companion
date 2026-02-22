@@ -17,6 +17,7 @@ import InteractiveModules from "./pages/InteractiveModules";
 import Flashcards from "./pages/Flashcards";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import AdminAnnouncements from "./pages/AdminAnnouncements";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ function AppRoutes() {
         <Route path="/annales" element={<AdminBlockedRoute><Annales /></AdminBlockedRoute>} />
         <Route path="/modules" element={<AdminBlockedRoute><InteractiveModules /></AdminBlockedRoute>} />
         <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
+        <Route path="/announcements" element={<AdminAnnouncements />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
