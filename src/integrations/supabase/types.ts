@@ -125,6 +125,7 @@ export type Database = {
           next_review: string | null
           occurrence_count: number
           personal_notes: string | null
+          propositions_json: Json | null
           question: string
           source: string
           subject_name: string | null
@@ -148,6 +149,7 @@ export type Database = {
           next_review?: string | null
           occurrence_count?: number
           personal_notes?: string | null
+          propositions_json?: Json | null
           question: string
           source?: string
           subject_name?: string | null
@@ -171,6 +173,7 @@ export type Database = {
           next_review?: string | null
           occurrence_count?: number
           personal_notes?: string | null
+          propositions_json?: Json | null
           question?: string
           source?: string
           subject_name?: string | null

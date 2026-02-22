@@ -440,6 +440,7 @@ export default function ExamsBlancs() {
         error_type: "comprehension",
         occurrence_count: 1,
         source: "exam",
+        propositions_json: q.propositions as unknown as any,
       };
     });
 

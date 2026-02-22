@@ -40,6 +40,7 @@ interface DBError {
   total_attempts: number;
   last_response_time_ms: number | null;
   is_critical: boolean;
+  propositions_json: { id: string; text: string; isCorrect: boolean }[] | null;
 }
 
 interface SubjectGroup {
@@ -272,20 +273,25 @@ export default function ErrorNotebook() {
     startReviewSession([err], 1);
   };
 
-  // Parse propositions from stored correct_answer and wrong_answer strings
-  const parsePropositionsForCard = (card: DBError) => {
-    const parseItems = (text: string, isCorrect: boolean) => {
-      if (!text || text === "Réponse incorrecte") return [];
-      const items = text.split(/,\s*(?=[A-Z]\.\s)/).map(s => s.trim()).filter(Boolean);
-      return items.map(item => {
-        const match = item.match(/^([A-Z])\.\s*(.+)$/);
-        return { id: match ? match[1] : item.slice(0, 3), text: match ? match[2] : item, isCorrect };
-      });
-    };
-    const correct = parseItems(card.correct_answer, true);
-    const wrong = parseItems(card.wrong_answer, false);
-    const all = [...correct, ...wrong].sort((a, b) => a.id.localeCompare(b.id));
-    setParsedPropositions(all);
+  // Use propositions directly from stored propositions_json, fallback to parsing text
+  const loadPropositionsForCard = (card: DBError) => {
+    if (card.propositions_json && Array.isArray(card.propositions_json) && card.propositions_json.length > 0) {
+      setParsedPropositions(card.propositions_json);
+    } else {
+      // Fallback for old errors without propositions_json
+      const parseItems = (text: string, isCorrect: boolean) => {
+        if (!text || text === "Réponse incorrecte") return [];
+        const items = text.split(/,\s*(?=[A-Z]\.\s)/).map(s => s.trim()).filter(Boolean);
+        return items.map(item => {
+          const match = item.match(/^([A-Z])\.\s*(.+)$/);
+          return { id: match ? match[1] : item.slice(0, 3), text: match ? match[2] : item, isCorrect };
+        });
+      };
+      const correct = parseItems(card.correct_answer, true);
+      const wrong = parseItems(card.wrong_answer, false);
+      const all = [...correct, ...wrong].sort((a, b) => a.id.localeCompare(b.id));
+      setParsedPropositions(all);
+    }
     setCheckedProps({});
   };
 
@@ -308,7 +314,7 @@ export default function ErrorNotebook() {
     setCardStartTime(Date.now());
     setElapsedSeconds(0);
     setReviewMode(true);
-    parsePropositionsForCard(sorted[0]);
+    loadPropositionsForCard(sorted[0]);
   };
 
   const handleRevealAnswer = async () => {
@@ -348,7 +354,7 @@ export default function ErrorNotebook() {
       setShowAnswer(false);
       setCheckedProps({});
       setCardStartTime(Date.now());
-      parsePropositionsForCard(reviewCards[nextIdx]);
+      loadPropositionsForCard(reviewCards[nextIdx]);
     } else {
       setSessionResults({ correct: sessionCorrectCount, wrong: reviewCards.length - sessionCorrectCount, total: reviewCards.length });
     }
