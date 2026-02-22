@@ -11,6 +11,7 @@ import {
   Puzzle,
   ChevronLeft,
   ChevronRight,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
@@ -22,6 +23,7 @@ interface NavItem {
   icon: any;
   restricted: boolean;
   adminHidden?: boolean;
+  adminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -38,6 +40,13 @@ const allNavGroups: NavGroup[] = [
       { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false, adminHidden: true },
       { title: "Modules", path: "/modules", icon: Puzzle, restricted: false, adminHidden: true },
       { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false, adminHidden: true },
+    ],
+  },
+  {
+    label: "📢 Communication",
+    adminHidden: false,
+    items: [
+      { title: "Annonces", path: "/announcements", icon: Megaphone, restricted: false, adminOnly: true },
     ],
   },
   {
@@ -69,6 +78,7 @@ export function AppSidebar() {
       ...group,
       items: group.items.filter((item) => {
         if (isAdmin && item.adminHidden) return false;
+        if (!isAdmin && item.adminOnly) return false;
         if (item.restricted && !canAccessExamsKhollesAnnales(role)) return false;
         return true;
       }),

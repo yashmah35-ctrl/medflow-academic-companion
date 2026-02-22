@@ -67,6 +67,39 @@ export type Database = {
           },
         ]
       }
+      announcements: {
+        Row: {
+          attachment_url: string | null
+          created_at: string
+          created_by: string
+          id: string
+          link_url: string | null
+          message: string
+          target_roles: string[]
+          title: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          link_url?: string | null
+          message: string
+          target_roles?: string[]
+          title: string
+        }
+        Update: {
+          attachment_url?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          link_url?: string | null
+          message?: string
+          target_roles?: string[]
+          title?: string
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           content: string | null
@@ -601,6 +634,35 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      user_announcement_reads: {
+        Row: {
+          announcement_id: string
+          id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

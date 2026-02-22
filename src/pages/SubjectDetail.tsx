@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus, Pencil, Trash2 } from "lucide-react";
+import { SecurePdfViewer } from "@/components/SecurePdfViewer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +67,9 @@ export default function SubjectDetail() {
   const [renameValue, setRenameValue] = useState("");
   const [renamingFolder, setRenamingFolder] = useState<string | null>(null);
   const [renameFolderValue, setRenameFolderValue] = useState("");
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfSignedUrl, setPdfSignedUrl] = useState<string | null>(null);
+  const [pdfTitle, setPdfTitle] = useState("");
 
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
@@ -474,9 +478,11 @@ export default function SubjectDetail() {
                       onClick={async () => {
                         const { data } = await supabase.storage
                           .from("course-files")
-                          .createSignedUrl(course.file_url!, 3600);
+                          .createSignedUrl(course.file_url!, 900);
                         if (data?.signedUrl) {
-                          window.open(data.signedUrl, '_blank');
+                          setPdfSignedUrl(data.signedUrl);
+                          setPdfTitle(course.title);
+                          setPdfViewerOpen(true);
                         } else {
                           toast.error("Impossible d'ouvrir le fichier");
                         }
@@ -521,6 +527,12 @@ export default function SubjectDetail() {
       )}
 
 
+      <SecurePdfViewer
+        open={pdfViewerOpen}
+        onOpenChange={setPdfViewerOpen}
+        signedUrl={pdfSignedUrl}
+        title={pdfTitle}
+      />
     </div>
   );
 }
