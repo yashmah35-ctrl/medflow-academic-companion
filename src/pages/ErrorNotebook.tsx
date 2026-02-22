@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
 import {
   AlertTriangle, ArrowLeft, BookOpen, Brain, Calendar, CheckCircle2,
-  Filter, Flame, Lightbulb, RotateCcw, Search, Sparkles, Target,
-  TrendingUp, X, Zap, StickyNote, Clock, ChevronRight, Play,
-  Timer, Trophy, BarChart3, Activity, ShieldAlert, Eye
+  Filter, Flame, Search, Sparkles, Target,
+  TrendingUp, X, Zap, Clock, ChevronRight, Play,
+  Timer, Trophy, BarChart3, ShieldAlert
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -155,21 +155,21 @@ export default function ErrorNotebook() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [selectedError, setSelectedError] = useState<DBError | null>(null);
   const [tab, setTab] = useState("active");
   const [filterType, setFilterType] = useState("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "kholle" | "exam" | "annale">("all");
-  const [personalNote, setPersonalNote] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
   
   // Review session state
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewCards, setReviewCards] = useState<DBError[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [userAnswer, setUserAnswer] = useState<string | null>(null);
+  const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
   const [sessionStartTime, setSessionStartTime] = useState<number>(0);
   const [cardStartTime, setCardStartTime] = useState<number>(0);
   const [sessionResults, setSessionResults] = useState<{ correct: number; wrong: number; total: number } | null>(null);
+  const [sessionCorrectCount, setSessionCorrectCount] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   // Timer for session
@@ -267,36 +267,23 @@ export default function ErrorNotebook() {
     setErrors((prev) => prev.map((e) => (e.id === errId ? { ...e, ...updates } : e)));
   };
 
-  const setErrorType = async (errId: string, type: string) => {
-    await updateError(errId, { error_type: type });
-    if (selectedError?.id === errId) setSelectedError((prev) => prev ? { ...prev, error_type: type } : null);
-  };
-
-  const saveNote = async () => {
-    if (!selectedError) return;
-    setSavingNote(true);
-    await updateError(selectedError.id, { personal_notes: personalNote });
-    setSelectedError((prev) => prev ? { ...prev, personal_notes: personalNote } : null);
-    setSavingNote(false);
-    toast.success("Notes sauvegardées !");
-  };
-
-  const toggleMastered = async (errId: string) => {
-    const err = errors.find((e) => e.id === errId);
-    if (!err) return;
-    const newVal = !err.mastered;
-    await updateError(errId, { mastered: newVal, mastery_score: newVal ? 100 : err.mastery_score, correction_count: newVal ? err.correction_count + 1 : err.correction_count });
-    toast.success(newVal ? "Erreur marquée comme maîtrisée ✅" : "Erreur remise en révision");
-  };
 
   const openError = (err: DBError) => {
-    setSelectedError(err);
-    setPersonalNote(err.personal_notes || "");
+    startReviewSession([err], 1);
   };
 
-  // ==================== REVIEW SESSION LOGIC ====================
+  // Helper to shuffle options for a card
+  const shuffleOptionsForCard = (card: DBError) => {
+    const options = [card.correct_answer, card.wrong_answer];
+    // Fisher-Yates shuffle
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    setShuffledOptions(options);
+  };
+
   const startReviewSession = (errs: DBError[], maxCards = 10) => {
-    // Prioritize: critical first, then by lowest mastery_score
     const sorted = [...errs]
       .filter(e => !e.mastered && e.mastery_score < 85)
       .sort((a, b) => {
@@ -308,26 +295,33 @@ export default function ErrorNotebook() {
     setReviewCards(sorted);
     setCurrentCardIndex(0);
     setShowAnswer(false);
+    setUserAnswer(null);
     setSessionResults(null);
+    setSessionCorrectCount(0);
     setSessionStartTime(Date.now());
     setCardStartTime(Date.now());
     setElapsedSeconds(0);
     setReviewMode(true);
+    shuffleOptionsForCard(sorted[0]);
   };
 
-  const handleReviewAnswer = async (correct: boolean) => {
+  const handleSelectAnswer = async (selected: string) => {
     const card = reviewCards[currentCardIndex];
+    const correct = selected === card.correct_answer;
     const responseTime = Date.now() - cardStartTime;
+    
+    setUserAnswer(selected);
+    setShowAnswer(true);
     
     let scoreDelta = 0;
     if (!correct) {
       scoreDelta = -20;
     } else if (responseTime < 5000) {
-      scoreDelta = 15; // fast
+      scoreDelta = 15;
     } else if (responseTime > 10000) {
-      scoreDelta = 8; // slow
+      scoreDelta = 8;
     } else {
-      scoreDelta = 5; // hesitation
+      scoreDelta = 5;
     }
     
     const newScore = Math.max(0, Math.min(100, card.mastery_score + scoreDelta));
@@ -336,8 +330,7 @@ export default function ErrorNotebook() {
     const isCritical = newConsWrong >= 3 || (newScore < 30 && newAttempts >= 5);
     const isMastered = newScore >= 85;
     
-    // Calculate next_review based on score
-    let nextReviewMs = 60000; // 1 min
+    let nextReviewMs = 60000;
     if (newScore >= 30) nextReviewMs = 5 * 60000;
     if (newScore >= 50) nextReviewMs = 10 * 60000;
     if (newScore >= 70) nextReviewMs = 24 * 3600000;
@@ -356,25 +349,24 @@ export default function ErrorNotebook() {
       last_seen: new Date().toISOString(),
     });
 
-    // Update local reviewCards for result display
     setReviewCards(prev => prev.map((c, i) => i === currentCardIndex ? { ...c, mastery_score: newScore, consecutive_wrong: newConsWrong, total_attempts: newAttempts, is_critical: isCritical, mastered: isMastered } : c));
+    
+    if (correct) setSessionCorrectCount(prev => prev + 1);
+  };
 
+  const goToNextCard = () => {
     if (currentCardIndex < reviewCards.length - 1) {
-      setCurrentCardIndex(prev => prev + 1);
+      const nextIdx = currentCardIndex + 1;
+      setCurrentCardIndex(nextIdx);
       setShowAnswer(false);
+      setUserAnswer(null);
       setCardStartTime(Date.now());
+      shuffleOptionsForCard(reviewCards[nextIdx]);
     } else {
-      // Session complete
-      const totalCorrect = reviewCards.filter((c, i) => i < currentCardIndex).filter(() => correct).length + (correct ? 1 : 0);
-      // Simple count: we track per-card during session
       setSessionResults({
-        correct: reviewCards.filter((c, i) => {
-          if (i === currentCardIndex) return correct;
-          // For simplicity, re-check updated scores
-          return true;
-        }).length,
-        wrong: 0,
-        total: reviewCards.length
+        correct: sessionCorrectCount,
+        wrong: reviewCards.length - sessionCorrectCount,
+        total: reviewCards.length,
       });
     }
   };
@@ -384,7 +376,9 @@ export default function ErrorNotebook() {
     setReviewCards([]);
     setCurrentCardIndex(0);
     setShowAnswer(false);
+    setUserAnswer(null);
     setSessionResults(null);
+    setSessionCorrectCount(0);
   };
 
   const formatTime = (seconds: number) => {
@@ -476,154 +470,54 @@ export default function ErrorNotebook() {
             <p className="text-lg font-semibold text-foreground text-center">{card.question}</p>
           </div>
 
-          {/* Answer reveal */}
-          <AnimatePresence>
-            {showAnswer && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-3 overflow-hidden">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="rounded-xl bg-destructive/5 border border-destructive/15 p-3">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1"><X className="h-3 w-3 text-destructive" /> Ta réponse</span>
-                    <p className="text-foreground mt-1 font-medium text-sm">{card.wrong_answer}</p>
-                  </div>
-                  <div className="rounded-xl bg-success/5 border border-success/15 p-3">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</span>
-                    <p className="text-foreground mt-1 font-medium text-sm">{card.correct_answer}</p>
-                  </div>
-                </div>
-
-                {/* Mastery indicator */}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span>Score maîtrise : <span className={`font-bold ${getMasteryColor(card.mastery_score)}`}>{card.mastery_score}/100</span></span>
-                  <span>·</span>
-                  <span>Prochaine révision : {getIntervalLabel(card.mastery_score)}</span>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Action buttons */}
+          {/* Answer propositions or result */}
           {!showAnswer ? (
-            <Button onClick={() => setShowAnswer(true)} className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Eye className="h-4 w-4 mr-2" /> Voir la réponse
-            </Button>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              <Button onClick={() => handleReviewAnswer(false)} variant="outline" className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10">
-                <X className="h-4 w-4 mr-1.5" /> Faux
-              </Button>
-              <Button onClick={() => handleReviewAnswer(true)} className="rounded-xl bg-success hover:bg-success/90 text-success-foreground">
-                <CheckCircle2 className="h-4 w-4 mr-1.5" /> Juste
-              </Button>
+            <div className="space-y-2">
+              {shuffledOptions.map((option, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSelectAnswer(option)}
+                  className="w-full rounded-xl border border-border bg-muted/30 hover:bg-muted/60 p-4 text-left text-sm font-medium text-foreground transition-all hover:border-primary/40"
+                >
+                  <span className="text-muted-foreground mr-2 font-bold">{String.fromCharCode(65 + idx)}.</span>
+                  {option}
+                </button>
+              ))}
             </div>
+          ) : (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3 overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className={`rounded-xl p-3 ${userAnswer === card.correct_answer ? "bg-success/5 border border-success/15" : "bg-destructive/5 border border-destructive/15"}`}>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    {userAnswer === card.correct_answer ? <CheckCircle2 className="h-3 w-3 text-success" /> : <X className="h-3 w-3 text-destructive" />} Ta réponse
+                  </span>
+                  <p className="text-foreground mt-1 font-medium text-sm">{userAnswer}</p>
+                </div>
+                <div className="rounded-xl bg-success/5 border border-success/15 p-3">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</span>
+                  <p className="text-foreground mt-1 font-medium text-sm">{card.correct_answer}</p>
+                </div>
+              </div>
+
+              {/* Mastery indicator */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span>Score maîtrise : <span className={`font-bold ${getMasteryColor(card.mastery_score)}`}>{card.mastery_score}/100</span></span>
+                <span>·</span>
+                <span>Prochaine révision : {getIntervalLabel(card.mastery_score)}</span>
+              </div>
+
+              {/* Next button */}
+              <Button onClick={goToNextCard} className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground">
+                {currentCardIndex < reviewCards.length - 1 ? "Carte suivante →" : "Terminer la session"}
+              </Button>
+            </motion.div>
           )}
         </motion.div>
       </motion.div>
     );
   }
 
-  // ==================== ERROR DETAIL MODAL (Focus Mode) ====================
-  if (selectedError) {
-    const severity = getSeverity(selectedError);
-    const config = severityConfig[severity];
 
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
-        <Button variant="ghost" size="sm" onClick={() => setSelectedError(null)} className="gap-1.5">
-          <ArrowLeft className="h-4 w-4" /> Retour
-        </Button>
-
-        <div className="max-w-3xl mx-auto space-y-5">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card/95 backdrop-blur-sm p-6 space-y-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge className={`${config.color} border text-xs`} variant="outline">
-                    <span className={`h-2 w-2 rounded-full ${config.dot} mr-1.5 inline-block`} />
-                    {config.label}
-                  </Badge>
-                  <Badge variant="secondary" className="text-xs">{selectedError.subject_name || "Autre"}</Badge>
-                  <span className="text-xs text-muted-foreground">×{selectedError.occurrence_count}</span>
-                </div>
-                <h2 className="text-lg font-bold text-foreground">{selectedError.question}</h2>
-              </div>
-              <Button variant={selectedError.mastered ? "default" : "outline"} size="sm" onClick={() => toggleMastered(selectedError.id)} className="shrink-0">
-                <CheckCircle2 className="h-4 w-4 mr-1" />
-                {selectedError.mastered ? "Maîtrisée" : "Marquer maîtrisée"}
-              </Button>
-            </div>
-
-            {/* Mastery Score Bar */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">Score de maîtrise</span>
-                <span className={`font-bold ${getMasteryColor(selectedError.mastery_score)}`}>{selectedError.mastery_score}/100</span>
-              </div>
-              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${selectedError.mastery_score}%` }}
-                  transition={{ duration: 0.7 }}
-                  className={`h-full rounded-full ${selectedError.mastery_score >= 85 ? "bg-success" : selectedError.mastery_score >= 50 ? "bg-warning" : "bg-destructive"}`}
-                />
-              </div>
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>{selectedError.total_attempts} tentative{selectedError.total_attempts > 1 ? "s" : ""}</span>
-                <span>Prochaine révision : {getIntervalLabel(selectedError.mastery_score)}</span>
-              </div>
-            </div>
-
-            {/* Answers */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="rounded-xl bg-destructive/5 border border-destructive/15 p-4">
-                <span className="text-xs text-muted-foreground flex items-center gap-1"><X className="h-3 w-3 text-destructive" /> Ta réponse</span>
-                <p className="text-foreground mt-1 font-medium">{selectedError.wrong_answer}</p>
-              </div>
-              <div className="rounded-xl bg-success/5 border border-success/15 p-4">
-                <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</span>
-                <p className="text-foreground mt-1 font-medium">{selectedError.correct_answer}</p>
-              </div>
-            </div>
-
-            {/* Error type */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Lightbulb className="h-4 w-4 text-warning" /> Pourquoi tu t'es trompé ?</p>
-              <div className="grid grid-cols-2 gap-2">
-                {errorReasons.map((reason) => (
-                  <button key={reason.id} onClick={() => setErrorType(selectedError.id, reason.id)}
-                    className={`rounded-xl border p-3 text-left text-sm transition-all ${selectedError.error_type === reason.id ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card hover:bg-muted/50 text-muted-foreground"}`}>
-                    <span className="mr-1.5">{reason.icon}</span> {reason.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Pattern detection */}
-            {selectedError.total_attempts >= 3 && (
-              <div className={`rounded-xl p-4 space-y-1 ${selectedError.consecutive_wrong >= 3 ? "bg-destructive/5 border border-destructive/15" : selectedError.mastery_score >= 70 ? "bg-success/5 border border-success/15" : "bg-warning/5 border border-warning/15"}`}>
-                <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <Brain className="h-4 w-4 text-primary" /> Détection de pattern
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedError.consecutive_wrong >= 3
-                    ? "⚠️ Erreur récurrente détectée. Tu te trompes systématiquement sur cette notion. Souhaites-tu revoir le cours de ce chapitre ?"
-                    : selectedError.mastery_score >= 70
-                    ? "✅ Tu progresses bien sur cette notion ! Encore quelques révisions pour la consolider."
-                    : "🔄 Résultat instable – tu alternes entre juste et faux. Cela indique une confusion. Revois les fondamentaux."}
-                </p>
-              </div>
-            )}
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><StickyNote className="h-4 w-4 text-warning" /> Notes personnelles</p>
-              <Textarea value={personalNote} onChange={(e) => setPersonalNote(e.target.value)} placeholder="Résumé, astuce mnémotechnique…" className="min-h-[80px] bg-muted/30" />
-              <Button size="sm" onClick={saveNote} disabled={savingNote} className="rounded-lg">{savingNote ? "Sauvegarde…" : "Sauvegarder"}</Button>
-            </div>
-          </motion.div>
-        </div>
-      </motion.div>
-    );
-  }
 
   // ==================== SUBJECT DETAIL VIEW (DECK STYLE) ====================
   if (selectedSubject) {
