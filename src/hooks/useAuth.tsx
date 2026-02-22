@@ -2,7 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from "react
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
-type AppRole = "pass" | "lass" | "college" | "lycee" | "medical_student" | "lyceen";
+type AppRole = "pass" | "lass" | "college" | "lycee" | "medical_student" | "lyceen" | "prepa_du_peuple";
 
 const ADMIN_EMAIL = "hello.tonagentia@gmail.com";
 

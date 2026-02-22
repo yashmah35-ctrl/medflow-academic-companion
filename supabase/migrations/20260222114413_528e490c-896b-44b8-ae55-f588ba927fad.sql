@@ -1,0 +1,1 @@
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'prepa_du_peuple';
