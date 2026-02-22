@@ -11,7 +11,7 @@ import {
   AlertTriangle, ArrowLeft, BookOpen, Brain, Calendar, CheckCircle2,
   Filter, Flame, Search, Sparkles, Target,
   TrendingUp, X, Zap, Clock, ChevronRight, Play,
-  Timer, Trophy, BarChart3, ShieldAlert
+  Timer, Trophy, BarChart3, ShieldAlert, Eye
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -164,8 +164,8 @@ export default function ErrorNotebook() {
   const [reviewCards, setReviewCards] = useState<DBError[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [userAnswer, setUserAnswer] = useState<string | null>(null);
-  const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
+  const [checkedProps, setCheckedProps] = useState<Record<string, boolean>>({});
+  const [parsedPropositions, setParsedPropositions] = useState<{ id: string; text: string; isCorrect: boolean }[]>([]);
   const [sessionStartTime, setSessionStartTime] = useState<number>(0);
   const [cardStartTime, setCardStartTime] = useState<number>(0);
   const [sessionResults, setSessionResults] = useState<{ correct: number; wrong: number; total: number } | null>(null);
@@ -272,15 +272,21 @@ export default function ErrorNotebook() {
     startReviewSession([err], 1);
   };
 
-  // Helper to shuffle options for a card
-  const shuffleOptionsForCard = (card: DBError) => {
-    const options = [card.correct_answer, card.wrong_answer];
-    // Fisher-Yates shuffle
-    for (let i = options.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [options[i], options[j]] = [options[j], options[i]];
-    }
-    setShuffledOptions(options);
+  // Parse propositions from stored correct_answer and wrong_answer strings
+  const parsePropositionsForCard = (card: DBError) => {
+    const parseItems = (text: string, isCorrect: boolean) => {
+      if (!text || text === "Réponse incorrecte") return [];
+      const items = text.split(/,\s*(?=[A-Z]\.\s)/).map(s => s.trim()).filter(Boolean);
+      return items.map(item => {
+        const match = item.match(/^([A-Z])\.\s*(.+)$/);
+        return { id: match ? match[1] : item.slice(0, 3), text: match ? match[2] : item, isCorrect };
+      });
+    };
+    const correct = parseItems(card.correct_answer, true);
+    const wrong = parseItems(card.wrong_answer, false);
+    const all = [...correct, ...wrong].sort((a, b) => a.id.localeCompare(b.id));
+    setParsedPropositions(all);
+    setCheckedProps({});
   };
 
   const startReviewSession = (errs: DBError[], maxCards = 10) => {
@@ -295,63 +301,44 @@ export default function ErrorNotebook() {
     setReviewCards(sorted);
     setCurrentCardIndex(0);
     setShowAnswer(false);
-    setUserAnswer(null);
+    setCheckedProps({});
     setSessionResults(null);
     setSessionCorrectCount(0);
     setSessionStartTime(Date.now());
     setCardStartTime(Date.now());
     setElapsedSeconds(0);
     setReviewMode(true);
-    shuffleOptionsForCard(sorted[0]);
+    parsePropositionsForCard(sorted[0]);
   };
 
-  const handleSelectAnswer = async (selected: string) => {
+  const handleRevealAnswer = async () => {
     const card = reviewCards[currentCardIndex];
-    const correct = selected === card.correct_answer;
     const responseTime = Date.now() - cardStartTime;
-    
-    setUserAnswer(selected);
+    const allCorrect = parsedPropositions.every(p => !!checkedProps[p.id] === p.isCorrect);
+
     setShowAnswer(true);
-    
-    let scoreDelta = 0;
-    if (!correct) {
-      scoreDelta = -20;
-    } else if (responseTime < 5000) {
-      scoreDelta = 15;
-    } else if (responseTime > 10000) {
-      scoreDelta = 8;
-    } else {
-      scoreDelta = 5;
-    }
-    
+
+    let scoreDelta = !allCorrect ? -20 : responseTime < 5000 ? 15 : responseTime > 10000 ? 8 : 5;
     const newScore = Math.max(0, Math.min(100, card.mastery_score + scoreDelta));
-    const newConsWrong = correct ? 0 : card.consecutive_wrong + 1;
+    const newConsWrong = allCorrect ? 0 : card.consecutive_wrong + 1;
     const newAttempts = card.total_attempts + 1;
     const isCritical = newConsWrong >= 3 || (newScore < 30 && newAttempts >= 5);
     const isMastered = newScore >= 85;
-    
+
     let nextReviewMs = 60000;
     if (newScore >= 30) nextReviewMs = 5 * 60000;
     if (newScore >= 50) nextReviewMs = 10 * 60000;
     if (newScore >= 70) nextReviewMs = 24 * 3600000;
     if (newScore >= 85) nextReviewMs = 3 * 24 * 3600000;
-    
-    const nextReview = new Date(Date.now() + nextReviewMs).toISOString();
-    
+
     await updateError(card.id, {
-      mastery_score: newScore,
-      consecutive_wrong: newConsWrong,
-      total_attempts: newAttempts,
-      last_response_time_ms: responseTime,
-      is_critical: isCritical,
-      mastered: isMastered,
-      next_review: nextReview,
-      last_seen: new Date().toISOString(),
+      mastery_score: newScore, consecutive_wrong: newConsWrong, total_attempts: newAttempts,
+      last_response_time_ms: responseTime, is_critical: isCritical, mastered: isMastered,
+      next_review: new Date(Date.now() + nextReviewMs).toISOString(), last_seen: new Date().toISOString(),
     });
 
     setReviewCards(prev => prev.map((c, i) => i === currentCardIndex ? { ...c, mastery_score: newScore, consecutive_wrong: newConsWrong, total_attempts: newAttempts, is_critical: isCritical, mastered: isMastered } : c));
-    
-    if (correct) setSessionCorrectCount(prev => prev + 1);
+    if (allCorrect) setSessionCorrectCount(prev => prev + 1);
   };
 
   const goToNextCard = () => {
@@ -359,26 +346,17 @@ export default function ErrorNotebook() {
       const nextIdx = currentCardIndex + 1;
       setCurrentCardIndex(nextIdx);
       setShowAnswer(false);
-      setUserAnswer(null);
+      setCheckedProps({});
       setCardStartTime(Date.now());
-      shuffleOptionsForCard(reviewCards[nextIdx]);
+      parsePropositionsForCard(reviewCards[nextIdx]);
     } else {
-      setSessionResults({
-        correct: sessionCorrectCount,
-        wrong: reviewCards.length - sessionCorrectCount,
-        total: reviewCards.length,
-      });
+      setSessionResults({ correct: sessionCorrectCount, wrong: reviewCards.length - sessionCorrectCount, total: reviewCards.length });
     }
   };
 
   const exitReviewMode = () => {
-    setReviewMode(false);
-    setReviewCards([]);
-    setCurrentCardIndex(0);
-    setShowAnswer(false);
-    setUserAnswer(null);
-    setSessionResults(null);
-    setSessionCorrectCount(0);
+    setReviewMode(false); setReviewCards([]); setCurrentCardIndex(0);
+    setShowAnswer(false); setCheckedProps({}); setSessionResults(null); setSessionCorrectCount(0);
   };
 
   const formatTime = (seconds: number) => {
@@ -405,12 +383,12 @@ export default function ErrorNotebook() {
           <p className="text-muted-foreground">Tu as révisé {reviewCards.length} carte{reviewCards.length > 1 ? "s" : ""} en {formatTime(elapsedSeconds)}</p>
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-2xl font-bold text-success">{reviewCards.filter(c => c.mastery_score >= 50).length}</p>
-              <p className="text-xs text-muted-foreground">En progrès</p>
+              <p className="text-2xl font-bold text-success">{sessionResults.correct}</p>
+              <p className="text-xs text-muted-foreground">Correctes</p>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-2xl font-bold text-destructive">{reviewCards.filter(c => c.is_critical).length}</p>
-              <p className="text-xs text-muted-foreground">Critiques</p>
+              <p className="text-2xl font-bold text-destructive">{sessionResults.wrong}</p>
+              <p className="text-xs text-muted-foreground">Incorrectes</p>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4">
               <p className="text-2xl font-bold text-primary">{reviewCards.filter(c => c.mastered).length}</p>
@@ -428,34 +406,23 @@ export default function ErrorNotebook() {
 
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-4">
-        {/* Session header */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={exitReviewMode} className="gap-1.5">
             <X className="h-4 w-4" /> Quitter
           </Button>
           <div className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1.5 text-muted-foreground">
-              <Timer className="h-4 w-4" /> {formatTime(elapsedSeconds)}
-            </span>
+            <span className="flex items-center gap-1.5 text-muted-foreground"><Timer className="h-4 w-4" /> {formatTime(elapsedSeconds)}</span>
             <span className="text-muted-foreground font-medium">{currentCardIndex + 1} / {reviewCards.length}</span>
           </div>
         </div>
 
-        {/* Progress */}
         <Progress value={((currentCardIndex + 1) / reviewCards.length) * 100} className="h-2" />
 
-        {/* Card */}
-        <motion.div
-          key={card.id + currentCardIndex}
-          initial={{ opacity: 0, x: 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="rounded-2xl border border-border bg-card p-6 space-y-5 min-h-[300px] flex flex-col"
-        >
-          {/* Badge row */}
+        <motion.div key={card.id + currentCardIndex} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }}
+          className="rounded-2xl border border-border bg-card p-6 space-y-5 flex flex-col">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge className={`${config.color} border text-xs`} variant="outline">
-              <span className={`h-2 w-2 rounded-full ${config.dot} mr-1.5 inline-block`} />
-              {config.label}
+              <span className={`h-2 w-2 rounded-full ${config.dot} mr-1.5 inline-block`} />{config.label}
             </Badge>
             <Badge variant="secondary" className="text-xs">{card.subject_name || "Autre"}</Badge>
             {card.error_type && (
@@ -465,52 +432,89 @@ export default function ErrorNotebook() {
             )}
           </div>
 
-          {/* Question */}
-          <div className="flex-1 flex items-center justify-center">
-            <p className="text-lg font-semibold text-foreground text-center">{card.question}</p>
-          </div>
+          <p className="text-lg font-semibold text-foreground">{card.question}</p>
 
-          {/* Answer propositions or result */}
           {!showAnswer ? (
-            <div className="space-y-2">
-              {shuffledOptions.map((option, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => handleSelectAnswer(option)}
-                  className="w-full rounded-xl border border-border bg-muted/30 hover:bg-muted/60 p-4 text-left text-sm font-medium text-foreground transition-all hover:border-primary/40"
-                >
-                  <span className="text-muted-foreground mr-2 font-bold">{String.fromCharCode(65 + idx)}.</span>
-                  {option}
-                </button>
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Propositions (coche les réponses correctes)</p>
+              {parsedPropositions.map((prop) => (
+                <label key={prop.id}
+                  className={`flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all ${checkedProps[prop.id] ? "border-primary bg-primary/5" : "border-border bg-muted/20 hover:bg-muted/40"}`}>
+                  <input type="checkbox" checked={!!checkedProps[prop.id]}
+                    onChange={() => setCheckedProps(prev => ({ ...prev, [prop.id]: !prev[prop.id] }))}
+                    className="mt-0.5 h-4 w-4 rounded border-border accent-primary" />
+                  <span className="text-muted-foreground font-bold text-sm mr-1">{prop.id}.</span>
+                  <span className="text-sm text-foreground flex-1">{prop.text}</span>
+                </label>
               ))}
             </div>
           ) : (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-3 overflow-hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className={`rounded-xl p-3 ${userAnswer === card.correct_answer ? "bg-success/5 border border-success/15" : "bg-destructive/5 border border-destructive/15"}`}>
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    {userAnswer === card.correct_answer ? <CheckCircle2 className="h-3 w-3 text-success" /> : <X className="h-3 w-3 text-destructive" />} Ta réponse
-                  </span>
-                  <p className="text-foreground mt-1 font-medium text-sm">{userAnswer}</p>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><X className="h-3 w-3 text-destructive" /> Ta réponse</p>
+                  <div className="rounded-xl bg-muted/20 border border-border p-3 space-y-2">
+                    {parsedPropositions.filter(p => checkedProps[p.id]).map(prop => (
+                      <div key={prop.id} className={`flex items-start gap-2 text-sm ${prop.isCorrect ? "text-success" : "text-destructive"}`}>
+                        {prop.isCorrect ? <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> : <X className="h-3.5 w-3.5 mt-0.5 shrink-0" />}
+                        <span><span className="font-bold">{prop.id}.</span> {prop.text}</span>
+                      </div>
+                    ))}
+                    {parsedPropositions.every(p => !checkedProps[p.id]) && <p className="text-sm text-muted-foreground italic">Aucune sélection</p>}
+                  </div>
                 </div>
-                <div className="rounded-xl bg-success/5 border border-success/15 p-3">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</span>
-                  <p className="text-foreground mt-1 font-medium text-sm">{card.correct_answer}</p>
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</p>
+                  <div className="rounded-xl bg-success/5 border border-success/15 p-3 space-y-2">
+                    {parsedPropositions.filter(p => p.isCorrect).map(prop => (
+                      <div key={prop.id} className="flex items-start gap-2 text-sm text-success">
+                        <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <span><span className="font-bold">{prop.id}.</span> {prop.text}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
-              {/* Mastery indicator */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">Détail par proposition</p>
+                {parsedPropositions.map(prop => {
+                  const checked = !!checkedProps[prop.id];
+                  const isRight = checked === prop.isCorrect;
+                  return (
+                    <div key={prop.id} className={`rounded-xl border p-3 ${isRight ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"}`}>
+                      <div className="flex items-start gap-2">
+                        {isRight ? <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" /> : <X className="h-4 w-4 text-destructive mt-0.5 shrink-0" />}
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground"><span className="font-bold">{prop.id}.</span> {prop.text}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {prop.isCorrect
+                              ? (checked ? "✅ Correct — Tu as bien identifié cette proposition comme vraie." : "❌ Tu aurais dû cocher cette proposition — elle est vraie.")
+                              : (checked ? "❌ Cette proposition est fausse — tu n'aurais pas dû la cocher." : "✅ Correct — tu as bien ignoré cette proposition fausse.")}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
                 <span>Score maîtrise : <span className={`font-bold ${getMasteryColor(card.mastery_score)}`}>{card.mastery_score}/100</span></span>
                 <span>·</span>
                 <span>Prochaine révision : {getIntervalLabel(card.mastery_score)}</span>
               </div>
 
-              {/* Next button */}
               <Button onClick={goToNextCard} className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground">
                 {currentCardIndex < reviewCards.length - 1 ? "Carte suivante →" : "Terminer la session"}
               </Button>
             </motion.div>
+          )}
+
+          {!showAnswer && (
+            <Button onClick={handleRevealAnswer} className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-base">
+              <Eye className="h-4 w-4 mr-2" /> Voir la réponse
+            </Button>
           )}
         </motion.div>
       </motion.div>
