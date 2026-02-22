@@ -20,7 +20,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
 
 const container = {
   hidden: { opacity: 0 },
@@ -38,6 +38,8 @@ interface DBFolder {
   course_count: number;
   exercise_count: number;
   created_at: string;
+  created_by: string | null;
+  is_public: boolean;
 }
 
 interface DBCourse {
@@ -52,7 +54,7 @@ interface DBCourse {
 export default function SubjectDetail() {
   const { subjectId, folderId } = useParams();
   const navigate = useNavigate();
-  const { user, role } = useAuth();
+  const { user, role, isAdmin } = useAuth();
   const [subject, setSubject] = useState<{ id: string; name: string; icon: string; color: string } | null>(null);
   const [dbFolders, setDbFolders] = useState<DBFolder[]>([]);
   const [newFolderName, setNewFolderName] = useState("");
@@ -66,6 +68,8 @@ export default function SubjectDetail() {
   const [renameFolderValue, setRenameFolderValue] = useState("");
 
   const isMedicalStudent = role === "medical_student";
+  const isCollegeOrLycee = role === "college" || role === "lycee";
+  const canCreateFolder = !isCollegeOrLycee;
 
   // Fetch subject from DB
   useEffect(() => {
@@ -110,6 +114,7 @@ export default function SubjectDetail() {
   }, [folderId]);
 
   const currentFolder = dbFolders.find((f) => f.id === folderId);
+  const isCurrentFolderOwner = currentFolder?.created_by === user?.id;
 
   if (!subject) {
     return (
@@ -123,7 +128,7 @@ export default function SubjectDetail() {
   const colors = subjectColorMap[subject.color as SubjectColor] ?? subjectColorMap.chemistry;
 
   const handleAddFolder = async () => {
-    if (!newFolderName.trim()) return;
+    if (!newFolderName.trim() || !user) return;
     const { data, error } = await supabase
       .from("folders")
       .insert({
@@ -131,6 +136,8 @@ export default function SubjectDetail() {
         name: newFolderName.trim(),
         course_count: 0,
         exercise_count: 0,
+        created_by: user.id,
+        is_public: isAdmin,
       })
       .select()
       .single();
@@ -301,16 +308,16 @@ export default function SubjectDetail() {
 
         {/* Actions */}
         <div className="flex gap-2">
-          {!folderId && (
+          {!folderId && canCreateFolder && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
-                  <FolderPlus className="h-4 w-4 mr-2" /> Nouveau dossier
+                  <FolderPlus className="h-4 w-4 mr-2" /> Nouveau dossier {isAdmin && "(public)"}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Créer un nouveau dossier</DialogTitle>
+                  <DialogTitle>Créer un nouveau dossier {isAdmin ? "public" : "privé"}</DialogTitle>
                   <DialogDescription className="sr-only">Formulaire de création de dossier</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
@@ -336,7 +343,9 @@ export default function SubjectDetail() {
           initial="hidden"
           animate="show"
         >
-          {dbFolders.map((folder) => (
+          {dbFolders.map((folder) => {
+            const isOwner = folder.created_by === user?.id;
+            return (
             <motion.div
               key={folder.id}
               variants={item}
@@ -344,8 +353,12 @@ export default function SubjectDetail() {
               onClick={() => navigate(`/subject/${subjectId}/folder/${folder.id}`)}
             >
               <div className={`h-1.5 w-12 rounded-full ${colors.bg} mb-4`} />
+              {/* Public/Private badge */}
+              <Badge variant={folder.is_public ? "secondary" : "outline"} className="absolute top-3 left-3 text-[10px]">
+                {folder.is_public ? "📢 Public" : "🔒 Privé"}
+              </Badge>
               {renamingFolder === folder.id ? (
-                <div className="flex items-center gap-2 mb-2" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 mb-2 mt-4" onClick={(e) => e.stopPropagation()}>
                   <Input
                     value={renameFolderValue}
                     onChange={(e) => setRenameFolderValue(e.target.value)}
@@ -357,12 +370,13 @@ export default function SubjectDetail() {
                   <Button size="sm" variant="ghost" onClick={() => setRenamingFolder(null)}>✕</Button>
                 </div>
               ) : (
-                <h3 className="font-semibold text-foreground mb-2">{folder.name}</h3>
+                <h3 className="font-semibold text-foreground mb-2 mt-4">{folder.name}</h3>
               )}
               <div className="flex gap-3 text-xs text-muted-foreground mb-4">
                 <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folder.course_count} Cours</span>
                 <span className="flex items-center gap-1"><Dumbbell className="h-3 w-3" /> {folder.exercise_count} Exercices</span>
               </div>
+              {isOwner && (
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                 <Button
                   size="sm"
@@ -383,8 +397,10 @@ export default function SubjectDetail() {
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
+              )}
             </motion.div>
-          ))}
+            );
+          })}
 
           {dbFolders.length === 0 && (
             <div className="col-span-full text-center py-12 text-muted-foreground">
@@ -396,7 +412,8 @@ export default function SubjectDetail() {
         </motion.div>
       ) : (
         <motion.div className="space-y-3" variants={container} initial="hidden" animate="show">
-          {/* Nouveau cours button */}
+          {/* Nouveau cours button - only for folder owner */}
+          {isCurrentFolderOwner && (
           <motion.div
             variants={item}
             className="flex items-center gap-3 rounded-xl border border-dashed border-border bg-card/50 p-4 hover:bg-card hover:shadow-sm transition-all cursor-pointer"
@@ -409,6 +426,7 @@ export default function SubjectDetail() {
               {uploading ? "Import en cours..." : "Nouveau cours"}
             </span>
           </motion.div>
+          )}
 
           {dbCourses
             .sort((a, b) => (a.source === "fac" ? -1 : 1))
@@ -467,6 +485,8 @@ export default function SubjectDetail() {
                       <Eye className="h-4 w-4 mr-1" /> Consulter
                     </Button>
                   )}
+                  {isCurrentFolderOwner && (
+                  <>
                   <Button
                     size="sm"
                     variant="ghost"
@@ -484,6 +504,8 @@ export default function SubjectDetail() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
+                  </>
+                  )}
                 </div>
               </motion.div>
             ))}

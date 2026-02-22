@@ -390,24 +390,30 @@ export type Database = {
         Row: {
           course_count: number
           created_at: string
+          created_by: string | null
           exercise_count: number
           id: string
+          is_public: boolean
           name: string
           subject_id: string
         }
         Insert: {
           course_count?: number
           created_at?: string
+          created_by?: string | null
           exercise_count?: number
           id?: string
+          is_public?: boolean
           name: string
           subject_id: string
         }
         Update: {
           course_count?: number
           created_at?: string
+          created_by?: string | null
           exercise_count?: number
           id?: string
+          is_public?: boolean
           name?: string
           subject_id?: string
         }
