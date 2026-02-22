@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, X } from "lucide-react";
@@ -8,13 +8,35 @@ interface SecurePdfViewerProps {
   onOpenChange: (open: boolean) => void;
   signedUrl: string | null;
   title: string;
+  fileName?: string;
 }
 
-export function SecurePdfViewer({ open, onOpenChange, signedUrl, title }: SecurePdfViewerProps) {
+export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName }: SecurePdfViewerProps) {
   const [loading, setLoading] = useState(true);
 
+  const isPdf = useMemo(() => {
+    if (fileName) return /\.pdf$/i.test(fileName);
+    // If no fileName, check the URL path
+    if (signedUrl) {
+      try {
+        const urlPath = new URL(signedUrl).pathname;
+        return /\.pdf$/i.test(urlPath);
+      } catch { return true; }
+    }
+    return true;
+  }, [fileName, signedUrl]);
+
+  const iframeSrc = useMemo(() => {
+    if (!signedUrl) return null;
+    if (isPdf) {
+      return `${signedUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
+    }
+    // For non-PDF files (docx, etc.), use Google Docs Viewer
+    return `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
+  }, [signedUrl, isPdf]);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setLoading(true); }}>
       <DialogContent
         className="max-w-[95vw] w-[95vw] h-[90vh] p-0 gap-0"
         onContextMenu={(e) => e.preventDefault()}
@@ -36,12 +58,12 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title }: Secure
               <span className="ml-2 text-muted-foreground">Chargement du document...</span>
             </div>
           )}
-          {signedUrl && (
+          {iframeSrc && (
             <iframe
-              src={`${signedUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+              src={iframeSrc}
               className="w-full h-full border-0"
               onLoad={() => setLoading(false)}
-              sandbox="allow-same-origin allow-scripts"
+              sandbox="allow-same-origin allow-scripts allow-popups"
               title={title}
               style={{ pointerEvents: "auto" }}
             />

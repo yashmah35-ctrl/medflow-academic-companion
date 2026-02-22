@@ -70,6 +70,7 @@ export default function SubjectDetail() {
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [pdfSignedUrl, setPdfSignedUrl] = useState<string | null>(null);
   const [pdfTitle, setPdfTitle] = useState("");
+  const [pdfFileName, setPdfFileName] = useState("");
 
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
@@ -482,6 +483,7 @@ export default function SubjectDetail() {
                         if (data?.signedUrl) {
                           setPdfSignedUrl(data.signedUrl);
                           setPdfTitle(course.title);
+                          setPdfFileName(course.file_url || "");
                           setPdfViewerOpen(true);
                         } else {
                           toast.error("Impossible d'ouvrir le fichier");
@@ -532,6 +534,7 @@ export default function SubjectDetail() {
         onOpenChange={setPdfViewerOpen}
         signedUrl={pdfSignedUrl}
         title={pdfTitle}
+        fileName={pdfFileName}
       />
     </div>
   );
