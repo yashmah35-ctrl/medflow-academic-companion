@@ -475,6 +475,7 @@ export default function Annales() {
         error_type: "comprehension",
         occurrence_count: 1,
         source: "annale",
+        propositions_json: q.propositions as unknown as any,
       };
     });
 

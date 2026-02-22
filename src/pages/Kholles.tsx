@@ -443,6 +443,7 @@ export default function Kholles() {
         error_type: "comprehension",
         occurrence_count: 1,
         source: "kholle",
+        propositions_json: q.propositions as unknown as any,
       };
     });
 
