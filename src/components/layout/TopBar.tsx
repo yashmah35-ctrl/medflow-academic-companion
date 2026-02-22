@@ -17,7 +17,7 @@ import { useNavigate } from "react-router-dom";
 
 export function TopBar() {
   const unreadCount = notifications.filter((n) => !n.read).length;
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -31,8 +31,8 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm px-6">
       <div>
-        <h2 className="text-lg font-semibold text-foreground">Bienvenue 👋</h2>
-        <p className="text-sm text-muted-foreground">Prêt à réviser aujourd'hui ?</p>
+        <h2 className="text-lg font-semibold text-foreground">{isAdmin ? "Administration 🛠️" : "Bienvenue 👋"}</h2>
+        <p className="text-sm text-muted-foreground">{isAdmin ? "Gérez les contenus de la plateforme" : "Prêt à réviser aujourd'hui ?"}</p>
       </div>
 
       <div className="flex items-center gap-3">

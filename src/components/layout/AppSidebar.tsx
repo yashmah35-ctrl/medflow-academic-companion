@@ -21,11 +21,13 @@ interface NavItem {
   path: string;
   icon: any;
   restricted: boolean;
+  adminHidden?: boolean;
 }
 
 interface NavGroup {
   label: string;
   items: NavItem[];
+  adminHidden?: boolean;
 }
 
 const allNavGroups: NavGroup[] = [
@@ -33,13 +35,14 @@ const allNavGroups: NavGroup[] = [
     label: "📚 Apprentissage",
     items: [
       { title: "Matières", path: "/", icon: BookOpen, restricted: false },
-      { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false },
-      { title: "Modules", path: "/modules", icon: Puzzle, restricted: false },
-      { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false },
+      { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false, adminHidden: true },
+      { title: "Modules", path: "/modules", icon: Puzzle, restricted: false, adminHidden: true },
+      { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false, adminHidden: true },
     ],
   },
   {
     label: "📊 Performance",
+    adminHidden: true,
     items: [
       { title: "Cahier d'erreurs", path: "/errors", icon: BookX, restricted: false },
       { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
@@ -48,6 +51,7 @@ const allNavGroups: NavGroup[] = [
   },
   {
     label: "🎓 Communauté",
+    adminHidden: true,
     items: [
       { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
     ],
@@ -57,12 +61,14 @@ const allNavGroups: NavGroup[] = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const { role } = useAuth();
+  const { role, isAdmin } = useAuth();
 
   const filteredGroups = allNavGroups
+    .filter((group) => !(isAdmin && group.adminHidden))
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => {
+        if (isAdmin && item.adminHidden) return false;
         if (item.restricted && !canAccessExamsKhollesAnnales(role)) return false;
         return true;
       }),

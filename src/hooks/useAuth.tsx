@@ -4,11 +4,14 @@ import type { User, Session } from "@supabase/supabase-js";
 
 type AppRole = "pass" | "lass" | "college" | "lycee" | "medical_student" | "lyceen";
 
+const ADMIN_EMAIL = "hello.tonagentia@gmail.com";
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   role: AppRole | null;
   loading: boolean;
+  isAdmin: boolean;
   signOut: () => Promise<void>;
 }
 
@@ -17,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   role: null,
   loading: true,
+  isAdmin: false,
   signOut: async () => {},
 });
 
@@ -82,8 +86,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null);
   };
 
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading, isAdmin, signOut }}>
       {children}
     </AuthContext.Provider>
   );

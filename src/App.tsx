@@ -28,6 +28,12 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminBlockedRoute({ children }: { children: React.ReactNode }) {
+  const { isAdmin } = useAuth();
+  if (isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -37,14 +43,14 @@ function AppRoutes() {
         <Route path="/" element={<Index />} />
         <Route path="/subject/:subjectId" element={<SubjectDetail />} />
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />
-        <Route path="/schedule" element={<Schedule />} />
-        <Route path="/learning" element={<ActiveLearning />} />
-        <Route path="/errors" element={<ErrorNotebook />} />
-        <Route path="/kholles" element={<Kholles />} />
-        <Route path="/exams" element={<ExamsBlancs />} />
-        <Route path="/annales" element={<Annales />} />
-        <Route path="/modules" element={<InteractiveModules />} />
-        <Route path="/flashcards" element={<Flashcards />} />
+        <Route path="/schedule" element={<AdminBlockedRoute><Schedule /></AdminBlockedRoute>} />
+        <Route path="/learning" element={<AdminBlockedRoute><ActiveLearning /></AdminBlockedRoute>} />
+        <Route path="/errors" element={<AdminBlockedRoute><ErrorNotebook /></AdminBlockedRoute>} />
+        <Route path="/kholles" element={<AdminBlockedRoute><Kholles /></AdminBlockedRoute>} />
+        <Route path="/exams" element={<AdminBlockedRoute><ExamsBlancs /></AdminBlockedRoute>} />
+        <Route path="/annales" element={<AdminBlockedRoute><Annales /></AdminBlockedRoute>} />
+        <Route path="/modules" element={<AdminBlockedRoute><InteractiveModules /></AdminBlockedRoute>} />
+        <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -64,7 +64,7 @@ function ProgressCircle({ value, size = 64 }: { value: number; size?: number }) 
 
 const Index = () => {
   const navigate = useNavigate();
-  const { role, user } = useAuth();
+  const { role, user, isAdmin } = useAuth();
   const { stats, rank } = useUserStats();
   const [search, setSearch] = useState("");
   const [studyMinutes, setStudyMinutes] = useState(0);
@@ -124,6 +124,80 @@ const Index = () => {
 
   // Bloom level: based on accumulated XP (each 50 XP = ~1% bloom, max at 5000 XP)
   const bloomLevel = Math.min(100, ((stats?.xp ?? 0) / 5000) * 100 + studyMinutes * 0.5);
+
+  if (isAdmin) {
+    return (
+      <div className="space-y-6">
+        {/* Admin Header */}
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Interface Administrateur</h2>
+              <p className="text-sm text-muted-foreground">Gérez les cours visibles par tous les étudiants</p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Subjects Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Matières</h2>
+            <p className="text-sm text-muted-foreground">Ajoutez et gérez les cours de la Prépa du Peuple.</p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input type="text" placeholder="Rechercher..." value={search} onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl bg-muted border border-border pl-9 pr-4 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          </div>
+        </div>
+
+        {/* Subject Grid */}
+        <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" variants={container} initial="hidden" animate="show">
+          {filteredSubjects.map((s) => {
+            const colors = subjectColorMap[s.color as SubjectColor] ?? subjectColorMap.chemistry;
+            return (
+              <motion.div key={s.id} variants={item}
+                className={`group relative overflow-hidden rounded-2xl border border-border ${colors.light} p-5 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col`}
+                onClick={() => navigate(`/subject/${s.id}`)}>
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Renommer"
+                    onClick={() => { setRenamingSubject(s.id); setRenameSubjectValue(s.name); }}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <div className="flex items-start justify-between mb-3">
+                  {subjectImageMap[s.name] ? (
+                    <div className="h-12 w-12 rounded-xl overflow-hidden shadow-sm">
+                      <img src={subjectImageMap[s.name]} alt={s.name} className="h-full w-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card/80 text-2xl shadow-sm">{s.icon}</div>
+                  )}
+                </div>
+                {renamingSubject === s.id ? (
+                  <div className="flex items-center gap-2 mb-2" onClick={(e) => e.stopPropagation()}>
+                    <Input value={renameSubjectValue} onChange={(e) => setRenameSubjectValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleRenameSubject(s.id)} className="h-7 text-sm" autoFocus />
+                    <Button size="sm" variant="ghost" onClick={() => handleRenameSubject(s.id)}>OK</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setRenamingSubject(null)}>✕</Button>
+                  </div>
+                ) : (
+                  <h3 className="font-bold text-foreground text-sm leading-tight mb-2">{s.name}</h3>
+                )}
+                <div className="mt-auto">
+                  <Button size="sm" className="w-full rounded-lg font-semibold text-xs">Gérer les cours</Button>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
