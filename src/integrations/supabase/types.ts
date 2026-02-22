@@ -110,56 +110,71 @@ export type Database = {
       }
       errors: {
         Row: {
+          consecutive_wrong: number
           correct_answer: string
           correction_count: number | null
           course_id: string | null
           created_at: string
           error_type: string | null
           id: string
+          is_critical: boolean
+          last_response_time_ms: number | null
           last_seen: string
           mastered: boolean | null
+          mastery_score: number
           next_review: string | null
           occurrence_count: number
           personal_notes: string | null
           question: string
           source: string
           subject_name: string | null
+          total_attempts: number
           user_id: string
           wrong_answer: string
         }
         Insert: {
+          consecutive_wrong?: number
           correct_answer: string
           correction_count?: number | null
           course_id?: string | null
           created_at?: string
           error_type?: string | null
           id?: string
+          is_critical?: boolean
+          last_response_time_ms?: number | null
           last_seen?: string
           mastered?: boolean | null
+          mastery_score?: number
           next_review?: string | null
           occurrence_count?: number
           personal_notes?: string | null
           question: string
           source?: string
           subject_name?: string | null
+          total_attempts?: number
           user_id: string
           wrong_answer: string
         }
         Update: {
+          consecutive_wrong?: number
           correct_answer?: string
           correction_count?: number | null
           course_id?: string | null
           created_at?: string
           error_type?: string | null
           id?: string
+          is_critical?: boolean
+          last_response_time_ms?: number | null
           last_seen?: string
           mastered?: boolean | null
+          mastery_score?: number
           next_review?: string | null
           occurrence_count?: number
           personal_notes?: string | null
           question?: string
           source?: string
           subject_name?: string | null
+          total_attempts?: number
           user_id?: string
           wrong_answer?: string
         }

@@ -10,13 +10,15 @@ import { subjectColorMap, type SubjectColor } from "@/data/mockData";
 import {
   AlertTriangle, ArrowLeft, BookOpen, Brain, Calendar, CheckCircle2,
   Filter, Flame, Lightbulb, RotateCcw, Search, Sparkles, Target,
-  TrendingUp, X, Zap, StickyNote, Clock, ChevronRight
+  TrendingUp, X, Zap, StickyNote, Clock, ChevronRight, Play,
+  Timer, Trophy, BarChart3, Activity, ShieldAlert, Eye
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+// ===================== TYPES =====================
 interface DBError {
   id: string;
   question: string;
@@ -33,6 +35,11 @@ interface DBError {
   next_review: string | null;
   correction_count: number;
   source: string;
+  mastery_score: number;
+  consecutive_wrong: number;
+  total_attempts: number;
+  last_response_time_ms: number | null;
+  is_critical: boolean;
 }
 
 interface SubjectGroup {
@@ -41,13 +48,10 @@ interface SubjectGroup {
   errors: DBError[];
   criticalCount: number;
   masteredCount: number;
-  bySource: {
-    kholle: DBError[];
-    exam: DBError[];
-    annale: DBError[];
-  };
+  bySource: { kholle: DBError[]; exam: DBError[]; annale: DBError[] };
 }
 
+// ===================== CONSTANTS =====================
 const errorReasons = [
   { id: "comprehension", label: "Mauvaise compréhension", icon: "🧠" },
   { id: "memorisation", label: "Manque de mémorisation", icon: "📚" },
@@ -55,10 +59,30 @@ const errorReasons = [
   { id: "inattention", label: "Erreur d'inattention", icon: "👀" },
 ];
 
+function getMasteryStatus(err: DBError): "new" | "learning" | "mastered" {
+  if (err.mastery_score >= 85 || err.mastered) return "mastered";
+  if (err.total_attempts > 0) return "learning";
+  return "new";
+}
+
+function getMasteryColor(score: number): string {
+  if (score >= 85) return "text-success";
+  if (score >= 50) return "text-warning";
+  return "text-destructive";
+}
+
+function getIntervalLabel(score: number): string {
+  if (score < 30) return "1 min";
+  if (score < 50) return "5 min";
+  if (score < 70) return "10 min";
+  if (score < 85) return "1 jour";
+  return "3 jours";
+}
+
 function getSeverity(err: DBError): "critical" | "medium" | "light" | "mastered" {
-  if (err.mastered) return "mastered";
-  if (err.occurrence_count >= 4) return "critical";
-  if (err.occurrence_count >= 2) return "medium";
+  if (err.mastered || err.mastery_score >= 85) return "mastered";
+  if (err.is_critical || err.consecutive_wrong >= 3 || (err.mastery_score < 30 && err.total_attempts >= 5)) return "critical";
+  if (err.occurrence_count >= 2 || err.mastery_score < 50) return "medium";
   return "light";
 }
 
@@ -69,16 +93,10 @@ const severityConfig = {
   mastered: { color: "bg-success/10 border-success/30 text-success", dot: "bg-success", label: "Maîtrisée" },
 };
 
-const container = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
-};
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0 },
-};
+const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
+const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
 
-// Color mapping from subject_name to SubjectColor
+// ===================== HELPERS =====================
 function guessSubjectColor(name: string | null): SubjectColor {
   if (!name) return "chemistry";
   const n = name.toLowerCase();
@@ -99,21 +117,11 @@ function guessSubjectColor(name: string | null): SubjectColor {
   return "chemistry";
 }
 
-// Normalize short/inconsistent subject names to official subject names
 function normalizeSubjectName(name: string, subjectNames: string[]): string {
-  // If it already matches a real subject name exactly, return it
   if (subjectNames.includes(name)) return name;
-
   const n = name.toLowerCase();
-
-  // Try to find the best matching subject from the DB
-  // Priority: exact inclusion match, then keyword match
-  for (const sn of subjectNames) {
-    if (sn.toLowerCase() === n) return sn;
-  }
-
-  // Keyword-based matching for legacy short names
-  const keywordMap: { keywords: string[]; excludeKeywords?: string[]; suffix?: string }[] = [
+  for (const sn of subjectNames) { if (sn.toLowerCase() === n) return sn; }
+  const keywordMap: { keywords: string[]; suffix?: string }[] = [
     { keywords: ["chimie", "biochimie"], suffix: "Chimie / Biochimie OS" },
     { keywords: ["biologie cellulaire", "bio cell"], suffix: "Biologie Cellulaire OS" },
     { keywords: ["biophysique"], suffix: "Biophysique OS" },
@@ -128,23 +136,18 @@ function normalizeSubjectName(name: string, subjectNames: string[]): string {
     { keywords: ["microbiologie"], suffix: "Microbiologie TC" },
     { keywords: ["spécialité"], suffix: "Spécialité Médecine" },
   ];
-
   for (const mapping of keywordMap) {
     if (mapping.keywords.some((kw) => n.includes(kw))) {
-      // Check if the mapped name exists in actual subjects
       const match = subjectNames.find((sn) => sn === mapping.suffix);
       if (match) return match;
-      // Fallback: find any subject containing the keyword
-      const fallback = subjectNames.find((sn) =>
-        mapping.keywords.some((kw) => sn.toLowerCase().includes(kw))
-      );
+      const fallback = subjectNames.find((sn) => mapping.keywords.some((kw) => sn.toLowerCase().includes(kw)));
       if (fallback) return fallback;
     }
   }
-
   return name;
 }
 
+// ===================== MAIN COMPONENT =====================
 export default function ErrorNotebook() {
   const { user } = useAuth();
   const [errors, setErrors] = useState<DBError[]>([]);
@@ -158,8 +161,27 @@ export default function ErrorNotebook() {
   const [sourceFilter, setSourceFilter] = useState<"all" | "kholle" | "exam" | "annale">("all");
   const [personalNote, setPersonalNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  
+  // Review session state
+  const [reviewMode, setReviewMode] = useState(false);
+  const [reviewCards, setReviewCards] = useState<DBError[]>([]);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<number>(0);
+  const [cardStartTime, setCardStartTime] = useState<number>(0);
+  const [sessionResults, setSessionResults] = useState<{ correct: number; wrong: number; total: number } | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  // Fetch subjects list for name normalization
+  // Timer for session
+  useEffect(() => {
+    if (!reviewMode || sessionResults) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - sessionStartTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [reviewMode, sessionStartTime, sessionResults]);
+
+  // Fetch subjects
   useEffect(() => {
     const fetchSubjects = async () => {
       const { data } = await supabase.from("subjects").select("name").order("name");
@@ -168,7 +190,7 @@ export default function ErrorNotebook() {
     fetchSubjects();
   }, []);
 
-  // Fetch errors from DB
+  // Fetch errors
   useEffect(() => {
     if (!user) return;
     const fetchErrors = async () => {
@@ -184,48 +206,25 @@ export default function ErrorNotebook() {
     fetchErrors();
   }, [user]);
 
-  // Group errors by subject - show ALL subjects (even empty ones)
+  // Group errors by subject
   const subjectGroups = useMemo(() => {
     const groups: Record<string, SubjectGroup> = {};
-    
-    // Initialize all subjects from DB as empty groups
     subjectNames.forEach((sn) => {
-      groups[sn] = {
-        name: sn,
-        color: guessSubjectColor(sn),
-        errors: [],
-        criticalCount: 0,
-        masteredCount: 0,
-        bySource: { kholle: [], exam: [], annale: [] },
-      };
+      groups[sn] = { name: sn, color: guessSubjectColor(sn), errors: [], criticalCount: 0, masteredCount: 0, bySource: { kholle: [], exam: [], annale: [] } };
     });
-    
-    // Add errors to their matching group
     errors.forEach((err) => {
-      const rawName = err.subject_name || "Autre";
-      const name = normalizeSubjectName(rawName, subjectNames);
+      const name = normalizeSubjectName(err.subject_name || "Autre", subjectNames);
       if (!groups[name]) {
-        groups[name] = {
-          name,
-          color: guessSubjectColor(name),
-          errors: [],
-          criticalCount: 0,
-          masteredCount: 0,
-          bySource: { kholle: [], exam: [], annale: [] },
-        };
+        groups[name] = { name, color: guessSubjectColor(name), errors: [], criticalCount: 0, masteredCount: 0, bySource: { kholle: [], exam: [], annale: [] } };
       }
       groups[name].errors.push(err);
-      if (err.occurrence_count >= 4) groups[name].criticalCount++;
-      if (err.mastered) groups[name].masteredCount++;
-      
-      // Group by source
+      if (err.is_critical || err.consecutive_wrong >= 3) groups[name].criticalCount++;
+      if (err.mastered || err.mastery_score >= 85) groups[name].masteredCount++;
       const source = err.source || "kholle";
       if (source === "exam") groups[name].bySource.exam.push(err);
       else if (source === "annale") groups[name].bySource.annale.push(err);
       else groups[name].bySource.kholle.push(err);
     });
-    
-    // Sort: subjects with errors first, then alphabetically
     return Object.values(groups).sort((a, b) => {
       if (b.errors.length !== a.errors.length) return b.errors.length - a.errors.length;
       return a.name.localeCompare(b.name);
@@ -234,96 +233,164 @@ export default function ErrorNotebook() {
 
   // Stats
   const totalErrors = errors.length;
-  const criticalErrors = errors.filter((e) => e.occurrence_count >= 4).length;
-  const masteredErrors = errors.filter((e) => e.mastered).length;
+  const criticalErrors = errors.filter((e) => e.is_critical || e.consecutive_wrong >= 3).length;
+  const masteredErrors = errors.filter((e) => e.mastered || e.mastery_score >= 85).length;
   const todayReview = errors.filter((e) => {
-    if (!e.next_review) return e.occurrence_count >= 3;
+    if (e.mastered || e.mastery_score >= 85) return false;
+    if (!e.next_review) return e.total_attempts === 0 || e.mastery_score < 70;
     return new Date(e.next_review) <= new Date();
   }).length;
   const correctionRate = totalErrors > 0 ? Math.round((masteredErrors / totalErrors) * 100) : 0;
+  const weakSubjects = subjectGroups.filter((g) => g.errors.length > 2 && g.masteredCount / g.errors.length < 0.5).slice(0, 3).map((g) => g.name);
 
-  // Weak subjects
-  const weakSubjects = subjectGroups
-    .filter((g) => g.errors.length > 2 && g.masteredCount / g.errors.length < 0.5)
-    .slice(0, 3)
-    .map((g) => g.name);
-
-  // Filtered errors for subject detail view
+  // Filtered errors for subject detail
   const filteredErrors = useMemo(() => {
     if (!selectedSubject) return [];
     const group = subjectGroups.find((g) => g.name === selectedSubject);
     if (!group) return [];
-    
-    // Source filter first
-    let list = sourceFilter === "all" ? group.errors 
-      : sourceFilter === "kholle" ? group.bySource.kholle
-      : sourceFilter === "exam" ? group.bySource.exam
-      : group.bySource.annale;
-
-    // Tab filter
-    if (tab === "active") list = list.filter((e) => !e.mastered);
+    let list = sourceFilter === "all" ? group.errors : sourceFilter === "kholle" ? group.bySource.kholle : sourceFilter === "exam" ? group.bySource.exam : group.bySource.annale;
+    if (tab === "active") list = list.filter((e) => !e.mastered && e.mastery_score < 85);
     else if (tab === "review") list = list.filter((e) => {
-      if (e.mastered) return false;
-      if (!e.next_review) return e.occurrence_count >= 3;
+      if (e.mastered || e.mastery_score >= 85) return false;
+      if (!e.next_review) return true;
       return new Date(e.next_review) <= new Date();
     });
-    else if (tab === "mastered") list = list.filter((e) => e.mastered);
-
-    // Type filter
+    else if (tab === "mastered") list = list.filter((e) => e.mastered || e.mastery_score >= 85);
     if (filterType !== "all") list = list.filter((e) => e.error_type === filterType);
-
-    // Search
     if (search) list = list.filter((e) => e.question.toLowerCase().includes(search.toLowerCase()));
-
     return list;
   }, [selectedSubject, subjectGroups, tab, filterType, search, sourceFilter]);
 
-  // Schedule review
-  const scheduleReview = async (errId: string, days: number) => {
-    const nextReview = new Date();
-    nextReview.setDate(nextReview.getDate() + days);
-    await supabase
-      .from("errors")
-      .update({ next_review: nextReview.toISOString() })
-      .eq("id", errId);
-    setErrors((prev) =>
-      prev.map((e) => (e.id === errId ? { ...e, next_review: nextReview.toISOString() } : e))
-    );
-    toast.success(`Révision planifiée dans ${days} jour${days > 1 ? "s" : ""}`);
+  // ==================== ACTIONS ====================
+  const updateError = async (errId: string, updates: Partial<DBError>) => {
+    await supabase.from("errors").update(updates as any).eq("id", errId);
+    setErrors((prev) => prev.map((e) => (e.id === errId ? { ...e, ...updates } : e)));
   };
 
-  // Set error type
   const setErrorType = async (errId: string, type: string) => {
-    await supabase.from("errors").update({ error_type: type }).eq("id", errId);
-    setErrors((prev) => prev.map((e) => (e.id === errId ? { ...e, error_type: type } : e)));
+    await updateError(errId, { error_type: type });
     if (selectedError?.id === errId) setSelectedError((prev) => prev ? { ...prev, error_type: type } : null);
   };
 
-  // Save personal note
   const saveNote = async () => {
     if (!selectedError) return;
     setSavingNote(true);
-    await supabase.from("errors").update({ personal_notes: personalNote }).eq("id", selectedError.id);
-    setErrors((prev) => prev.map((e) => (e.id === selectedError.id ? { ...e, personal_notes: personalNote } : e)));
+    await updateError(selectedError.id, { personal_notes: personalNote });
     setSelectedError((prev) => prev ? { ...prev, personal_notes: personalNote } : null);
     setSavingNote(false);
     toast.success("Notes sauvegardées !");
   };
 
-  // Mark as mastered
   const toggleMastered = async (errId: string) => {
     const err = errors.find((e) => e.id === errId);
     if (!err) return;
     const newVal = !err.mastered;
-    await supabase.from("errors").update({ mastered: newVal, correction_count: newVal ? err.correction_count + 1 : err.correction_count }).eq("id", errId);
-    setErrors((prev) => prev.map((e) => (e.id === errId ? { ...e, mastered: newVal, correction_count: newVal ? e.correction_count + 1 : e.correction_count } : e)));
+    await updateError(errId, { mastered: newVal, mastery_score: newVal ? 100 : err.mastery_score, correction_count: newVal ? err.correction_count + 1 : err.correction_count });
     toast.success(newVal ? "Erreur marquée comme maîtrisée ✅" : "Erreur remise en révision");
   };
 
-  // Open error detail
   const openError = (err: DBError) => {
     setSelectedError(err);
     setPersonalNote(err.personal_notes || "");
+  };
+
+  // ==================== REVIEW SESSION LOGIC ====================
+  const startReviewSession = (errs: DBError[], maxCards = 10) => {
+    // Prioritize: critical first, then by lowest mastery_score
+    const sorted = [...errs]
+      .filter(e => !e.mastered && e.mastery_score < 85)
+      .sort((a, b) => {
+        if (a.is_critical !== b.is_critical) return a.is_critical ? -1 : 1;
+        return a.mastery_score - b.mastery_score;
+      })
+      .slice(0, maxCards);
+    if (sorted.length === 0) { toast.info("Aucune carte à réviser !"); return; }
+    setReviewCards(sorted);
+    setCurrentCardIndex(0);
+    setShowAnswer(false);
+    setSessionResults(null);
+    setSessionStartTime(Date.now());
+    setCardStartTime(Date.now());
+    setElapsedSeconds(0);
+    setReviewMode(true);
+  };
+
+  const handleReviewAnswer = async (correct: boolean) => {
+    const card = reviewCards[currentCardIndex];
+    const responseTime = Date.now() - cardStartTime;
+    
+    let scoreDelta = 0;
+    if (!correct) {
+      scoreDelta = -20;
+    } else if (responseTime < 5000) {
+      scoreDelta = 15; // fast
+    } else if (responseTime > 10000) {
+      scoreDelta = 8; // slow
+    } else {
+      scoreDelta = 5; // hesitation
+    }
+    
+    const newScore = Math.max(0, Math.min(100, card.mastery_score + scoreDelta));
+    const newConsWrong = correct ? 0 : card.consecutive_wrong + 1;
+    const newAttempts = card.total_attempts + 1;
+    const isCritical = newConsWrong >= 3 || (newScore < 30 && newAttempts >= 5);
+    const isMastered = newScore >= 85;
+    
+    // Calculate next_review based on score
+    let nextReviewMs = 60000; // 1 min
+    if (newScore >= 30) nextReviewMs = 5 * 60000;
+    if (newScore >= 50) nextReviewMs = 10 * 60000;
+    if (newScore >= 70) nextReviewMs = 24 * 3600000;
+    if (newScore >= 85) nextReviewMs = 3 * 24 * 3600000;
+    
+    const nextReview = new Date(Date.now() + nextReviewMs).toISOString();
+    
+    await updateError(card.id, {
+      mastery_score: newScore,
+      consecutive_wrong: newConsWrong,
+      total_attempts: newAttempts,
+      last_response_time_ms: responseTime,
+      is_critical: isCritical,
+      mastered: isMastered,
+      next_review: nextReview,
+      last_seen: new Date().toISOString(),
+    });
+
+    // Update local reviewCards for result display
+    setReviewCards(prev => prev.map((c, i) => i === currentCardIndex ? { ...c, mastery_score: newScore, consecutive_wrong: newConsWrong, total_attempts: newAttempts, is_critical: isCritical, mastered: isMastered } : c));
+
+    if (currentCardIndex < reviewCards.length - 1) {
+      setCurrentCardIndex(prev => prev + 1);
+      setShowAnswer(false);
+      setCardStartTime(Date.now());
+    } else {
+      // Session complete
+      const totalCorrect = reviewCards.filter((c, i) => i < currentCardIndex).filter(() => correct).length + (correct ? 1 : 0);
+      // Simple count: we track per-card during session
+      setSessionResults({
+        correct: reviewCards.filter((c, i) => {
+          if (i === currentCardIndex) return correct;
+          // For simplicity, re-check updated scores
+          return true;
+        }).length,
+        wrong: 0,
+        total: reviewCards.length
+      });
+    }
+  };
+
+  const exitReviewMode = () => {
+    setReviewMode(false);
+    setReviewCards([]);
+    setCurrentCardIndex(0);
+    setShowAnswer(false);
+    setSessionResults(null);
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
   if (loading) {
@@ -334,29 +401,139 @@ export default function ErrorNotebook() {
     );
   }
 
+  // ==================== REVIEW SESSION MODE ====================
+  if (reviewMode) {
+    if (sessionResults) {
+      return (
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-lg mx-auto text-center space-y-6 py-12">
+          <Trophy className="h-16 w-16 text-warning mx-auto" />
+          <h2 className="text-2xl font-bold text-foreground">Session terminée !</h2>
+          <p className="text-muted-foreground">Tu as révisé {reviewCards.length} carte{reviewCards.length > 1 ? "s" : ""} en {formatTime(elapsedSeconds)}</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <p className="text-2xl font-bold text-success">{reviewCards.filter(c => c.mastery_score >= 50).length}</p>
+              <p className="text-xs text-muted-foreground">En progrès</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <p className="text-2xl font-bold text-destructive">{reviewCards.filter(c => c.is_critical).length}</p>
+              <p className="text-xs text-muted-foreground">Critiques</p>
+            </div>
+            <div className="rounded-2xl border border-border bg-card p-4">
+              <p className="text-2xl font-bold text-primary">{reviewCards.filter(c => c.mastered).length}</p>
+              <p className="text-xs text-muted-foreground">Maîtrisées</p>
+            </div>
+          </div>
+          <Button onClick={exitReviewMode} className="rounded-xl px-8">Fermer</Button>
+        </motion.div>
+      );
+    }
+
+    const card = reviewCards[currentCardIndex];
+    const severity = getSeverity(card);
+    const config = severityConfig[severity];
+
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-4">
+        {/* Session header */}
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={exitReviewMode} className="gap-1.5">
+            <X className="h-4 w-4" /> Quitter
+          </Button>
+          <div className="flex items-center gap-4 text-sm">
+            <span className="flex items-center gap-1.5 text-muted-foreground">
+              <Timer className="h-4 w-4" /> {formatTime(elapsedSeconds)}
+            </span>
+            <span className="text-muted-foreground font-medium">{currentCardIndex + 1} / {reviewCards.length}</span>
+          </div>
+        </div>
+
+        {/* Progress */}
+        <Progress value={((currentCardIndex + 1) / reviewCards.length) * 100} className="h-2" />
+
+        {/* Card */}
+        <motion.div
+          key={card.id + currentCardIndex}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="rounded-2xl border border-border bg-card p-6 space-y-5 min-h-[300px] flex flex-col"
+        >
+          {/* Badge row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge className={`${config.color} border text-xs`} variant="outline">
+              <span className={`h-2 w-2 rounded-full ${config.dot} mr-1.5 inline-block`} />
+              {config.label}
+            </Badge>
+            <Badge variant="secondary" className="text-xs">{card.subject_name || "Autre"}</Badge>
+            {card.error_type && (
+              <span className="text-xs text-muted-foreground">
+                {errorReasons.find(r => r.id === card.error_type)?.icon} {errorReasons.find(r => r.id === card.error_type)?.label}
+              </span>
+            )}
+          </div>
+
+          {/* Question */}
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-lg font-semibold text-foreground text-center">{card.question}</p>
+          </div>
+
+          {/* Answer reveal */}
+          <AnimatePresence>
+            {showAnswer && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-3 overflow-hidden">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-destructive/5 border border-destructive/15 p-3">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1"><X className="h-3 w-3 text-destructive" /> Ta réponse</span>
+                    <p className="text-foreground mt-1 font-medium text-sm">{card.wrong_answer}</p>
+                  </div>
+                  <div className="rounded-xl bg-success/5 border border-success/15 p-3">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</span>
+                    <p className="text-foreground mt-1 font-medium text-sm">{card.correct_answer}</p>
+                  </div>
+                </div>
+
+                {/* Mastery indicator */}
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span>Score maîtrise : <span className={`font-bold ${getMasteryColor(card.mastery_score)}`}>{card.mastery_score}/100</span></span>
+                  <span>·</span>
+                  <span>Prochaine révision : {getIntervalLabel(card.mastery_score)}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Action buttons */}
+          {!showAnswer ? (
+            <Button onClick={() => setShowAnswer(true)} className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Eye className="h-4 w-4 mr-2" /> Voir la réponse
+            </Button>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <Button onClick={() => handleReviewAnswer(false)} variant="outline" className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10">
+                <X className="h-4 w-4 mr-1.5" /> Faux
+              </Button>
+              <Button onClick={() => handleReviewAnswer(true)} className="rounded-xl bg-success hover:bg-success/90 text-success-foreground">
+                <CheckCircle2 className="h-4 w-4 mr-1.5" /> Juste
+              </Button>
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
+    );
+  }
+
   // ==================== ERROR DETAIL MODAL (Focus Mode) ====================
   if (selectedError) {
     const severity = getSeverity(selectedError);
     const config = severityConfig[severity];
 
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="space-y-5"
-      >
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-5">
         <Button variant="ghost" size="sm" onClick={() => setSelectedError(null)} className="gap-1.5">
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
 
         <div className="max-w-3xl mx-auto space-y-5">
-          {/* Error Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-border bg-card/95 backdrop-blur-sm p-6 space-y-5"
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card/95 backdrop-blur-sm p-6 space-y-5">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -364,121 +541,83 @@ export default function ErrorNotebook() {
                     <span className={`h-2 w-2 rounded-full ${config.dot} mr-1.5 inline-block`} />
                     {config.label}
                   </Badge>
-                  <Badge variant="secondary" className="text-xs">
-                    {selectedError.subject_name || "Autre"}
-                  </Badge>
+                  <Badge variant="secondary" className="text-xs">{selectedError.subject_name || "Autre"}</Badge>
                   <span className="text-xs text-muted-foreground">×{selectedError.occurrence_count}</span>
                 </div>
                 <h2 className="text-lg font-bold text-foreground">{selectedError.question}</h2>
               </div>
-              <Button
-                variant={selectedError.mastered ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleMastered(selectedError.id)}
-                className="shrink-0"
-              >
+              <Button variant={selectedError.mastered ? "default" : "outline"} size="sm" onClick={() => toggleMastered(selectedError.id)} className="shrink-0">
                 <CheckCircle2 className="h-4 w-4 mr-1" />
                 {selectedError.mastered ? "Maîtrisée" : "Marquer maîtrisée"}
               </Button>
             </div>
 
+            {/* Mastery Score Bar */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Score de maîtrise</span>
+                <span className={`font-bold ${getMasteryColor(selectedError.mastery_score)}`}>{selectedError.mastery_score}/100</span>
+              </div>
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${selectedError.mastery_score}%` }}
+                  transition={{ duration: 0.7 }}
+                  className={`h-full rounded-full ${selectedError.mastery_score >= 85 ? "bg-success" : selectedError.mastery_score >= 50 ? "bg-warning" : "bg-destructive"}`}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>{selectedError.total_attempts} tentative{selectedError.total_attempts > 1 ? "s" : ""}</span>
+                <span>Prochaine révision : {getIntervalLabel(selectedError.mastery_score)}</span>
+              </div>
+            </div>
+
             {/* Answers */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-xl bg-destructive/5 border border-destructive/15 p-4">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <X className="h-3 w-3 text-destructive" /> Ta réponse
-                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1"><X className="h-3 w-3 text-destructive" /> Ta réponse</span>
                 <p className="text-foreground mt-1 font-medium">{selectedError.wrong_answer}</p>
               </div>
               <div className="rounded-xl bg-success/5 border border-success/15 p-4">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse
-                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</span>
                 <p className="text-foreground mt-1 font-medium">{selectedError.correct_answer}</p>
               </div>
             </div>
 
-            {/* Why did you get it wrong? */}
+            {/* Error type */}
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                <Lightbulb className="h-4 w-4 text-warning" /> Pourquoi tu t'es trompé ?
-              </p>
+              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Lightbulb className="h-4 w-4 text-warning" /> Pourquoi tu t'es trompé ?</p>
               <div className="grid grid-cols-2 gap-2">
                 {errorReasons.map((reason) => (
-                  <button
-                    key={reason.id}
-                    onClick={() => setErrorType(selectedError.id, reason.id)}
-                    className={`rounded-xl border p-3 text-left text-sm transition-all ${
-                      selectedError.error_type === reason.id
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border bg-card hover:bg-muted/50 text-muted-foreground"
-                    }`}
-                  >
+                  <button key={reason.id} onClick={() => setErrorType(selectedError.id, reason.id)}
+                    className={`rounded-xl border p-3 text-left text-sm transition-all ${selectedError.error_type === reason.id ? "border-primary bg-primary/10 text-foreground" : "border-border bg-card hover:bg-muted/50 text-muted-foreground"}`}>
                     <span className="mr-1.5">{reason.icon}</span> {reason.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* AI Analysis */}
-            <div className="rounded-xl bg-primary/5 border border-primary/15 p-4 space-y-1">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                <Brain className="h-4 w-4 text-primary" /> Analyse IA
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {selectedError.error_type === "comprehension"
-                  ? `L'erreur vient probablement d'une confusion conceptuelle. Revois la définition et les cas limites liés à "${selectedError.question.slice(0, 40)}…".`
-                  : selectedError.error_type === "memorisation"
-                  ? `Tu as oublié un détail clé. Crée une flashcard dédiée et utilise la répétition espacée pour ancrer cette notion.`
-                  : selectedError.error_type === "piege"
-                  ? `La formulation de la question contenait un piège. Entraîne-toi à repérer les mots-clés : "toujours", "jamais", "sauf"…`
-                  : selectedError.error_type === "inattention"
-                  ? `C'est une erreur d'inattention. Prends le temps de relire chaque proposition avant de valider ta réponse.`
-                  : `Sélectionne le type d'erreur ci-dessus pour obtenir une analyse personnalisée.`}
-              </p>
-            </div>
-
-            {/* Personal Notes */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                <StickyNote className="h-4 w-4 text-warning" /> Notes personnelles
-              </p>
-              <Textarea
-                value={personalNote}
-                onChange={(e) => setPersonalNote(e.target.value)}
-                placeholder="Résumé, astuce mnémotechnique, rappel important…"
-                className="min-h-[80px] bg-muted/30"
-              />
-              <Button size="sm" onClick={saveNote} disabled={savingNote} className="rounded-lg">
-                {savingNote ? "Sauvegarde…" : "Sauvegarder"}
-              </Button>
-            </div>
-
-            {/* Spaced repetition buttons */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                <RotateCcw className="h-4 w-4 text-info" /> Planifier la révision
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                {[1, 3, 7, 21].map((d) => (
-                  <Button
-                    key={d}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => scheduleReview(selectedError.id, d)}
-                    className="rounded-xl"
-                  >
-                    <Calendar className="h-3.5 w-3.5 mr-1.5" />
-                    {d === 1 ? "Demain" : `Dans ${d} jours`}
-                  </Button>
-                ))}
-              </div>
-              {selectedError.next_review && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Prochaine révision : {new Date(selectedError.next_review).toLocaleDateString("fr-FR")}
+            {/* Pattern detection */}
+            {selectedError.total_attempts >= 3 && (
+              <div className={`rounded-xl p-4 space-y-1 ${selectedError.consecutive_wrong >= 3 ? "bg-destructive/5 border border-destructive/15" : selectedError.mastery_score >= 70 ? "bg-success/5 border border-success/15" : "bg-warning/5 border border-warning/15"}`}>
+                <p className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                  <Brain className="h-4 w-4 text-primary" /> Détection de pattern
                 </p>
-              )}
+                <p className="text-sm text-muted-foreground">
+                  {selectedError.consecutive_wrong >= 3
+                    ? "⚠️ Erreur récurrente détectée. Tu te trompes systématiquement sur cette notion. Souhaites-tu revoir le cours de ce chapitre ?"
+                    : selectedError.mastery_score >= 70
+                    ? "✅ Tu progresses bien sur cette notion ! Encore quelques révisions pour la consolider."
+                    : "🔄 Résultat instable – tu alternes entre juste et faux. Cela indique une confusion. Revois les fondamentaux."}
+                </p>
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><StickyNote className="h-4 w-4 text-warning" /> Notes personnelles</p>
+              <Textarea value={personalNote} onChange={(e) => setPersonalNote(e.target.value)} placeholder="Résumé, astuce mnémotechnique…" className="min-h-[80px] bg-muted/30" />
+              <Button size="sm" onClick={saveNote} disabled={savingNote} className="rounded-lg">{savingNote ? "Sauvegarde…" : "Sauvegarder"}</Button>
             </div>
           </motion.div>
         </div>
@@ -486,13 +625,22 @@ export default function ErrorNotebook() {
     );
   }
 
-  // ==================== SUBJECT DETAIL VIEW ====================
+  // ==================== SUBJECT DETAIL VIEW (DECK STYLE) ====================
   if (selectedSubject) {
     const group = subjectGroups.find((g) => g.name === selectedSubject);
     const colors = group ? subjectColorMap[group.color] : subjectColorMap.chemistry;
     const subjectTotal = group?.errors.length || 0;
     const subjectMastered = group?.masteredCount || 0;
     const subjectRate = subjectTotal > 0 ? Math.round((subjectMastered / subjectTotal) * 100) : 0;
+    const newCards = group?.errors.filter(e => getMasteryStatus(e) === "new").length || 0;
+    const learningCards = group?.errors.filter(e => getMasteryStatus(e) === "learning").length || 0;
+    const masteredCards = group?.errors.filter(e => getMasteryStatus(e) === "mastered").length || 0;
+    const criticalCards = group?.errors.filter(e => e.is_critical || e.consecutive_wrong >= 3).length || 0;
+    const todayCards = group?.errors.filter(e => {
+      if (e.mastered || e.mastery_score >= 85) return false;
+      if (!e.next_review) return true;
+      return new Date(e.next_review) <= new Date();
+    }).length || 0;
 
     return (
       <div className="space-y-5">
@@ -500,22 +648,91 @@ export default function ErrorNotebook() {
           <ArrowLeft className="h-4 w-4" /> Retour
         </Button>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{selectedSubject}</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {subjectTotal} erreurs · {group?.criticalCount || 0} critiques · {subjectRate}% corrigées
-            </p>
-          </div>
-          <div className="relative">
-            <div className="h-14 w-14 flex items-center justify-center">
-              <svg width={56} height={56} className="transform -rotate-90">
-                <circle cx={28} cy={28} r={24} fill="none" stroke="hsl(var(--muted))" strokeWidth={4} />
-                <circle cx={28} cy={28} r={24} fill="none" stroke={subjectRate >= 70 ? "hsl(var(--success))" : subjectRate >= 40 ? "hsl(var(--warning))" : "hsl(var(--destructive))"} strokeWidth={4} strokeLinecap="round" strokeDasharray={2 * Math.PI * 24} strokeDashoffset={2 * Math.PI * 24 * (1 - subjectRate / 100)} className="transition-all duration-700" />
-              </svg>
-              <span className="absolute text-xs font-bold text-foreground">{subjectRate}%</span>
+        {/* Subject header */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Algorithme d'apprentissage : <span className="text-primary font-medium">Répétition adaptative ⓘ</span></p>
+          
+          {/* Deck-style hero card */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-4 mt-2">
+            <div className="text-center space-y-1">
+              <p className="text-5xl font-bold text-foreground">{todayCards}</p>
+              <p className="text-sm text-muted-foreground">cartes pour aujourd'hui</p>
             </div>
+            
+            <div className="flex items-center justify-center gap-6 text-sm">
+              <div className="flex items-center gap-1.5">
+                <div className="h-5 w-5 rounded-md bg-primary/20 flex items-center justify-center">
+                  <Zap className="h-3 w-3 text-primary" />
+                </div>
+                <span className="font-bold text-foreground">{newCards}</span>
+                <span className="text-muted-foreground">À étudier</span>
+              </div>
+              <div className="h-5 w-px bg-border" />
+              <div className="flex items-center gap-1.5">
+                <div className="h-5 w-5 rounded-md bg-warning/20 flex items-center justify-center">
+                  <Clock className="h-3 w-3 text-warning" />
+                </div>
+                <span className="font-bold text-foreground">{learningCards}</span>
+                <span className="text-muted-foreground">En cours</span>
+              </div>
+              <div className="h-5 w-px bg-border" />
+              <div className="flex items-center gap-1.5">
+                <div className="h-5 w-5 rounded-md bg-success/20 flex items-center justify-center">
+                  <CheckCircle2 className="h-3 w-3 text-success" />
+                </div>
+                <span className="font-bold text-foreground">{masteredCards}</span>
+                <span className="text-muted-foreground">Maîtrisées</span>
+              </div>
+            </div>
+
+            <Button 
+              onClick={() => group && startReviewSession(group.errors)} 
+              className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-base font-semibold"
+              disabled={todayCards === 0}
+            >
+              <Play className="h-5 w-5 mr-2" /> Étudier les cartes
+            </Button>
+          </motion.div>
+        </div>
+
+        {/* Quick session button */}
+        {criticalCards > 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShieldAlert className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">{criticalCards} erreur{criticalCards > 1 ? "s" : ""} critique{criticalCards > 1 ? "s" : ""}</p>
+                <p className="text-xs text-muted-foreground">Session rapide 5-7 min recommandée</p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
+              onClick={() => group && startReviewSession(group.errors.filter(e => e.is_critical || e.consecutive_wrong >= 3), 10)}>
+              <Flame className="h-4 w-4 mr-1.5" /> Corriger maintenant
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Cards list header */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-foreground">Cartes du paquet ({subjectTotal})</h3>
           </div>
+          
+          {/* Mastery distribution bar */}
+          {subjectTotal > 0 && (
+            <div className="space-y-1.5">
+              <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
+                {newCards > 0 && <div className="h-full bg-muted-foreground/30" style={{ width: `${(newCards / subjectTotal) * 100}%` }} />}
+                {learningCards > 0 && <div className="h-full bg-warning" style={{ width: `${(learningCards / subjectTotal) * 100}%` }} />}
+                {masteredCards > 0 && <div className="h-full bg-success" style={{ width: `${(masteredCards / subjectTotal) * 100}%` }} />}
+              </div>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/30" />{newCards} À étudier</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" />{learningCards} En cours</span>
+                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" />{masteredCards} Maîtrisées</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Source filter */}
@@ -526,15 +743,8 @@ export default function ErrorNotebook() {
             { value: "exam" as const, label: "Examens Blancs", count: group?.bySource.exam.length || 0 },
             { value: "annale" as const, label: "Annales", count: group?.bySource.annale.length || 0 },
           ].map((s) => (
-            <button
-              key={s.value}
-              onClick={() => setSourceFilter(s.value)}
-              className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-all ${
-                sourceFilter === s.value
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted/50"
-              }`}
-            >
+            <button key={s.value} onClick={() => setSourceFilter(s.value)}
+              className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-all ${sourceFilter === s.value ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>
               {s.label} ({s.count})
             </button>
           ))}
@@ -549,7 +759,7 @@ export default function ErrorNotebook() {
           </TabsList>
         </Tabs>
 
-        {/* Filters */}
+        {/* Search & Filter */}
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -562,26 +772,20 @@ export default function ErrorNotebook() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous les types</SelectItem>
-              {errorReasons.map((r) => (
-                <SelectItem key={r.id} value={r.id}>{r.icon} {r.label}</SelectItem>
-              ))}
+              {errorReasons.map((r) => (<SelectItem key={r.id} value={r.id}>{r.icon} {r.label}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Error cards */}
+        {/* Error cards grid */}
         <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-3" variants={container} initial="hidden" animate="show">
           {filteredErrors.map((err) => {
             const severity = getSeverity(err);
             const config = severityConfig[severity];
 
             return (
-              <motion.div
-                key={err.id}
-                variants={item}
-                onClick={() => openError(err)}
-                className="rounded-2xl border border-border bg-card hover:bg-card/80 p-4 space-y-3 cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 transition-all duration-200"
-              >
+              <motion.div key={err.id} variants={item} onClick={() => openError(err)}
+                className="rounded-2xl border border-border bg-card hover:bg-card/80 p-4 space-y-3 cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 transition-all duration-200">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`h-2.5 w-2.5 rounded-full ${config.dot}`} />
@@ -591,15 +795,19 @@ export default function ErrorNotebook() {
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <p className="font-medium text-foreground text-sm line-clamp-2">{err.question}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {err.error_type && (
-                    <span>{errorReasons.find((r) => r.id === err.error_type)?.icon} {errorReasons.find((r) => r.id === err.error_type)?.label}</span>
-                  )}
-                  {err.next_review && (
-                    <span className="flex items-center gap-0.5">
-                      <Clock className="h-3 w-3" /> {new Date(err.next_review).toLocaleDateString("fr-FR")}
-                    </span>
-                  )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    {err.error_type && (
+                      <span>{errorReasons.find((r) => r.id === err.error_type)?.icon} {errorReasons.find((r) => r.id === err.error_type)?.label}</span>
+                    )}
+                  </div>
+                  {/* Mini mastery bar */}
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
+                      <div className={`h-full rounded-full ${err.mastery_score >= 85 ? "bg-success" : err.mastery_score >= 50 ? "bg-warning" : "bg-destructive"}`} style={{ width: `${err.mastery_score}%` }} />
+                    </div>
+                    <span className={`text-[10px] font-bold ${getMasteryColor(err.mastery_score)}`}>{err.mastery_score}</span>
+                  </div>
                 </div>
               </motion.div>
             );
@@ -609,10 +817,56 @@ export default function ErrorNotebook() {
         {filteredErrors.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-success/50" />
-            <p className="font-medium">
-              {tab === "mastered" ? "Aucune erreur maîtrisée pour l'instant" : "Aucune erreur dans cette catégorie 🎉"}
-            </p>
+            <p className="font-medium">{tab === "mastered" ? "Aucune erreur maîtrisée pour l'instant" : "Aucune erreur dans cette catégorie 🎉"}</p>
           </div>
+        )}
+
+        {/* Per-subject stats */}
+        {subjectTotal > 0 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            <h3 className="font-bold text-foreground flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Statistiques</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">{subjectRate}%</p>
+                <p className="text-xs text-muted-foreground">Taux correction</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-2xl font-bold text-destructive">{criticalCards}</p>
+                <p className="text-xs text-muted-foreground">Erreurs critiques</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-2xl font-bold text-foreground">{subjectTotal}</p>
+                <p className="text-xs text-muted-foreground">Total erreurs</p>
+              </div>
+              <div className="rounded-xl bg-muted/30 p-3 text-center">
+                <p className="text-2xl font-bold text-warning">{group?.errors.reduce((acc, e) => acc + e.total_attempts, 0) || 0}</p>
+                <p className="text-xs text-muted-foreground">Tentatives</p>
+              </div>
+            </div>
+
+            {/* Mastery distribution */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">Distribution des scores de maîtrise</p>
+              <div className="grid grid-cols-5 gap-1">
+                {[
+                  { label: "0-20", count: group?.errors.filter(e => e.mastery_score < 20).length || 0, color: "bg-destructive" },
+                  { label: "20-40", count: group?.errors.filter(e => e.mastery_score >= 20 && e.mastery_score < 40).length || 0, color: "bg-destructive/70" },
+                  { label: "40-60", count: group?.errors.filter(e => e.mastery_score >= 40 && e.mastery_score < 60).length || 0, color: "bg-warning" },
+                  { label: "60-80", count: group?.errors.filter(e => e.mastery_score >= 60 && e.mastery_score < 80).length || 0, color: "bg-warning/70" },
+                  { label: "80-100", count: group?.errors.filter(e => e.mastery_score >= 80).length || 0, color: "bg-success" },
+                ].map(b => (
+                  <div key={b.label} className="text-center space-y-1">
+                    <div className="h-16 rounded-lg bg-muted/30 relative overflow-hidden flex items-end justify-center">
+                      <motion.div initial={{ height: 0 }} animate={{ height: `${subjectTotal > 0 ? (b.count / subjectTotal) * 100 : 0}%` }}
+                        transition={{ duration: 0.5 }} className={`w-full rounded-t-md ${b.color}`} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{b.label}</p>
+                    <p className="text-[10px] font-bold text-foreground">{b.count}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
         )}
       </div>
     );
@@ -621,99 +875,83 @@ export default function ErrorNotebook() {
   // ==================== MAIN DASHBOARD VIEW ====================
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Mon Cahier d'Erreurs</h1>
-        <p className="text-muted-foreground mt-1">
-          Transforme tes erreurs en points forts grâce à la répétition espacée.
-        </p>
+        <p className="text-muted-foreground mt-1">Micro-flashcards adaptatives avec algorithme de maîtrise intelligent.</p>
       </div>
 
       {/* Stats Bar */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid grid-cols-2 md:grid-cols-4 gap-3"
-      >
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center">
-              <Flame className="h-4 w-4 text-destructive" />
-            </div>
+            <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center"><Flame className="h-4 w-4 text-destructive" /></div>
             <span className="text-xs text-muted-foreground">À revoir aujourd'hui</span>
           </div>
           <p className="text-2xl font-bold text-foreground">{todayReview}</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center">
-              <TrendingUp className="h-4 w-4 text-success" />
-            </div>
+            <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center"><TrendingUp className="h-4 w-4 text-success" /></div>
             <span className="text-xs text-muted-foreground">Taux de correction</span>
           </div>
           <p className="text-2xl font-bold text-foreground">{correctionRate}%</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center">
-              <AlertTriangle className="h-4 w-4 text-warning" />
-            </div>
+            <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center"><AlertTriangle className="h-4 w-4 text-warning" /></div>
             <span className="text-xs text-muted-foreground">Erreurs critiques</span>
           </div>
           <p className="text-2xl font-bold text-foreground">{criticalErrors}</p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Target className="h-4 w-4 text-primary" />
-            </div>
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center"><Target className="h-4 w-4 text-primary" /></div>
             <span className="text-xs text-muted-foreground">Points faibles</span>
           </div>
-          <p className="text-sm font-semibold text-foreground line-clamp-1">
-            {weakSubjects.length > 0 ? weakSubjects.join(", ") : "Aucun 🎉"}
-          </p>
+          <p className="text-sm font-semibold text-foreground line-clamp-1">{weakSubjects.length > 0 ? weakSubjects.join(", ") : "Aucun 🎉"}</p>
         </div>
       </motion.div>
 
+      {/* Quick session CTA */}
+      {criticalErrors > 0 && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="rounded-2xl bg-gradient-to-r from-destructive/10 to-warning/10 border border-destructive/20 p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Flame className="h-5 w-5 text-destructive shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Corriger mes {Math.min(criticalErrors, 10)} erreurs critiques maintenant</p>
+              <p className="text-xs text-muted-foreground">Session rapide 5-7 min</p>
+            </div>
+          </div>
+          <Button size="sm" className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground shrink-0"
+            onClick={() => startReviewSession(errors.filter(e => e.is_critical || e.consecutive_wrong >= 3), 10)}>
+            <Play className="h-4 w-4 mr-1.5" /> Go
+          </Button>
+        </motion.div>
+      )}
+
       {/* Motivation banner */}
       {masteredErrors > 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl bg-gradient-to-r from-success/10 to-primary/10 border border-success/20 p-4 flex items-center gap-3"
-        >
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="rounded-2xl bg-gradient-to-r from-success/10 to-primary/10 border border-success/20 p-4 flex items-center gap-3">
           <Sparkles className="h-5 w-5 text-success shrink-0" />
           <p className="text-sm text-foreground">
-            Tu as corrigé <span className="font-bold">{masteredErrors} erreur{masteredErrors > 1 ? "s" : ""}</span> 🔥
-            {totalErrors - masteredErrors > 0 && (
-              <> · Encore <span className="font-bold">{totalErrors - masteredErrors}</span> erreur{totalErrors - masteredErrors > 1 ? "s" : ""} à maîtriser</>
-            )}
+            Tu as maîtrisé <span className="font-bold">{masteredErrors} erreur{masteredErrors > 1 ? "s" : ""}</span> 🔥
+            {totalErrors - masteredErrors > 0 && (<> · Encore <span className="font-bold">{totalErrors - masteredErrors}</span> à corriger</>)}
           </p>
         </motion.div>
       )}
 
       {/* Subject Cards */}
       <div>
-        <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-primary" /> Par matière
-        </h2>
-        <motion.div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"
-          variants={container}
-          initial="hidden"
-          animate="show"
-        >
+        <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" /> Par matière</h2>
+        <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
           {subjectGroups.map((group) => {
             const colors = subjectColorMap[group.color] || subjectColorMap.chemistry;
             const rate = group.errors.length > 0 ? Math.round((group.masteredCount / group.errors.length) * 100) : 0;
-
             return (
-              <motion.div
-                key={group.name}
-                variants={item}
-                onClick={() => setSelectedSubject(group.name)}
-                className={`rounded-2xl border border-border ${colors.light} p-5 cursor-pointer hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 space-y-3`}
-              >
+              <motion.div key={group.name} variants={item} onClick={() => setSelectedSubject(group.name)}
+                className={`rounded-2xl border border-border ${colors.light} p-5 cursor-pointer hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 space-y-3`}>
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-foreground text-sm">{group.name}</h3>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -724,15 +962,9 @@ export default function ErrorNotebook() {
                   <p>→ {rate}% corrigées</p>
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
-                  {group.bySource.kholle.length > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Khôlles: {group.bySource.kholle.length}</Badge>
-                  )}
-                  {group.bySource.exam.length > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">EB: {group.bySource.exam.length}</Badge>
-                  )}
-                  {group.bySource.annale.length > 0 && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Annales: {group.bySource.annale.length}</Badge>
-                  )}
+                  {group.bySource.kholle.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Khôlles: {group.bySource.kholle.length}</Badge>)}
+                  {group.bySource.exam.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">EB: {group.bySource.exam.length}</Badge>)}
+                  {group.bySource.annale.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Annales: {group.bySource.annale.length}</Badge>)}
                 </div>
                 <Progress value={rate} className="h-1.5" />
               </motion.div>
