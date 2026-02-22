@@ -10,13 +10,14 @@ import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 
 type AuthMode = "login" | "register";
-type RoleOption = "pass" | "lass" | "college" | "lycee";
+type RoleOption = "pass" | "lass" | "college" | "lycee" | "prepa_du_peuple";
 
 const roleOptions: { value: RoleOption; label: string; emoji: string; desc: string }[] = [
   { value: "pass", label: "PASS", emoji: "🩺", desc: "Accès complet à toutes les matières" },
   { value: "lass", label: "L.AS", emoji: "📖", desc: "Accès complet sauf matières TC" },
   { value: "college", label: "Collège", emoji: "🎒", desc: "Matières & Modules interactifs" },
   { value: "lycee", label: "Lycée", emoji: "📚", desc: "Matières & Modules interactifs" },
+  { value: "prepa_du_peuple", label: "Prépa du Peuple", emoji: "🛠️", desc: "Accès réservé aux administrateurs" },
 ];
 
 export default function Auth() {
