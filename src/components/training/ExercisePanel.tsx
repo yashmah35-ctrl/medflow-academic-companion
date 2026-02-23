@@ -484,22 +484,26 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
               <Label>Propositions</Label>
               <div className="mt-2 space-y-2">
                 {propositions.map((p, idx) => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    {getTargetFormat() === "QIM" ? (
-                      <div className="flex gap-1">
-                        <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs"
-                          onClick={() => { const u = [...propositions]; u[idx] = { ...u[idx], isCorrect: true }; setPropositions(u); }}>V</Button>
-                        <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs"
-                          onClick={() => { const u = [...propositions]; u[idx] = { ...u[idx], isCorrect: false }; setPropositions(u); }}>F</Button>
-                      </div>
-                    ) : (
-                      <input type="checkbox" checked={p.isCorrect}
-                        onChange={() => { const u = [...propositions]; u[idx] = { ...u[idx], isCorrect: !u[idx].isCorrect }; setPropositions(u); }}
-                        className="h-4 w-4 rounded border-border accent-primary" />
-                    )}
-                    <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
-                    <Input value={p.text} onChange={(e) => { const u = [...propositions]; u[idx] = { ...u[idx], text: e.target.value }; setPropositions(u); }}
-                      placeholder={`Proposition ${p.id}`} className="flex-1" />
+                  <div key={p.id} className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      {getTargetFormat() === "QIM" ? (
+                        <div className="flex gap-1">
+                          <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs"
+                            onClick={() => { const u = [...propositions]; u[idx] = { ...u[idx], isCorrect: true }; setPropositions(u); }}>V</Button>
+                          <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs"
+                            onClick={() => { const u = [...propositions]; u[idx] = { ...u[idx], isCorrect: false }; setPropositions(u); }}>F</Button>
+                        </div>
+                      ) : (
+                        <input type="checkbox" checked={p.isCorrect}
+                          onChange={() => { const u = [...propositions]; u[idx] = { ...u[idx], isCorrect: !u[idx].isCorrect }; setPropositions(u); }}
+                          className="h-4 w-4 rounded border-border accent-primary" />
+                      )}
+                      <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
+                      <Input value={p.text} onChange={(e) => { const u = [...propositions]; u[idx] = { ...u[idx], text: e.target.value }; setPropositions(u); }}
+                        placeholder={`Proposition ${p.id}`} className="flex-1" />
+                    </div>
+                    <Input value={p.explanation || ""} onChange={(e) => { const u = [...propositions]; u[idx] = { ...u[idx], explanation: e.target.value || undefined }; setPropositions(u); }}
+                      placeholder={`Explication ${p.id} (optionnel)`} className="ml-8 text-xs h-7" />
                   </div>
                 ))}
               </div>

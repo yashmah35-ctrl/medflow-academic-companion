@@ -17,6 +17,7 @@ interface Proposition {
   id: string;
   text: string;
   isCorrect: boolean;
+  explanation?: string;
 }
 
 interface Question {
@@ -538,17 +539,20 @@ export default function ExamsBlancs() {
                 <Label>{selectedExam?.format === "QIM" ? "Propositions (indique Vrai ou Faux pour chaque)" : "Propositions (coche les réponses correctes)"}</Label>
                 <div className="mt-2 space-y-2">
                   {propositions.map((p, idx) => (
-                    <div key={p.id} className="flex items-center gap-2">
-                      {selectedExam?.format === "QIM" ? (
-                        <div className="flex gap-1">
-                          <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...propositions]; updated[idx] = { ...updated[idx], isCorrect: true }; setPropositions(updated); }}>V</Button>
-                          <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...propositions]; updated[idx] = { ...updated[idx], isCorrect: false }; setPropositions(updated); }}>F</Button>
-                        </div>
-                      ) : (
-                        <input type="checkbox" checked={p.isCorrect} onChange={() => { const updated = [...propositions]; updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect }; setPropositions(updated); }} className="h-4 w-4 rounded border-border accent-primary" />
-                      )}
-                      <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
-                      <Input value={p.text} onChange={(e) => { const updated = [...propositions]; updated[idx] = { ...updated[idx], text: e.target.value }; setPropositions(updated); }} placeholder={`Proposition ${p.id}`} className="flex-1" />
+                    <div key={p.id} className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        {selectedExam?.format === "QIM" ? (
+                          <div className="flex gap-1">
+                            <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...propositions]; updated[idx] = { ...updated[idx], isCorrect: true }; setPropositions(updated); }}>V</Button>
+                            <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...propositions]; updated[idx] = { ...updated[idx], isCorrect: false }; setPropositions(updated); }}>F</Button>
+                          </div>
+                        ) : (
+                          <input type="checkbox" checked={p.isCorrect} onChange={() => { const updated = [...propositions]; updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect }; setPropositions(updated); }} className="h-4 w-4 rounded border-border accent-primary" />
+                        )}
+                        <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
+                        <Input value={p.text} onChange={(e) => { const updated = [...propositions]; updated[idx] = { ...updated[idx], text: e.target.value }; setPropositions(updated); }} placeholder={`Proposition ${p.id}`} className="flex-1" />
+                      </div>
+                      <Input value={p.explanation || ""} onChange={(e) => { const updated = [...propositions]; updated[idx] = { ...updated[idx], explanation: e.target.value || undefined }; setPropositions(updated); }} placeholder={`Explication ${p.id} (optionnel)`} className="ml-8 text-xs h-7" />
                     </div>
                   ))}
                 </div>
@@ -586,17 +590,20 @@ export default function ExamsBlancs() {
                 <Label>{selectedExam?.format === "QIM" ? "Propositions (indique Vrai ou Faux pour chaque)" : "Propositions (coche les réponses correctes)"}</Label>
                 <div className="mt-2 space-y-2">
                   {editPropositions.map((p, idx) => (
-                    <div key={p.id} className="flex items-center gap-2">
-                      {selectedExam?.format === "QIM" ? (
-                        <div className="flex gap-1">
-                          <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], isCorrect: true }; setEditPropositions(updated); }}>V</Button>
-                          <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], isCorrect: false }; setEditPropositions(updated); }}>F</Button>
-                        </div>
-                      ) : (
-                        <input type="checkbox" checked={p.isCorrect} onChange={() => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect }; setEditPropositions(updated); }} className="h-4 w-4 rounded border-border accent-primary" />
-                      )}
-                      <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
-                      <Input value={p.text} onChange={(e) => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], text: e.target.value }; setEditPropositions(updated); }} placeholder={`Proposition ${p.id}`} className="flex-1" />
+                    <div key={p.id} className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        {selectedExam?.format === "QIM" ? (
+                          <div className="flex gap-1">
+                            <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], isCorrect: true }; setEditPropositions(updated); }}>V</Button>
+                            <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs" onClick={() => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], isCorrect: false }; setEditPropositions(updated); }}>F</Button>
+                          </div>
+                        ) : (
+                          <input type="checkbox" checked={p.isCorrect} onChange={() => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], isCorrect: !updated[idx].isCorrect }; setEditPropositions(updated); }} className="h-4 w-4 rounded border-border accent-primary" />
+                        )}
+                        <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
+                        <Input value={p.text} onChange={(e) => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], text: e.target.value }; setEditPropositions(updated); }} placeholder={`Proposition ${p.id}`} className="flex-1" />
+                      </div>
+                      <Input value={p.explanation || ""} onChange={(e) => { const updated = [...editPropositions]; updated[idx] = { ...updated[idx], explanation: e.target.value || undefined }; setEditPropositions(updated); }} placeholder={`Explication ${p.id} (optionnel)`} className="ml-8 text-xs h-7" />
                     </div>
                   ))}
                 </div>
@@ -726,19 +733,26 @@ export default function ExamsBlancs() {
 
               if (isQIM) {
                 return (
-                  <div key={p.id} className={`w-full flex items-center gap-3 rounded-lg border p-3 transition-all ${borderClass} ${bgClass}`}>
-                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">{p.id}</span>
-                    <span className="flex-1 text-sm text-foreground">{p.text}</span>
-                    {!showResults ? (
-                      <div className="flex gap-1">
-                        <Button size="sm" variant={userAnswer === "vrai" ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => toggleAnswer(currentQuestion.id, p.id, "vrai")}>Vrai</Button>
-                        <Button size="sm" variant={userAnswer === "faux" ? "destructive" : "outline"} className="h-7 px-2 text-xs" onClick={() => toggleAnswer(currentQuestion.id, p.id, "faux")}>Faux</Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {userAnswer && <Badge variant="outline" className="text-xs">{userAnswer === "vrai" ? "Vrai" : "Faux"}</Badge>}
-                        {!userAnswer && <Badge variant="secondary" className="text-xs">—</Badge>}
-                        <Badge variant={p.isCorrect ? "default" : "secondary"} className="text-xs">{p.isCorrect ? "✓ Vrai" : "✗ Faux"}</Badge>
+                  <div key={p.id} className="space-y-0">
+                    <div className={`w-full flex items-center gap-3 rounded-lg border p-3 transition-all ${borderClass} ${bgClass}`}>
+                      <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">{p.id}</span>
+                      <span className="flex-1 text-sm text-foreground">{p.text}</span>
+                      {!showResults ? (
+                        <div className="flex gap-1">
+                          <Button size="sm" variant={userAnswer === "vrai" ? "default" : "outline"} className="h-7 px-2 text-xs" onClick={() => toggleAnswer(currentQuestion.id, p.id, "vrai")}>Vrai</Button>
+                          <Button size="sm" variant={userAnswer === "faux" ? "destructive" : "outline"} className="h-7 px-2 text-xs" onClick={() => toggleAnswer(currentQuestion.id, p.id, "faux")}>Faux</Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {userAnswer ? <Badge variant="outline" className="text-xs">{userAnswer === "vrai" ? "Vrai" : "Faux"}</Badge> : <Badge variant="secondary" className="text-xs">—</Badge>}
+                          <Badge variant={p.isCorrect ? "default" : "secondary"} className="text-xs">{p.isCorrect ? "✓ Vrai" : "✗ Faux"}</Badge>
+                        </div>
+                      )}
+                    </div>
+                    {showResults && p.explanation && (
+                      <div className={`ml-10 mt-0.5 rounded-b-lg border border-t-0 px-3 py-2 text-xs ${p.isCorrect ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
+                        <span className={`font-semibold ${p.isCorrect ? "text-green-600" : "text-destructive"}`}>{p.isCorrect ? "VRAI" : "FAUX"}</span>{" "}
+                        <span className="text-foreground">{p.explanation}</span>
                       </div>
                     )}
                   </div>
@@ -746,11 +760,19 @@ export default function ExamsBlancs() {
               }
 
               return (
-                <button key={p.id} onClick={() => toggleAnswer(currentQuestion.id, p.id)} className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${borderClass} ${bgClass} ${!showResults && userAnswer === "selected" ? "border-primary bg-primary/10" : ""}`}>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">{p.id}</span>
-                  <span className="flex-1 text-sm text-foreground">{p.text}</span>
-                  {showResults && (p.isCorrect ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : userAnswer === "selected" ? <XCircle className="h-5 w-5 text-destructive" /> : null)}
-                </button>
+                <div key={p.id} className="space-y-0">
+                  <button onClick={() => toggleAnswer(currentQuestion.id, p.id)} className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${borderClass} ${bgClass} ${!showResults && userAnswer === "selected" ? "border-primary bg-primary/10" : ""}`}>
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-sm font-medium text-muted-foreground">{p.id}</span>
+                    <span className="flex-1 text-sm text-foreground">{p.text}</span>
+                    {showResults && (p.isCorrect ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : userAnswer === "selected" ? <XCircle className="h-5 w-5 text-destructive" /> : null)}
+                  </button>
+                  {showResults && p.explanation && (
+                    <div className={`ml-10 mt-0.5 rounded-b-lg border border-t-0 px-3 py-2 text-xs ${p.isCorrect ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
+                      <span className={`font-semibold ${p.isCorrect ? "text-green-600" : "text-destructive"}`}>{p.isCorrect ? "VRAI" : "FAUX"}</span>{" "}
+                      <span className="text-foreground">{p.explanation}</span>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
