@@ -15,6 +15,7 @@ export interface Question {
   id: string;
   question: string;
   propositions: Proposition[];
+  explanation?: string;
 }
 
 interface TrainingEngineProps {
@@ -210,6 +211,13 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
           })}
         </div>
       </motion.div>
+
+      {showResults && currentQuestion.explanation && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+          <p className="text-xs font-semibold text-primary mb-1">💡 Explication</p>
+          <p className="text-xs text-foreground whitespace-pre-wrap">{currentQuestion.explanation}</p>
+        </div>
+      )}
 
       <div className="flex justify-end">
         {!showResults ? (

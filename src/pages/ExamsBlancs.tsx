@@ -23,6 +23,7 @@ interface Question {
   id: string;
   question: string;
   propositions: Proposition[];
+  explanation?: string;
 }
 
 interface Exam {
@@ -60,6 +61,7 @@ export default function ExamsBlancs() {
   // Add question dialog
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [questionText, setQuestionText] = useState("");
+  const [explanationText, setExplanationText] = useState("");
   const [propositions, setPropositions] = useState<Proposition[]>([
     { id: "A", text: "", isCorrect: false },
     { id: "B", text: "", isCorrect: false },
@@ -72,6 +74,7 @@ export default function ExamsBlancs() {
   const [showEditQuestion, setShowEditQuestion] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editQuestionText, setEditQuestionText] = useState("");
+  const [editExplanationText, setEditExplanationText] = useState("");
   const [editPropositions, setEditPropositions] = useState<Proposition[]>([]);
 
   // Import state
@@ -152,6 +155,7 @@ export default function ExamsBlancs() {
       id: crypto.randomUUID(),
       question: questionText.trim(),
       propositions: filledProps,
+      explanation: explanationText.trim() || undefined,
     };
 
     const updatedQuestions = [...(selectedExam.questions_json || []), newQuestion];
@@ -174,6 +178,7 @@ export default function ExamsBlancs() {
 
   const resetQuestionForm = () => {
     setQuestionText("");
+    setExplanationText("");
     setPropositions([
       { id: "A", text: "", isCorrect: false },
       { id: "B", text: "", isCorrect: false },
@@ -209,6 +214,7 @@ export default function ExamsBlancs() {
   const openEditQuestion = (q: Question) => {
     setEditingQuestion(q);
     setEditQuestionText(q.question);
+    setEditExplanationText(q.explanation || "");
     const allIds = ["A", "B", "C", "D", "E"];
     setEditPropositions(
       allIds.map((id) => {
@@ -229,7 +235,7 @@ export default function ExamsBlancs() {
 
     const updatedQuestions = (selectedExam.questions_json || []).map((q) =>
       q.id === editingQuestion.id
-        ? { ...q, question: editQuestionText.trim(), propositions: filledProps }
+        ? { ...q, question: editQuestionText.trim(), propositions: filledProps, explanation: editExplanationText.trim() || undefined }
         : q
     );
 
@@ -547,6 +553,16 @@ export default function ExamsBlancs() {
                   ))}
                 </div>
               </div>
+              <div>
+                <Label>Explication (optionnel)</Label>
+                <textarea
+                  value={explanationText}
+                  onChange={(e) => setExplanationText(e.target.value)}
+                  placeholder="Explication de la réponse correcte..."
+                  className="mt-1 flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  rows={2}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAddQuestion(false)}>Annuler</Button>
@@ -584,6 +600,16 @@ export default function ExamsBlancs() {
                     </div>
                   ))}
                 </div>
+              </div>
+              <div>
+                <Label>Explication (optionnel)</Label>
+                <textarea
+                  value={editExplanationText}
+                  onChange={(e) => setEditExplanationText(e.target.value)}
+                  placeholder="Explication de la réponse correcte..."
+                  className="mt-1 flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  rows={2}
+                />
               </div>
             </div>
             <DialogFooter>
@@ -729,6 +755,13 @@ export default function ExamsBlancs() {
             })}
           </div>
         </motion.div>
+
+        {showResults && currentQuestion.explanation && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+            <p className="text-xs font-semibold text-primary mb-1">💡 Explication</p>
+            <p className="text-sm text-foreground whitespace-pre-wrap">{currentQuestion.explanation}</p>
+          </div>
+        )}
 
         <div className="flex justify-end">
           {!showResults ? (

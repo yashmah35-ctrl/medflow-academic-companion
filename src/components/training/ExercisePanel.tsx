@@ -57,6 +57,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [editTarget, setEditTarget] = useState<{ type: "exercise" | "review"; id: string } | null>(null);
   const [questionText, setQuestionText] = useState("");
+  const [explanationText, setExplanationText] = useState("");
   const [propositions, setPropositions] = useState<Proposition[]>([
     { id: "A", text: "", isCorrect: false },
     { id: "B", text: "", isCorrect: false },
@@ -167,7 +168,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
     const filledProps = propositions.filter((p) => p.text.trim());
     if (filledProps.length < 2) { toast.error("Au moins 2 propositions"); return; }
 
-    const newQ: Question = { id: crypto.randomUUID(), question: questionText.trim(), propositions: filledProps };
+    const newQ: Question = { id: crypto.randomUUID(), question: questionText.trim(), propositions: filledProps, explanation: explanationText.trim() || undefined };
     const table = editTarget.type === "exercise" ? "admin_exercises" : "chapter_reviews";
     const items = editTarget.type === "exercise" ? exercises : reviews;
     const item = items.find((i) => i.id === editTarget.id);
@@ -502,6 +503,16 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
                   </div>
                 ))}
               </div>
+            </div>
+            <div>
+              <Label>Explication (optionnel)</Label>
+              <textarea
+                value={explanationText}
+                onChange={(e) => setExplanationText(e.target.value)}
+                placeholder="Explication de la réponse correcte..."
+                className="mt-1 flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                rows={2}
+              />
             </div>
           </div>
           <DialogFooter>
