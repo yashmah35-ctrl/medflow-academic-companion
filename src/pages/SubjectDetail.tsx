@@ -72,6 +72,7 @@ export default function SubjectDetail() {
   const [pdfTitle, setPdfTitle] = useState("");
   const [pdfFileName, setPdfFileName] = useState("");
   const [pdfCourseId, setPdfCourseId] = useState<string | undefined>(undefined);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
@@ -193,25 +194,42 @@ export default function SubjectDetail() {
     const files = e.target.files;
     if (!files || files.length === 0 || !folderId || !user) return;
 
+    const fileArray = Array.from(files);
     setUploading(true);
+    setUploadProgress({ current: 0, total: fileArray.length });
     let imported = 0;
 
-    for (const file of Array.from(files)) {
+    for (let i = 0; i < fileArray.length; i++) {
+      const file = fileArray[i];
+      setUploadProgress({ current: i, total: fileArray.length });
+      
       try {
-        const filePath = `${user.id}/${folderId}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from("course-files")
-          .upload(filePath, file);
-
-        if (uploadError) {
-          toast.error(`Erreur upload: ${file.name}`);
+        const sizeMB = file.size / (1024 * 1024);
+        
+        if (sizeMB > 500) {
+          toast.error(`"${file.name}" est trop volumineux (${Math.round(sizeMB)}MB, max 500MB)`);
           continue;
         }
 
-        const sizeMB = file.size / (1024 * 1024);
+        const filePath = `${user.id}/${folderId}/${Date.now()}-${file.name}`;
+        
+        // Use chunked upload for large files (> 6MB)
+        const uploadOptions: any = {};
+        if (sizeMB > 6) {
+          uploadOptions.duplex = 'half';
+        }
+        
+        const { error: uploadError } = await supabase.storage
+          .from("course-files")
+          .upload(filePath, file, uploadOptions);
+
+        if (uploadError) {
+          toast.error(`Erreur upload "${file.name}": ${uploadError.message}`);
+          continue;
+        }
+
         const estimatedMinutes = Math.max(5, Math.round(sizeMB * 15));
 
-        // Store the storage path, not the public URL
         const { data: course, error: insertError } = await supabase
           .from("courses")
           .insert({
@@ -233,15 +251,19 @@ export default function SubjectDetail() {
           setDbCourses((prev) => [course, ...prev]);
           imported++;
         }
-      } catch {
-        toast.error(`Erreur: ${file.name}`);
+      } catch (err: any) {
+        toast.error(`Erreur "${file.name}": ${err?.message || "Erreur inconnue"}`);
       }
+      
+      // Yield to UI thread
+      await new Promise((r) => setTimeout(r, 50));
     }
 
     if (imported > 0) {
       toast.success(`${imported} cours importé(s) avec succès !`);
     }
     setUploading(false);
+    setUploadProgress(null);
     e.target.value = "";
   };
 
@@ -429,7 +451,11 @@ export default function SubjectDetail() {
               <Plus className="h-5 w-5 text-muted-foreground" />
             </div>
             <span className="font-medium text-muted-foreground">
-              {uploading ? "Import en cours..." : "Nouveau cours"}
+              {uploading 
+                ? uploadProgress 
+                  ? `Import en cours... (${uploadProgress.current + 1}/${uploadProgress.total})`
+                  : "Import en cours..."
+                : "Nouveau cours"}
             </span>
           </motion.div>
           )}
