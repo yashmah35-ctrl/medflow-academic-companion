@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_exercises: {
+        Row: {
+          created_at: string
+          created_by: string
+          format: string
+          id: string
+          questions_json: Json | null
+          score_label: string | null
+          source_label: string | null
+          subject_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          format?: string
+          id?: string
+          questions_json?: Json | null
+          score_label?: string | null
+          source_label?: string | null
+          subject_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          format?: string
+          id?: string
+          questions_json?: Json | null
+          score_label?: string | null
+          source_label?: string | null
+          subject_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_exercises_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       annales: {
         Row: {
           analysis_json: Json | null
@@ -99,6 +143,54 @@ export type Database = {
           title?: string
         }
         Relationships: []
+      }
+      chapter_reviews: {
+        Row: {
+          course_id: string
+          created_at: string
+          created_by: string
+          format: string
+          id: string
+          questions_json: Json | null
+          subject_id: string
+          title: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          created_by: string
+          format?: string
+          id?: string
+          questions_json?: Json | null
+          subject_id: string
+          title?: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          created_by?: string
+          format?: string
+          id?: string
+          questions_json?: Json | null
+          subject_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chapter_reviews_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chapter_reviews_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       courses: {
         Row: {
