@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Plus, Play, Trash2, ArrowLeft, CheckCircle2, XCircle, ChevronRight, Upload, Camera, Loader2, Pencil, Archive, BarChart3, Search } from "lucide-react";
 import { toast } from "sonner";
+import { QuestionImageUpload } from "@/components/training/QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,6 +24,7 @@ interface Proposition {
 interface Question {
   id: string;
   question: string;
+  image_url?: string;
   propositions: Proposition[];
   explanation?: string;
 }
@@ -72,6 +74,7 @@ export default function Annales() {
   // Add question dialog
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [questionText, setQuestionText] = useState("");
+  const [questionImageUrl, setQuestionImageUrl] = useState<string | undefined>();
   const [explanationText, setExplanationText] = useState("");
   const [propositions, setPropositions] = useState<Proposition[]>([
     { id: "A", text: "", isCorrect: false },
@@ -85,6 +88,7 @@ export default function Annales() {
   const [showEditQuestion, setShowEditQuestion] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editQuestionText, setEditQuestionText] = useState("");
+  const [editQuestionImageUrl, setEditQuestionImageUrl] = useState<string | undefined>();
   const [editExplanationText, setEditExplanationText] = useState("");
   const [editPropositions, setEditPropositions] = useState<Proposition[]>([]);
 
@@ -210,6 +214,7 @@ export default function Annales() {
     const newQuestion: Question = {
       id: crypto.randomUUID(),
       question: questionText.trim(),
+      image_url: questionImageUrl,
       propositions: filledProps,
       explanation: explanationText.trim() || undefined,
     };
@@ -234,6 +239,7 @@ export default function Annales() {
 
   const resetQuestionForm = () => {
     setQuestionText("");
+    setQuestionImageUrl(undefined);
     setExplanationText("");
     setPropositions([
       { id: "A", text: "", isCorrect: false },
@@ -270,6 +276,7 @@ export default function Annales() {
   const openEditQuestion = (q: Question) => {
     setEditingQuestion(q);
     setEditQuestionText(q.question);
+    setEditQuestionImageUrl(q.image_url);
     setEditExplanationText(q.explanation || "");
     const allIds = ["A", "B", "C", "D", "E"];
     setEditPropositions(
@@ -291,7 +298,7 @@ export default function Annales() {
 
     const updatedQuestions = (selectedAnnale.questions_json || []).map((q) =>
       q.id === editingQuestion.id
-        ? { ...q, question: editQuestionText.trim(), propositions: filledProps, explanation: editExplanationText.trim() || undefined }
+        ? { ...q, question: editQuestionText.trim(), image_url: editQuestionImageUrl, propositions: filledProps, explanation: editExplanationText.trim() || undefined }
         : q
     );
 
@@ -559,6 +566,7 @@ export default function Annales() {
               <div>
                 <Label>Énoncé de la question</Label>
                 <Input value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Ex: Quelle est la structure de l'ADN ?" className="mt-1" />
+                <QuestionImageUpload imageUrl={questionImageUrl} onImageChange={setQuestionImageUrl} />
               </div>
               <div>
                 <Label>{selectedAnnale?.format === "QIM" ? "Propositions (indique Vrai ou Faux)" : "Propositions (coche les réponses correctes)"}</Label>
@@ -608,6 +616,7 @@ export default function Annales() {
               <div>
                 <Label>Énoncé de la question</Label>
                 <Input value={editQuestionText} onChange={(e) => setEditQuestionText(e.target.value)} className="mt-1" />
+                <QuestionImageUpload imageUrl={editQuestionImageUrl} onImageChange={setEditQuestionImageUrl} />
               </div>
               <div>
                 <Label>{selectedAnnale?.format === "QIM" ? "Propositions (Vrai ou Faux)" : "Propositions (coche les bonnes)"}</Label>
@@ -724,6 +733,9 @@ export default function Annales() {
         <Progress value={((currentQIndex + 1) / questions.length) * 100} className="h-2" />
         <motion.div key={currentQuestion.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="rounded-xl border border-border bg-card p-6">
           <h2 className="text-lg font-semibold text-foreground mb-4">{currentQuestion.question}</h2>
+          {currentQuestion.image_url && (
+            <img src={currentQuestion.image_url} alt="Énoncé" className="max-h-48 rounded-lg border border-border object-contain mb-4" />
+          )}
           <p className="text-xs text-muted-foreground mb-4">{isQIM ? "Vrai ou Faux pour chaque proposition" : "Sélectionne la/les bonne(s) réponse(s)"}</p>
           <div className="space-y-2">
             {currentQuestion.propositions.map((p) => {
