@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, FileText } from "lucide-react";
+import { ExercisePanel } from "@/components/training/ExercisePanel";
 
 interface SecurePdfViewerProps {
   open: boolean;
@@ -9,9 +10,12 @@ interface SecurePdfViewerProps {
   signedUrl: string | null;
   title: string;
   fileName?: string;
+  subjectId?: string;
+  subjectName?: string;
+  courseId?: string;
 }
 
-export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName }: SecurePdfViewerProps) {
+export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
   const [loading, setLoading] = useState(true);
 
   const isPdf = useMemo(() => {
@@ -32,6 +36,8 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     }
     return `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
   }, [signedUrl, isPdf]);
+
+  const showExercisePanel = !!subjectId;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setLoading(true); }}>
@@ -60,35 +66,49 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
           </Button>
         </div>
 
-        {/* Document area */}
-        <div
-          className="flex-1 relative select-none bg-muted/20"
-          onContextMenu={(e) => e.preventDefault()}
-          style={{ userSelect: "none", WebkitUserSelect: "none", height: "calc(92vh - 60px)" }}
-        >
-          {loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                  <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        {/* Content area: PDF + Exercise Panel */}
+        <div className="flex flex-1" style={{ height: "calc(92vh - 60px)" }}>
+          {/* Document area */}
+          <div
+            className={`relative select-none bg-muted/20 ${showExercisePanel ? "flex-1" : "w-full"}`}
+            onContextMenu={(e) => e.preventDefault()}
+            style={{ userSelect: "none", WebkitUserSelect: "none" }}
+          >
+            {loading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 gap-4">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+                  <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+                    <Loader2 className="h-7 w-7 animate-spin text-primary" />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium text-foreground">Chargement du document</p>
+                  <p className="text-xs text-muted-foreground mt-1">Veuillez patienter...</p>
                 </div>
               </div>
-              <div className="text-center">
-                <p className="text-sm font-medium text-foreground">Chargement du document</p>
-                <p className="text-xs text-muted-foreground mt-1">Veuillez patienter...</p>
-              </div>
+            )}
+            {iframeSrc && (
+              <iframe
+                src={iframeSrc}
+                className="w-full h-full border-0"
+                onLoad={() => setLoading(false)}
+                sandbox="allow-same-origin allow-scripts allow-popups"
+                title={title}
+                style={{ pointerEvents: "auto" }}
+              />
+            )}
+          </div>
+
+          {/* Exercise Panel on the right */}
+          {showExercisePanel && (
+            <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
+              <ExercisePanel
+                subjectId={subjectId!}
+                courseId={courseId}
+                subjectName={subjectName || ""}
+              />
             </div>
-          )}
-          {iframeSrc && (
-            <iframe
-              src={iframeSrc}
-              className="w-full h-full border-0"
-              onLoad={() => setLoading(false)}
-              sandbox="allow-same-origin allow-scripts allow-popups"
-              title={title}
-              style={{ pointerEvents: "auto" }}
-            />
           )}
         </div>
       </DialogContent>
