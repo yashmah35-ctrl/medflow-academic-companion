@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Play, Plus, Trash2, Pencil, Upload, Camera, Loader2, Dumbbell, BookCheck } from "lucide-react";
 import { toast } from "sonner";
+import { QuestionImageUpload } from "./QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { TrainingEngine, type Question, type Proposition } from "./TrainingEngine";
@@ -57,6 +58,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [editTarget, setEditTarget] = useState<{ type: "exercise" | "review"; id: string } | null>(null);
   const [questionText, setQuestionText] = useState("");
+  const [questionImageUrl, setQuestionImageUrl] = useState<string | undefined>();
   const [explanationText, setExplanationText] = useState("");
   const [propositions, setPropositions] = useState<Proposition[]>([
     { id: "A", text: "", isCorrect: false },
@@ -147,6 +149,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
   const openAddQuestion = (type: "exercise" | "review", id: string) => {
     setEditTarget({ type, id });
     setQuestionText("");
+    setQuestionImageUrl(undefined);
     setPropositions([
       { id: "A", text: "", isCorrect: false },
       { id: "B", text: "", isCorrect: false },
@@ -168,7 +171,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
     const filledProps = propositions.filter((p) => p.text.trim());
     if (filledProps.length < 2) { toast.error("Au moins 2 propositions"); return; }
 
-    const newQ: Question = { id: crypto.randomUUID(), question: questionText.trim(), propositions: filledProps, explanation: explanationText.trim() || undefined };
+    const newQ: Question = { id: crypto.randomUUID(), question: questionText.trim(), image_url: questionImageUrl, propositions: filledProps, explanation: explanationText.trim() || undefined };
     const table = editTarget.type === "exercise" ? "admin_exercises" : "chapter_reviews";
     const items = editTarget.type === "exercise" ? exercises : reviews;
     const item = items.find((i) => i.id === editTarget.id);
@@ -479,6 +482,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
             <div>
               <Label>Énoncé</Label>
               <Input value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Ex: Quelle est la structure..." className="mt-1" />
+              <QuestionImageUpload imageUrl={questionImageUrl} onImageChange={setQuestionImageUrl} />
             </div>
             <div>
               <Label>Propositions</Label>

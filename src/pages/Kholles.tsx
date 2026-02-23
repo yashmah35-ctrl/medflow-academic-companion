@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Plus, BookOpen, Play, Trash2, ArrowLeft, CheckCircle2, XCircle, ChevronRight, Upload, Camera, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
+import { QuestionImageUpload } from "@/components/training/QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,6 +24,7 @@ interface Proposition {
 interface Question {
   id: string;
   question: string;
+  image_url?: string;
   propositions: Proposition[];
   explanation?: string;
 }
@@ -61,6 +63,7 @@ export default function Kholles() {
   // Add question dialog
   const [showAddQuestion, setShowAddQuestion] = useState(false);
   const [questionText, setQuestionText] = useState("");
+  const [questionImageUrl, setQuestionImageUrl] = useState<string | undefined>();
   const [explanationText, setExplanationText] = useState("");
   const [propositions, setPropositions] = useState<Proposition[]>([
     { id: "A", text: "", isCorrect: false },
@@ -74,6 +77,7 @@ export default function Kholles() {
   const [showEditQuestion, setShowEditQuestion] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editQuestionText, setEditQuestionText] = useState("");
+  const [editQuestionImageUrl, setEditQuestionImageUrl] = useState<string | undefined>();
   const [editExplanationText, setEditExplanationText] = useState("");
   const [editPropositions, setEditPropositions] = useState<Proposition[]>([]);
 
@@ -154,6 +158,7 @@ export default function Kholles() {
     const newQuestion: Question = {
       id: crypto.randomUUID(),
       question: questionText.trim(),
+      image_url: questionImageUrl,
       propositions: filledProps,
       explanation: explanationText.trim() || undefined,
     };
@@ -178,6 +183,7 @@ export default function Kholles() {
 
   const resetQuestionForm = () => {
     setQuestionText("");
+    setQuestionImageUrl(undefined);
     setExplanationText("");
     setPropositions([
       { id: "A", text: "", isCorrect: false },
@@ -214,6 +220,7 @@ export default function Kholles() {
   const openEditQuestion = (q: Question) => {
     setEditingQuestion(q);
     setEditQuestionText(q.question);
+    setEditQuestionImageUrl(q.image_url);
     setEditExplanationText(q.explanation || "");
     const allIds = ["A", "B", "C", "D", "E"];
     setEditPropositions(
@@ -235,7 +242,7 @@ export default function Kholles() {
 
     const updatedQuestions = (selectedKholle.questions_json || []).map((q) =>
       q.id === editingQuestion.id
-        ? { ...q, question: editQuestionText.trim(), propositions: filledProps, explanation: editExplanationText.trim() || undefined }
+        ? { ...q, question: editQuestionText.trim(), image_url: editQuestionImageUrl, propositions: filledProps, explanation: editExplanationText.trim() || undefined }
         : q
     );
 
@@ -546,6 +553,7 @@ export default function Kholles() {
                   placeholder="Ex: Quelle est la structure de l'ADN ?"
                   className="mt-1"
                 />
+                <QuestionImageUpload imageUrl={questionImageUrl} onImageChange={setQuestionImageUrl} />
               </div>
               <div>
                 <Label>
@@ -613,6 +621,7 @@ export default function Kholles() {
                   onChange={(e) => setEditQuestionText(e.target.value)}
                   className="mt-1"
                 />
+                <QuestionImageUpload imageUrl={editQuestionImageUrl} onImageChange={setEditQuestionImageUrl} />
               </div>
               <div>
                 <Label>
@@ -780,6 +789,9 @@ export default function Kholles() {
           className="rounded-xl border border-border bg-card p-6"
         >
           <h2 className="text-lg font-semibold text-foreground mb-4">{currentQuestion.question}</h2>
+          {currentQuestion.image_url && (
+            <img src={currentQuestion.image_url} alt="Énoncé" className="max-h-48 rounded-lg border border-border object-contain mb-4" />
+          )}
           <p className="text-xs text-muted-foreground mb-4">
             {isQIM ? "Pour chaque proposition, indique si c'est Vrai ou Faux" : "Sélectionne la/les bonne(s) réponse(s)"}
           </p>

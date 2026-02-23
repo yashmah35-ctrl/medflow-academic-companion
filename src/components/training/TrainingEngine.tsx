@@ -15,6 +15,7 @@ export interface Proposition {
 export interface Question {
   id: string;
   question: string;
+  image_url?: string;
   propositions: Proposition[];
   explanation?: string;
 }
@@ -153,6 +154,9 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
         className="rounded-xl border border-border bg-card p-4"
       >
         <h3 className="text-sm font-semibold text-foreground mb-3">{currentQuestion.question}</h3>
+        {currentQuestion.image_url && (
+          <img src={currentQuestion.image_url} alt="Énoncé" className="max-h-48 rounded-lg border border-border object-contain mb-3" />
+        )}
         <p className="text-[10px] text-muted-foreground mb-3">
           {isQIM ? "Vrai ou Faux pour chaque proposition" : "Sélectionne la/les bonne(s) réponse(s)"}
         </p>
