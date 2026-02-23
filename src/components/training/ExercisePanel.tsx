@@ -410,10 +410,6 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
               <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Ex: 3ème Colle de Chimie" className="mt-1" />
             </div>
             <div>
-              <Label>Étiquette source (optionnel)</Label>
-              <Input value={newSourceLabel} onChange={(e) => setNewSourceLabel(e.target.value)} placeholder="Ex: Entrainement Galien Nantes" className="mt-1" />
-            </div>
-            <div>
               <Label>Format</Label>
               <RadioGroup value={newFormat} onValueChange={(v) => setNewFormat(v as "QCM" | "QIM")} className="mt-2">
                 <div className="flex gap-3">
