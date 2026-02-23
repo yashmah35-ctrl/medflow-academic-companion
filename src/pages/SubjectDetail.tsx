@@ -211,7 +211,8 @@ export default function SubjectDetail() {
           continue;
         }
 
-        const filePath = `${user.id}/${folderId}/${Date.now()}-${file.name}`;
+        const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
+        const filePath = `${user.id}/${folderId}/${Date.now()}-${safeName}`;
         
         // Use chunked upload for large files (> 6MB)
         const uploadOptions: any = {};
