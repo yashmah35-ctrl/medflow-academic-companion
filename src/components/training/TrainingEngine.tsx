@@ -9,6 +9,7 @@ export interface Proposition {
   id: string;
   text: string;
   isCorrect: boolean;
+  explanation?: string;
 }
 
 export interface Question {
@@ -175,38 +176,54 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
 
             if (isQIM) {
               return (
-                <div key={p.id} className={`flex items-center gap-2 rounded-lg border p-2.5 transition-all ${borderClass} ${bgClass}`}>
-                  <span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-xs font-medium text-muted-foreground">{p.id}</span>
-                  <span className="flex-1 text-xs text-foreground">{p.text}</span>
-                  {!showResults ? (
-                    <div className="flex gap-1">
-                      <Button size="sm" variant={userAnswer === "vrai" ? "default" : "outline"} className="h-6 px-2 text-[10px]"
-                        onClick={() => toggleAnswer(currentQuestion.id, p.id, "vrai")}>V</Button>
-                      <Button size="sm" variant={userAnswer === "faux" ? "destructive" : "outline"} className="h-6 px-2 text-[10px]"
-                        onClick={() => toggleAnswer(currentQuestion.id, p.id, "faux")}>F</Button>
+                <div key={p.id} className="space-y-0">
+                  <div className={`flex items-center gap-2 rounded-lg border p-2.5 transition-all ${borderClass} ${bgClass}`}>
+                    <span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-xs font-medium text-muted-foreground">{p.id}</span>
+                    <span className="flex-1 text-xs text-foreground">{p.text}</span>
+                    {!showResults ? (
+                      <div className="flex gap-1">
+                        <Button size="sm" variant={userAnswer === "vrai" ? "default" : "outline"} className="h-6 px-2 text-[10px]"
+                          onClick={() => toggleAnswer(currentQuestion.id, p.id, "vrai")}>V</Button>
+                        <Button size="sm" variant={userAnswer === "faux" ? "destructive" : "outline"} className="h-6 px-2 text-[10px]"
+                          onClick={() => toggleAnswer(currentQuestion.id, p.id, "faux")}>F</Button>
+                      </div>
+                    ) : (
+                      <Badge variant={p.isCorrect ? "default" : "secondary"} className="text-[10px]">
+                        {p.isCorrect ? "✓ V" : "✗ F"}
+                      </Badge>
+                    )}
+                  </div>
+                  {showResults && p.explanation && (
+                    <div className={`ml-8 mt-0.5 rounded-b-lg border border-t-0 px-3 py-1.5 text-[10px] ${p.isCorrect ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
+                      <span className={`font-semibold ${p.isCorrect ? "text-green-600" : "text-destructive"}`}>{p.isCorrect ? "VRAI" : "FAUX"}</span>{" "}
+                      <span className="text-foreground">{p.explanation}</span>
                     </div>
-                  ) : (
-                    <Badge variant={p.isCorrect ? "default" : "secondary"} className="text-[10px]">
-                      {p.isCorrect ? "✓ V" : "✗ F"}
-                    </Badge>
                   )}
                 </div>
               );
             }
 
             return (
-              <button key={p.id} onClick={() => toggleAnswer(currentQuestion.id, p.id)}
-                className={`w-full flex items-center gap-2 rounded-lg border p-2.5 text-left transition-all ${borderClass} ${bgClass} ${
-                  !showResults && userAnswer === "selected" ? "border-primary bg-primary/10" : ""
-                }`}>
-                <span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-xs font-medium text-muted-foreground">{p.id}</span>
-                <span className="flex-1 text-xs text-foreground">{p.text}</span>
-                {showResults && (
-                  p.isCorrect
-                    ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    : userAnswer === "selected" ? <XCircle className="h-4 w-4 text-destructive" /> : null
+              <div key={p.id} className="space-y-0">
+                <button onClick={() => toggleAnswer(currentQuestion.id, p.id)}
+                  className={`w-full flex items-center gap-2 rounded-lg border p-2.5 text-left transition-all ${borderClass} ${bgClass} ${
+                    !showResults && userAnswer === "selected" ? "border-primary bg-primary/10" : ""
+                  }`}>
+                  <span className="flex h-6 w-6 items-center justify-center rounded bg-muted text-xs font-medium text-muted-foreground">{p.id}</span>
+                  <span className="flex-1 text-xs text-foreground">{p.text}</span>
+                  {showResults && (
+                    p.isCorrect
+                      ? <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      : userAnswer === "selected" ? <XCircle className="h-4 w-4 text-destructive" /> : null
+                  )}
+                </button>
+                {showResults && p.explanation && (
+                  <div className={`ml-8 mt-0.5 rounded-b-lg border border-t-0 px-3 py-1.5 text-[10px] ${p.isCorrect ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
+                    <span className={`font-semibold ${p.isCorrect ? "text-green-600" : "text-destructive"}`}>{p.isCorrect ? "VRAI" : "FAUX"}</span>{" "}
+                    <span className="text-foreground">{p.explanation}</span>
+                  </div>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
