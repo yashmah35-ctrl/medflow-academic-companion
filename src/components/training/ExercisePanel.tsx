@@ -73,6 +73,15 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
   const [importing, setImporting] = useState(false);
   const [importTarget, setImportTarget] = useState<{ type: "exercise" | "review"; id: string; format: string } | null>(null);
 
+  // Edit questions state
+  const [showEditQuestions, setShowEditQuestions] = useState(false);
+  const [editQuestionsTarget, setEditQuestionsTarget] = useState<{ type: "exercise" | "review"; id: string } | null>(null);
+  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
+  const [editQuestionText, setEditQuestionText] = useState("");
+  const [editQuestionImageUrl, setEditQuestionImageUrl] = useState<string | undefined>();
+  const [editExplanationText, setEditExplanationText] = useState("");
+  const [editPropositions, setEditPropositions] = useState<Proposition[]>([]);
+
   useEffect(() => {
     fetchExercises();
     if (courseId) fetchReviews();
@@ -230,6 +239,81 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
     }
   };
 
+  // Edit questions helpers
+  const openEditQuestions = (type: "exercise" | "review", id: string) => {
+    setEditQuestionsTarget({ type, id });
+    setEditingQuestionIndex(null);
+    setShowEditQuestions(true);
+  };
+
+  const getEditTargetItem = () => {
+    if (!editQuestionsTarget) return null;
+    if (editQuestionsTarget.type === "exercise") return exercises.find((e) => e.id === editQuestionsTarget.id);
+    return reviews.find((r) => r.id === editQuestionsTarget.id);
+  };
+
+  const getEditTargetFormat = () => {
+    const item = getEditTargetItem();
+    return item?.format || "QCM";
+  };
+
+  const startEditQuestion = (index: number) => {
+    const item = getEditTargetItem();
+    if (!item?.questions_json?.[index]) return;
+    const q = item.questions_json[index];
+    setEditingQuestionIndex(index);
+    setEditQuestionText(q.question);
+    setEditQuestionImageUrl(q.image_url);
+    setEditExplanationText(q.explanation || "");
+    const props: Proposition[] = ["A", "B", "C", "D", "E"].map((id) => {
+      const existing = q.propositions.find((p) => p.id === id);
+      return existing ? { ...existing } : { id, text: "", isCorrect: false };
+    });
+    setEditPropositions(props);
+  };
+
+  const handleSaveEditQuestion = async () => {
+    if (!editQuestionsTarget || editingQuestionIndex === null || !editQuestionText.trim()) return;
+    const filledProps = editPropositions.filter((p) => p.text.trim());
+    if (filledProps.length < 2) { toast.error("Au moins 2 propositions"); return; }
+
+    const item = getEditTargetItem();
+    if (!item?.questions_json) return;
+
+    const updated = [...item.questions_json];
+    updated[editingQuestionIndex] = {
+      ...updated[editingQuestionIndex],
+      question: editQuestionText.trim(),
+      image_url: editQuestionImageUrl,
+      propositions: filledProps,
+      explanation: editExplanationText.trim() || undefined,
+    };
+
+    const table = editQuestionsTarget.type === "exercise" ? "admin_exercises" : "chapter_reviews";
+    const { error } = await supabase.from(table).update({ questions_json: updated as any }).eq("id", editQuestionsTarget.id);
+    if (error) { toast.error("Erreur"); return; }
+
+    toast.success("Question modifiée !");
+    setEditingQuestionIndex(null);
+    if (editQuestionsTarget.type === "exercise") fetchExercises();
+    else fetchReviews();
+  };
+
+  const handleDeleteQuestion = async (index: number) => {
+    if (!editQuestionsTarget) return;
+    if (!confirm("Supprimer cette question ?")) return;
+    const item = getEditTargetItem();
+    if (!item?.questions_json) return;
+
+    const updated = item.questions_json.filter((_, i) => i !== index);
+    const table = editQuestionsTarget.type === "exercise" ? "admin_exercises" : "chapter_reviews";
+    await supabase.from(table).update({ questions_json: updated as any }).eq("id", editQuestionsTarget.id);
+    toast.success("Question supprimée");
+    setEditingQuestionIndex(null);
+    if (editQuestionsTarget.type === "exercise") fetchExercises();
+    else fetchReviews();
+  };
+
   const handleTrainingFinish = async (result: { score: number; total: number; wrong: Question[] }) => {
     if (!training || !user) return;
 
@@ -318,6 +402,11 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
                       onClick={() => { setImportTarget({ type: "exercise", id: ex.id, format: ex.format }); setShowImport(true); }}>
                       <Upload className="h-3 w-3" /> Import
                     </Button>
+                    <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1"
+                      onClick={() => openEditQuestions("exercise", ex.id)}
+                      disabled={qCount === 0}>
+                      <Pencil className="h-3 w-3" /> Modifier
+                    </Button>
                     <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-destructive ml-auto"
                       onClick={() => handleDeleteExercise(ex.id)}>
                       <Trash2 className="h-3 w-3" />
@@ -376,6 +465,11 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
                       <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1"
                         onClick={() => { setImportTarget({ type: "review", id: rev.id, format: rev.format }); setShowImport(true); }}>
                         <Upload className="h-3 w-3" /> Import
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1"
+                        onClick={() => openEditQuestions("review", rev.id)}
+                        disabled={qCount === 0}>
+                        <Pencil className="h-3 w-3" /> Modifier
                       </Button>
                       <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 text-destructive ml-auto"
                         onClick={() => handleDeleteReview(rev.id)}>
@@ -555,6 +649,87 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
             <div className="flex items-center gap-3 rounded-lg bg-muted p-4 mt-2">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
               <p className="text-sm font-medium text-foreground">Extraction en cours…</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit questions dialog */}
+      <Dialog open={showEditQuestions} onOpenChange={(open) => { setShowEditQuestions(open); if (!open) setEditingQuestionIndex(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier les questions</DialogTitle>
+            <DialogDescription>{getEditTargetItem()?.title}</DialogDescription>
+          </DialogHeader>
+
+          {editingQuestionIndex === null ? (
+            <div className="space-y-2">
+              {(getEditTargetItem()?.questions_json || []).map((q, idx) => (
+                <div key={q.id || idx} className="flex items-start gap-2 rounded-lg border border-border p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">Q{idx + 1}. {q.question}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{q.propositions.length} propositions</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => startEditQuestion(idx)}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => handleDeleteQuestion(idx)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {(getEditTargetItem()?.questions_json || []).length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">Aucune question</p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div>
+                <Label>Énoncé</Label>
+                <Input value={editQuestionText} onChange={(e) => setEditQuestionText(e.target.value)} className="mt-1" />
+                <QuestionImageUpload imageUrl={editQuestionImageUrl} onImageChange={setEditQuestionImageUrl} />
+              </div>
+              <div>
+                <Label>Propositions</Label>
+                <div className="mt-2 space-y-2">
+                  {editPropositions.map((p, idx) => (
+                    <div key={p.id} className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        {getEditTargetFormat() === "QIM" ? (
+                          <div className="flex gap-1">
+                            <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs"
+                              onClick={() => { const u = [...editPropositions]; u[idx] = { ...u[idx], isCorrect: true }; setEditPropositions(u); }}>V</Button>
+                            <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs"
+                              onClick={() => { const u = [...editPropositions]; u[idx] = { ...u[idx], isCorrect: false }; setEditPropositions(u); }}>F</Button>
+                          </div>
+                        ) : (
+                          <input type="checkbox" checked={p.isCorrect}
+                            onChange={() => { const u = [...editPropositions]; u[idx] = { ...u[idx], isCorrect: !u[idx].isCorrect }; setEditPropositions(u); }}
+                            className="h-4 w-4 rounded border-border accent-primary" />
+                        )}
+                        <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
+                        <Input value={p.text} onChange={(e) => { const u = [...editPropositions]; u[idx] = { ...u[idx], text: e.target.value }; setEditPropositions(u); }}
+                          placeholder={`Proposition ${p.id}`} className="flex-1" />
+                      </div>
+                      <Input value={p.explanation || ""} onChange={(e) => { const u = [...editPropositions]; u[idx] = { ...u[idx], explanation: e.target.value || undefined }; setEditPropositions(u); }}
+                        placeholder={`Explication ${p.id} (optionnel)`} className="ml-8 text-xs h-7" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Explication générale (optionnel)</Label>
+                <textarea value={editExplanationText} onChange={(e) => setEditExplanationText(e.target.value)}
+                  placeholder="Explication de la réponse correcte..."
+                  className="mt-1 flex min-h-[60px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  rows={2} />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingQuestionIndex(null)}>Retour</Button>
+                <Button onClick={handleSaveEditQuestion}>Enregistrer</Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
