@@ -14,6 +14,7 @@ export async function callWebhook(
   url: string,
   body: Record<string, unknown>
 ): Promise<any> {
+  console.log("[webhook] Calling:", url, "with body:", JSON.stringify(body));
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
