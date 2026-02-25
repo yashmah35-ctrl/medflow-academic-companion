@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 interface Announcement {
   id: string;
@@ -19,6 +20,22 @@ export function useAnnouncements() {
     if (!user) return;
 
     const fetchData = async () => {
+      // Call Notifications webhook to sync new notifications
+      try {
+        const webhookData = await callWebhook(WEBHOOKS.NOTIFICATIONS, { user_id: user.id });
+        if (webhookData?.notifications && Array.isArray(webhookData.notifications)) {
+          for (const n of webhookData.notifications) {
+            await supabase.from("notifications").upsert({
+              id: n.id,
+              user_id: user.id,
+              type: n.type || "info",
+              message: n.message,
+              read: false,
+            }, { onConflict: "id" });
+          }
+        }
+      } catch {}
+
       // Fetch announcements visible to user
       const { data: annData } = await supabase
         .from("announcements")

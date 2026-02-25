@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -22,22 +23,11 @@ export default function Settings() {
     setSynced(false);
 
     try {
-      const res = await fetch(
-        "https://n8n.srv1366613.hstgr.cloud/webhook/medflow/ent-connexion",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: user.id,
-            ent_login: entLogin.trim(),
-            ent_password: entPassword.trim(),
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`Erreur ${res.status}`);
-      }
+      await callWebhook(WEBHOOKS.ENT, {
+        user_id: user.id,
+        ent_login: entLogin.trim(),
+        ent_password: entPassword.trim(),
+      });
 
       setSynced(true);
       toast.success("Vos cours ont été synchronisés !");

@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { scheduleBlocks, days, subjectColorMap, subjects, type SubjectColor, type ScheduleBlock } from "@/data/mockData";
 import { Trash2, AlertCircle, CheckCircle2, Plus, Circle, CircleDot, CircleCheck } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -31,6 +33,7 @@ const statusCycle: CompletionStatus[] = ["not_done", "partial", "done"];
 const blockTypes: ScheduleBlock["type"][] = ["Découverte", "Révision", "Flashcards", "Erreurs à revoir"];
 
 export default function Schedule() {
+  const { user } = useAuth();
   const [blocks, setBlocks] = useState(scheduleBlocks);
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
   const [completionMap, setCompletionMap] = useState<Record<string, CompletionStatus>>(() => {
@@ -50,6 +53,13 @@ export default function Schedule() {
   const [newType, setNewType] = useState<ScheduleBlock["type"]>("Découverte");
   const [newDay, setNewDay] = useState(0);
   const [newHour, setNewHour] = useState(8);
+
+  // Call schedule webhook on mount
+  useEffect(() => {
+    if (user) {
+      callWebhook(WEBHOOKS.SCHEDULE, { user_id: user.id }).catch(() => {});
+    }
+  }, [user]);
 
   // Compute progress status
   const totalBlocks = blocks.length;
