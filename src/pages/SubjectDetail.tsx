@@ -22,6 +22,7 @@ import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
+import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 const container = {
   hidden: { opacity: 0 },
@@ -251,6 +252,14 @@ export default function SubjectDetail() {
         if (course) {
           setDbCourses((prev) => [course, ...prev]);
           imported++;
+
+          // Call Flashcards webhook for the new course
+          callWebhook(WEBHOOKS.FLASHCARDS, {
+            user_id: user.id,
+            course_id: course.id,
+            course_title: course.title,
+            folder_id: folderId,
+          }).catch(() => {});
         }
       } catch (err: any) {
         toast.error(`Erreur "${file.name}": ${err?.message || "Erreur inconnue"}`);

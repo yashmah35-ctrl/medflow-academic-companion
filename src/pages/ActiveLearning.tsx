@@ -8,11 +8,14 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle2, XCircle, AlertTriangle, Layers, PenLine, Upload, Image, Type } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 type Mode = "select" | "restitution" | "result";
 
 export default function ActiveLearning() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [mode, setMode] = useState<Mode>("select");
   const [restitutionText, setRestitutionText] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
@@ -149,7 +152,18 @@ export default function ActiveLearning() {
             onChange={(e) => setRestitutionText(e.target.value)}
             disabled={!selectedCourse}
           />
-          <Button onClick={() => setShowFeedback(true)} disabled={restitutionText.length < 10 || !selectedCourse}>
+          <Button onClick={() => {
+            // Call Active Learning webhook
+            if (user) {
+              callWebhook(WEBHOOKS.ACTIVE_LEARNING, {
+                user_id: user.id,
+                subject_id: selectedSubject,
+                course_id: selectedCourse,
+                text: restitutionText,
+              }).catch(() => {});
+            }
+            setShowFeedback(true);
+          }} disabled={restitutionText.length < 10 || !selectedCourse}>
             Analyser ma restitution
           </Button>
 

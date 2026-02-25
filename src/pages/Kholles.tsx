@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { QuestionImageUpload } from "@/components/training/QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 interface Proposition {
   id: string;
@@ -286,6 +287,14 @@ export default function Kholles() {
           format: selectedKholle.format,
         },
       });
+
+      // Also call OCR webhook
+      callWebhook(WEBHOOKS.OCR, {
+        user_id: user.id,
+        file_type: file.type,
+        format: selectedKholle.format,
+        source: "kholle",
+      }).catch(() => {});
 
       if (error) throw error;
 
