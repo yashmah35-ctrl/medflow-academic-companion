@@ -4,7 +4,7 @@ import { scheduleBlocks } from "@/data/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, RefreshCw } from "lucide-react";
 import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
 import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
 import shsImg from "@/assets/subjects/shs.png";
@@ -20,6 +20,7 @@ const subjectImageMap: Record<string, string> = {
 };
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { useAuth, canAccessTC } from "@/hooks/useAuth";
 import { useUserStats, xpForNextLevel, xpForCurrentLevel } from "@/hooks/useUserStats";
 import { useState, useCallback, useEffect } from "react";
@@ -71,6 +72,7 @@ const Index = () => {
   const [subjects, setSubjects] = useState<DBSubject[]>([]);
   const [renamingSubject, setRenamingSubject] = useState<string | null>(null);
   const [renameSubjectValue, setRenameSubjectValue] = useState("");
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -100,6 +102,28 @@ const Index = () => {
     toast.success("Matière renommée !");
   };
 
+  const handleSyncCourses = async () => {
+    if (!user) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, folder_id")
+        .eq("source", "fac");
+      if (error) throw error;
+      toast.success(`${data?.length ?? 0} cours synchronisés depuis l'ENT !`);
+      // Refresh subjects to reflect any changes
+      const { data: subjectsData } = await supabase
+        .from("subjects")
+        .select("id, name, icon, color")
+        .order("name");
+      if (subjectsData) setSubjects(subjectsData);
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur de synchronisation");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
 
   const filteredSubjects = subjects.filter((s) => {
@@ -293,9 +317,21 @@ const Index = () => {
 
       {/* Subjects Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">Mes Matières</h2>
-          <p className="text-sm text-muted-foreground">Continue tes cours et progresse aujourd'hui.</p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">Mes Matières</h2>
+            <p className="text-sm text-muted-foreground">Continue tes cours et progresse aujourd'hui.</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSyncCourses}
+            disabled={syncing}
+            className="shrink-0"
+          >
+            <RefreshCw className={cn("h-4 w-4 mr-1", syncing && "animate-spin")} />
+            {syncing ? "Synchro…" : "Synchroniser mes cours"}
+          </Button>
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
