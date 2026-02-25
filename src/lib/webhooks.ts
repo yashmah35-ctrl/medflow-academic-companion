@@ -10,17 +10,25 @@ export const WEBHOOKS = {
   NOTIFICATIONS: `${N8N_BASE}/notifications`,
 } as const;
 
+const PROXY_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/webhook-proxy`;
+
 export async function callWebhook(
   url: string,
   body: Record<string, unknown>
 ): Promise<any> {
-  console.log("[webhook] Calling:", url, "with body:", JSON.stringify(body));
-  const res = await fetch(url, {
+  console.log("[webhook] Proxying:", url, "with body:", JSON.stringify(body));
+  const res = await fetch(PROXY_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+    },
+    body: JSON.stringify({ webhook_url: url, payload: body }),
   });
-  if (!res.ok) throw new Error(`Webhook error ${res.status}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error || `Webhook proxy error ${res.status}`);
+  }
   try {
     return await res.json();
   } catch {
