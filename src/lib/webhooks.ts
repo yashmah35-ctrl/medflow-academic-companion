@@ -16,22 +16,43 @@ export async function callWebhook(
   url: string,
   body: Record<string, unknown>
 ): Promise<any> {
-  console.log("[webhook] Proxying:", url, "with body:", JSON.stringify(body));
-  const res = await fetch(PROXY_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-    },
-    body: JSON.stringify({ webhook_url: url, payload: body }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error || `Webhook proxy error ${res.status}`);
-  }
+  const proxyBody = { webhook_url: url, payload: body };
+  console.log("[webhook] PROXY_URL:", PROXY_URL);
+  console.log("[webhook] Target webhook:", url);
+  console.log("[webhook] Request body:", JSON.stringify(proxyBody));
+  console.log("[webhook] Using apikey:", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.slice(0, 20) + "…");
+
   try {
-    return await res.json();
-  } catch {
-    return null;
+    const res = await fetch(PROXY_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify(proxyBody),
+    });
+
+    console.log("[webhook] Response status:", res.status);
+    const text = await res.text();
+    console.log("[webhook] Response body:", text);
+
+    if (!res.ok) {
+      let errMsg = `Webhook proxy error ${res.status}`;
+      try {
+        const err = JSON.parse(text);
+        errMsg = err?.error || errMsg;
+      } catch {}
+      throw new Error(errMsg);
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text || null;
+    }
+  } catch (err: any) {
+    console.error("[webhook] callWebhook failed:", err);
+    throw err;
   }
 }
