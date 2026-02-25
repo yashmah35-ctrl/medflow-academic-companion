@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Megaphone,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
@@ -63,6 +64,13 @@ const allNavGroups: NavGroup[] = [
     adminHidden: true,
     items: [
       { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
+    ],
+  },
+  {
+    label: "⚙️ Réglages",
+    adminHidden: true,
+    items: [
+      { title: "Paramètres", path: "/settings", icon: Settings, restricted: false },
     ],
   },
 ];
