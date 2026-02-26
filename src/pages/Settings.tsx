@@ -108,6 +108,19 @@ export default function Settings() {
           </Button>
         </form>
       </motion.div>
+
+      {/* Debug: User ID */}
+      {user && (
+        <div className="rounded-xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground">
+          <span className="font-medium">User ID :</span>{" "}
+          <code
+            className="cursor-pointer select-all rounded bg-muted px-1.5 py-0.5 font-mono hover:text-foreground transition-colors"
+            onClick={() => { navigator.clipboard.writeText(user.id); toast.success("ID copié !"); }}
+          >
+            {user.id}
+          </code>
+        </div>
+      )}
     </div>
   );
 }
