@@ -78,6 +78,14 @@ const Index = () => {
     setStudyMinutes(mins);
   }, []);
 
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      const { data, error } = await supabase.from("subjects").select("id, name, icon, color");
+      if (!error && data) setSubjects(data);
+    };
+    fetchSubjects();
+  }, []);
+
   const handleRenameSubject = async (subjectId: string) => {
     if (!renameSubjectValue.trim()) return;
     const { error } = await supabase
