@@ -421,17 +421,30 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
               onContextMenu={(e) => e.preventDefault()}
               style={{ userSelect: "none", WebkitUserSelect: "none" }}
             >
-              {selectedCourse?.url ? (
-                <iframe
-                  src={
-                    /\.pdf$/i.test(selectedCourse.url)
-                      ? `${selectedCourse.url}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`
-                      : `https://docs.google.com/gview?url=${encodeURIComponent(selectedCourse.url)}&embedded=true`
-                  }
-                  className="w-full h-full border-0"
-                  sandbox="allow-same-origin allow-scripts allow-popups"
-                  title={selectedCourse.title}
-                />
+              {selectedCourse?.content ? (
+                <div className="h-full overflow-y-auto p-6">
+                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-foreground">
+                    {selectedCourse.content}
+                  </div>
+                  {selectedCourse.url && (
+                    <div className="mt-6 pt-4 border-t border-border">
+                      <Button variant="outline" size="sm" className="gap-2" onClick={() => window.open(selectedCourse.url!, "_blank")}>
+                        <BookOpen className="h-4 w-4" />
+                        Ouvrir sur Madoc
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : selectedCourse?.url ? (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                  <FileText className="h-12 w-12 opacity-30" />
+                  <p className="text-sm font-medium text-foreground">Contenu non disponible</p>
+                  <p className="text-xs">Consultez le document sur la plateforme originale</p>
+                  <Button className="gap-2 mt-2" onClick={() => window.open(selectedCourse.url!, "_blank")}>
+                    <BookOpen className="h-4 w-4" />
+                    Ouvrir sur Madoc
+                  </Button>
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
                   <FileText className="h-12 w-12 opacity-30" />
