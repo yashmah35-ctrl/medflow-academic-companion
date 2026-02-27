@@ -50,7 +50,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   const [newFolderName, setNewFolderName] = useState("");
 
   // Course detail dialog state
-  const [selectedCourse, setSelectedCourse] = useState<{ id: string; title: string; file_url: string | null; subject: string | null } | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; title: string; url: string | null; subject: string | null; content: string | null } | null>(null);
   const [generatingFlashcards, setGeneratingFlashcards] = useState(false);
 
   const fetchCourses = useCallback(async () => {
@@ -171,7 +171,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   const handleOpenCourse = async (courseId: string) => {
     const { data, error } = await entSupabase
       .from("courses")
-      .select("id, title, file_url, subject")
+      .select("id, title, url, subject, content")
       .eq("id", courseId)
       .single();
 
@@ -189,7 +189,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
     try {
       const { data, error } = await supabase.functions.invoke("generate-flashcards", {
         body: {
-          content: `Cours : ${selectedCourse.title}\nMatière : ${selectedCourse.subject ?? "Inconnue"}\nURL du document : ${selectedCourse.file_url ?? "non disponible"}`,
+          content: `Cours : ${selectedCourse.title}\nMatière : ${selectedCourse.subject ?? "Inconnue"}\nURL du document : ${selectedCourse.url ?? "non disponible"}`,
           subject: selectedCourse.subject ?? "Médecine",
           cardCount: 10,
         },
@@ -422,18 +422,35 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {selectedCourse?.file_url ? (
+            {selectedCourse?.url ? (
               <a
-                href={selectedCourse.file_url}
+                href={selectedCourse.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-primary hover:bg-muted transition-colors"
               >
                 <ExternalLink className="h-4 w-4 shrink-0" />
-                <span className="truncate">Ouvrir le document original</span>
+                <span className="truncate">{selectedCourse.url}</span>
               </a>
             ) : (
-              <p className="text-sm text-muted-foreground italic">Aucun lien de document disponible</p>
+              <p className="text-sm text-muted-foreground italic">Aucun lien disponible</p>
+            )}
+
+            {!selectedCourse?.content && (
+              <p className="text-sm text-muted-foreground italic bg-muted/30 rounded-lg px-4 py-3">
+                Contenu non disponible - consultez le lien original
+              </p>
+            )}
+
+            {selectedCourse?.url && (
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => window.open(selectedCourse.url!, "_blank")}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ouvrir sur Madoc
+              </Button>
             )}
 
             <Button
