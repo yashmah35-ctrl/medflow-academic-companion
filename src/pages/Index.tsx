@@ -27,6 +27,7 @@ import { useState, useCallback, useEffect } from "react";
 import BloomingTree from "@/components/dashboard/BloomingTree";
 import StudyTimer from "@/components/dashboard/StudyTimer";
 import { supabase } from "@/integrations/supabase/client";
+import { entSupabase } from "@/lib/entSupabaseClient";
 
 interface DBSubject {
   id: string;
@@ -86,45 +87,36 @@ const Index = () => {
     fetchSubjects();
   }, []);
 
-  // Fetch ENT courses grouped by subject
+  // Fetch ENT courses from external Supabase project
   useEffect(() => {
     if (!user) return;
     const fetchEntCourses = async () => {
-      // Get folders owned by current user
-      const { data: folders } = await supabase
-        .from("folders")
-        .select("id, name, subject_id")
-        .eq("created_by", user.id);
-      if (!folders || folders.length === 0) { setEntGroups([]); return; }
-
-      const folderIds = folders.map(f => f.id);
-      // Get ENT courses in those folders
-      const { data: courses } = await supabase
+      const { data: courses, error } = await entSupabase
         .from("courses")
-        .select("id, title, folder_id")
+        .select("id, title, subject")
         .eq("source", "fac")
-        .in("folder_id", folderIds);
-      if (!courses || courses.length === 0) { setEntGroups([]); return; }
+        .eq("user_id", user.id);
 
-      // Map folder_id -> subject_id, then group by subject
-      const folderToSubject = new Map(folders.map(f => [f.id, f.subject_id]));
+      if (error || !courses || courses.length === 0) { setEntGroups([]); return; }
+
+      // Group by subject field
       const subjectMap = new Map<string, { id: string; title: string }[]>();
       for (const c of courses) {
-        const sid = folderToSubject.get(c.folder_id) ?? "unknown";
-        if (!subjectMap.has(sid)) subjectMap.set(sid, []);
-        subjectMap.get(sid)!.push({ id: c.id, title: c.title });
+        const subjectName = (c as any).subject ?? "Autre";
+        if (!subjectMap.has(subjectName)) subjectMap.set(subjectName, []);
+        subjectMap.get(subjectName)!.push({ id: c.id, title: c.title });
       }
 
-      // Resolve subject names
-      const groups = Array.from(subjectMap.entries()).map(([sid, courseList]) => {
-        const subj = subjects.find(s => s.id === sid);
-        return { subjectName: subj?.name ?? "Autre", subjectId: sid, courses: courseList };
-      });
+      const groups = Array.from(subjectMap.entries()).map(([name, courseList]) => ({
+        subjectName: name,
+        subjectId: name,
+        courses: courseList,
+      }));
       groups.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
       setEntGroups(groups);
     };
     fetchEntCourses();
-  }, [user, subjects]);
+  }, [user]);
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
