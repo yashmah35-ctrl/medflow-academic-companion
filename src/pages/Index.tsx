@@ -110,7 +110,7 @@ const Index = () => {
       const groups = Array.from(subjectMap.entries()).map(([name, courseList]) => ({
         subjectName: name,
         subjectId: name,
-        courses: courseList,
+        courses: courseList.sort((a, b) => a.title.localeCompare(b.title)),
       }));
       groups.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
       setEntGroups(groups);
