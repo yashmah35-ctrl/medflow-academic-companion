@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, ChevronRight, FolderOpen, FolderPlus, Pencil, ArrowRightLeft, Check, X } from "lucide-react";
+import { BookOpen, ChevronRight, FolderOpen, FolderPlus, Pencil, ArrowRightLeft, Check, X, ExternalLink, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { entSupabase } from "@/lib/entSupabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EntCourse {
   id: string;
@@ -47,6 +48,10 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   // New folder dialog state
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+
+  // Course detail dialog state
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; title: string; file_url: string | null; subject: string | null } | null>(null);
+  const [generatingFlashcards, setGeneratingFlashcards] = useState(false);
 
   const fetchCourses = useCallback(async () => {
     const { data: courses, error } = await entSupabase
@@ -162,6 +167,48 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
     toast.success("Dossier créé ! Déplacez-y des cours.");
   };
 
+  // Open course detail
+  const handleOpenCourse = async (courseId: string) => {
+    const { data, error } = await entSupabase
+      .from("courses")
+      .select("id, title, file_url, subject")
+      .eq("id", courseId)
+      .single();
+
+    if (error || !data) {
+      toast.error("Impossible de charger le cours");
+      return;
+    }
+    setSelectedCourse(data as any);
+  };
+
+  // Generate flashcards from course
+  const handleGenerateFlashcards = async () => {
+    if (!selectedCourse) return;
+    setGeneratingFlashcards(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-flashcards", {
+        body: {
+          content: `Cours : ${selectedCourse.title}\nMatière : ${selectedCourse.subject ?? "Inconnue"}\nURL du document : ${selectedCourse.file_url ?? "non disponible"}`,
+          subject: selectedCourse.subject ?? "Médecine",
+          cardCount: 10,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.flashcards?.length > 0) {
+        toast.success(`${data.flashcards.length} flashcards générées ! Rendez-vous dans la section Flashcards.`);
+      } else {
+        toast.info("Aucune flashcard générée. Essayez avec un cours contenant plus de contenu.");
+      }
+    } catch (err: any) {
+      console.error("Flashcard generation error:", err);
+      toast.error("Erreur lors de la génération des flashcards");
+    } finally {
+      setGeneratingFlashcards(false);
+    }
+  };
+
   if (entGroups.length === 0 && !showNewFolder) return null;
 
   const allFolderNames = entGroups.map((g) => g.subjectName);
@@ -269,7 +316,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
                       </div>
                     ) : (
                       <>
-                        <span className="truncate flex-1">{c.title}</span>
+                        <span className="truncate flex-1 cursor-pointer hover:underline" onClick={() => handleOpenCourse(c.id)}>{c.title}</span>
                         <div className="flex items-center gap-0.5 opacity-0 group-hover/course:opacity-100 transition-opacity shrink-0">
                           <Button
                             size="sm"
@@ -359,6 +406,49 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
             <Button variant="outline" onClick={() => setShowNewFolder(false)}>Annuler</Button>
             <Button onClick={handleCreateFolder} disabled={!newFolderName.trim()}>Créer</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Course detail dialog */}
+      <Dialog open={!!selectedCourse} onOpenChange={(open) => !open && setSelectedCourse(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-primary" />
+              {selectedCourse?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Matière : {selectedCourse?.subject ?? "Non définie"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedCourse?.file_url ? (
+              <a
+                href={selectedCourse.file_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-primary hover:bg-muted transition-colors"
+              >
+                <ExternalLink className="h-4 w-4 shrink-0" />
+                <span className="truncate">Ouvrir le document original</span>
+              </a>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">Aucun lien de document disponible</p>
+            )}
+
+            <Button
+              className="w-full gap-2"
+              onClick={handleGenerateFlashcards}
+              disabled={generatingFlashcards}
+            >
+              {generatingFlashcards ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {generatingFlashcards ? "Génération en cours..." : "Générer les flashcards"}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
