@@ -4,7 +4,7 @@ import { scheduleBlocks } from "@/data/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, RefreshCw } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, FolderOpen, ChevronRight, Info } from "lucide-react";
 import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
 import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
 import shsImg from "@/assets/subjects/shs.png";
@@ -72,7 +72,8 @@ const Index = () => {
   const [subjects, setSubjects] = useState<DBSubject[]>([]);
   const [renamingSubject, setRenamingSubject] = useState<string | null>(null);
   const [renameSubjectValue, setRenameSubjectValue] = useState("");
-  const [syncing, setSyncing] = useState(false);
+  const [entGroups, setEntGroups] = useState<{ subjectName: string; subjectId: string; courses: { id: string; title: string }[] }[]>([]);
+  const [expandedEntGroup, setExpandedEntGroup] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -84,6 +85,46 @@ const Index = () => {
     };
     fetchSubjects();
   }, []);
+
+  // Fetch ENT courses grouped by subject
+  useEffect(() => {
+    if (!user) return;
+    const fetchEntCourses = async () => {
+      // Get folders owned by current user
+      const { data: folders } = await supabase
+        .from("folders")
+        .select("id, name, subject_id")
+        .eq("created_by", user.id);
+      if (!folders || folders.length === 0) { setEntGroups([]); return; }
+
+      const folderIds = folders.map(f => f.id);
+      // Get ENT courses in those folders
+      const { data: courses } = await supabase
+        .from("courses")
+        .select("id, title, folder_id")
+        .eq("source", "fac")
+        .in("folder_id", folderIds);
+      if (!courses || courses.length === 0) { setEntGroups([]); return; }
+
+      // Map folder_id -> subject_id, then group by subject
+      const folderToSubject = new Map(folders.map(f => [f.id, f.subject_id]));
+      const subjectMap = new Map<string, { id: string; title: string }[]>();
+      for (const c of courses) {
+        const sid = folderToSubject.get(c.folder_id) ?? "unknown";
+        if (!subjectMap.has(sid)) subjectMap.set(sid, []);
+        subjectMap.get(sid)!.push({ id: c.id, title: c.title });
+      }
+
+      // Resolve subject names
+      const groups = Array.from(subjectMap.entries()).map(([sid, courseList]) => {
+        const subj = subjects.find(s => s.id === sid);
+        return { subjectName: subj?.name ?? "Autre", subjectId: sid, courses: courseList };
+      });
+      groups.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
+      setEntGroups(groups);
+    };
+    fetchEntCourses();
+  }, [user, subjects]);
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
@@ -101,30 +142,6 @@ const Index = () => {
     setRenameSubjectValue("");
     toast.success("Matière renommée !");
   };
-
-  const handleSyncCourses = async () => {
-    if (!user) return;
-    setSyncing(true);
-    try {
-      const { data, error } = await supabase
-        .from("courses")
-        .select("id, folder_id")
-        .eq("source", "fac");
-      if (error) throw error;
-      toast.success(`${data?.length ?? 0} cours synchronisés depuis l'ENT !`);
-      // Refresh subjects to reflect any changes
-      const { data: subjectsData } = await supabase
-        .from("subjects")
-        .select("id, name, icon, color")
-        .order("name");
-      if (subjectsData) setSubjects(subjectsData);
-    } catch (err: any) {
-      toast.error(err?.message || "Erreur de synchronisation");
-    } finally {
-      setSyncing(false);
-    }
-  };
-
 
   const filteredSubjects = subjects.filter((s) => {
     if (!canAccessTC(role) && s.name.includes(" TC")) return false;
@@ -315,23 +332,64 @@ const Index = () => {
         </motion.div>
       </div>
 
-      {/* Subjects Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">Mes Matières</h2>
-            <p className="text-sm text-muted-foreground">Continue tes cours et progresse aujourd'hui.</p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSyncCourses}
-            disabled={syncing}
-            className="shrink-0"
+      {/* Info banner */}
+      <div className="flex items-center gap-2 rounded-xl border border-border bg-primary/5 px-4 py-2.5 text-sm text-muted-foreground">
+        <Info className="h-4 w-4 shrink-0 text-primary" />
+        <span>💡 Synchronisez vos cours via l'extension Chrome MedFlow</span>
+      </div>
+
+      {/* Mes cours ENT */}
+      {entGroups.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-xl font-bold text-foreground">Mes cours ENT</h2>
+          <motion.div
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+            variants={container}
+            initial="hidden"
+            animate="show"
           >
-            <RefreshCw className={cn("h-4 w-4 mr-1", syncing && "animate-spin")} />
-            {syncing ? "Synchro…" : "Synchroniser mes cours"}
-          </Button>
+            {entGroups.map((group) => (
+              <motion.div
+                key={group.subjectId}
+                variants={item}
+                className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
+                onClick={() => setExpandedEntGroup(expandedEntGroup === group.subjectId ? null : group.subjectId)}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                    <FolderOpen className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-foreground text-sm truncate">{group.subjectName}</h3>
+                    <p className="text-xs text-muted-foreground">{group.courses.length} cours</p>
+                  </div>
+                  <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedEntGroup === group.subjectId && "rotate-90")} />
+                </div>
+                {expandedEntGroup === group.subjectId && (
+                  <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+                    {group.courses.map((c) => (
+                      <div
+                        key={c.id}
+                        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground hover:bg-muted transition-colors cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/subject/${group.subjectId}`); }}
+                      >
+                        <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{c.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      )}
+
+      {/* Separator + Prépa du Peuple subjects */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Cours La Prépa du Peuple</h2>
+          <p className="text-sm text-muted-foreground">Continue tes cours et progresse aujourd'hui.</p>
         </div>
         <div className="relative w-full sm:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
