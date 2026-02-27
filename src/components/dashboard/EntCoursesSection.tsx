@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, ChevronRight, FolderOpen, FolderPlus, Pencil, ArrowRightLeft, Check, X, ExternalLink, Sparkles, Loader2 } from "lucide-react";
+import { BookOpen, ChevronRight, FolderOpen, FolderPlus, Pencil, ArrowRightLeft, Check, X, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { entSupabase } from "@/lib/entSupabaseClient";
-import { supabase } from "@/integrations/supabase/client";
+import { EntCoursePanel } from "./EntCoursePanel";
 
 interface EntCourse {
   id: string;
@@ -51,7 +51,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
 
   // Course detail dialog state
   const [selectedCourse, setSelectedCourse] = useState<{ id: string; title: string; url: string | null; subject: string | null; content: string | null } | null>(null);
-  const [generatingFlashcards, setGeneratingFlashcards] = useState(false);
+  const [courseLoading, setCourseLoading] = useState(false);
 
   const fetchCourses = useCallback(async () => {
     const { data: courses, error } = await entSupabase
@@ -182,32 +182,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
     setSelectedCourse(data as any);
   };
 
-  // Generate flashcards from course
-  const handleGenerateFlashcards = async () => {
-    if (!selectedCourse) return;
-    setGeneratingFlashcards(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-flashcards", {
-        body: {
-          content: `Cours : ${selectedCourse.title}\nMatière : ${selectedCourse.subject ?? "Inconnue"}\nURL du document : ${selectedCourse.url ?? "non disponible"}`,
-          subject: selectedCourse.subject ?? "Médecine",
-          cardCount: 10,
-        },
-      });
 
-      if (error) throw error;
-      if (data?.flashcards?.length > 0) {
-        toast.success(`${data.flashcards.length} flashcards générées ! Rendez-vous dans la section Flashcards.`);
-      } else {
-        toast.info("Aucune flashcard générée. Essayez avec un cours contenant plus de contenu.");
-      }
-    } catch (err: any) {
-      console.error("Flashcard generation error:", err);
-      toast.error("Erreur lors de la génération des flashcards");
-    } finally {
-      setGeneratingFlashcards(false);
-    }
-  };
 
   if (entGroups.length === 0 && !showNewFolder) return null;
 
@@ -409,62 +384,71 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Course detail dialog */}
-      <Dialog open={!!selectedCourse} onOpenChange={(open) => !open && setSelectedCourse(null)}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              {selectedCourse?.title}
-            </DialogTitle>
-            <DialogDescription>
-              Matière : {selectedCourse?.subject ?? "Non définie"}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedCourse?.url ? (
-              <a
-                href={selectedCourse.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm text-primary hover:bg-muted transition-colors"
-              >
-                <ExternalLink className="h-4 w-4 shrink-0" />
-                <span className="truncate">{selectedCourse.url}</span>
-              </a>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">Aucun lien disponible</p>
-            )}
-
-            {!selectedCourse?.content && (
-              <p className="text-sm text-muted-foreground italic bg-muted/30 rounded-lg px-4 py-3">
-                Contenu non disponible - consultez le lien original
-              </p>
-            )}
-
-            {selectedCourse?.url && (
-              <Button
-                variant="outline"
-                className="w-full gap-2"
-                onClick={() => window.open(selectedCourse.url!, "_blank")}
-              >
-                <ExternalLink className="h-4 w-4" />
-                Ouvrir sur Madoc
-              </Button>
-            )}
-
+      {/* Course detail - Split-screen viewer */}
+      <Dialog open={!!selectedCourse} onOpenChange={(v) => { if (!v) setSelectedCourse(null); }}>
+        <DialogContent
+          className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden border-border/50 bg-card shadow-2xl"
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-gradient-to-r from-card via-card to-muted/30">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                <FileText className="h-4.5 w-4.5" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-sm font-semibold text-foreground truncate">{selectedCourse?.title}</h2>
+                <p className="text-xs text-muted-foreground">
+                  {selectedCourse?.subject ?? "Matière non définie"} · Consultation en lecture seule
+                </p>
+              </div>
+            </div>
             <Button
-              className="w-full gap-2"
-              onClick={handleGenerateFlashcards}
-              disabled={generatingFlashcards}
+              variant="ghost"
+              size="icon"
+              className="shrink-0 rounded-full h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              onClick={() => setSelectedCourse(null)}
             >
-              {generatingFlashcards ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              {generatingFlashcards ? "Génération en cours..." : "Générer les flashcards"}
+              <X className="h-4 w-4" />
             </Button>
+          </div>
+
+          {/* Content: embedded doc + side panel */}
+          <div className="flex flex-1" style={{ height: "calc(92vh - 60px)" }}>
+            {/* Document area */}
+            <div
+              className="relative flex-1 select-none bg-muted/20"
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ userSelect: "none", WebkitUserSelect: "none" }}
+            >
+              {selectedCourse?.url ? (
+                <iframe
+                  src={
+                    /\.pdf$/i.test(selectedCourse.url)
+                      ? `${selectedCourse.url}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`
+                      : `https://docs.google.com/gview?url=${encodeURIComponent(selectedCourse.url)}&embedded=true`
+                  }
+                  className="w-full h-full border-0"
+                  sandbox="allow-same-origin allow-scripts allow-popups"
+                  title={selectedCourse.title}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
+                  <FileText className="h-12 w-12 opacity-30" />
+                  <p className="text-sm">Aucun document disponible</p>
+                </div>
+              )}
+            </div>
+
+            {/* Side panel */}
+            <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
+              <EntCoursePanel
+                courseTitle={selectedCourse?.title ?? ""}
+                courseUrl={selectedCourse?.url ?? null}
+                courseContent={selectedCourse?.content ?? null}
+                courseSubject={selectedCourse?.subject ?? null}
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
