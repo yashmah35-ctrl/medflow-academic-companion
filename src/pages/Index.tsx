@@ -4,7 +4,7 @@ import { scheduleBlocks } from "@/data/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, FolderOpen, ChevronRight, Info } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Info } from "lucide-react";
 import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
 import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
 import shsImg from "@/assets/subjects/shs.png";
@@ -27,7 +27,7 @@ import { useState, useCallback, useEffect } from "react";
 import BloomingTree from "@/components/dashboard/BloomingTree";
 import StudyTimer from "@/components/dashboard/StudyTimer";
 import { supabase } from "@/integrations/supabase/client";
-import { entSupabase } from "@/lib/entSupabaseClient";
+import EntCoursesSection from "@/components/dashboard/EntCoursesSection";
 
 interface DBSubject {
   id: string;
@@ -73,50 +73,6 @@ const Index = () => {
   const [subjects, setSubjects] = useState<DBSubject[]>([]);
   const [renamingSubject, setRenamingSubject] = useState<string | null>(null);
   const [renameSubjectValue, setRenameSubjectValue] = useState("");
-  const [entGroups, setEntGroups] = useState<{ subjectName: string; subjectId: string; courses: { id: string; title: string }[] }[]>([]);
-  const [expandedEntGroup, setExpandedEntGroup] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchSubjects = async () => {
-      const { data } = await supabase
-        .from("subjects")
-        .select("id, name, icon, color")
-        .order("name");
-      if (data) setSubjects(data);
-    };
-    fetchSubjects();
-  }, []);
-
-  // Fetch ENT courses from external Supabase project
-  useEffect(() => {
-    if (!user) return;
-    const fetchEntCourses = async () => {
-      const { data: courses, error } = await entSupabase
-        .from("courses")
-        .select("id, title, subject")
-        .eq("source", "fac")
-        .eq("user_id", user.id);
-
-      if (error || !courses || courses.length === 0) { setEntGroups([]); return; }
-
-      // Group by subject field
-      const subjectMap = new Map<string, { id: string; title: string }[]>();
-      for (const c of courses) {
-        const subjectName = (c as any).subject ?? "Autre";
-        if (!subjectMap.has(subjectName)) subjectMap.set(subjectName, []);
-        subjectMap.get(subjectName)!.push({ id: c.id, title: c.title });
-      }
-
-      const groups = Array.from(subjectMap.entries()).map(([name, courseList]) => ({
-        subjectName: name,
-        subjectId: name,
-        courses: courseList.sort((a, b) => a.title.localeCompare(b.title)),
-      }));
-      groups.sort((a, b) => a.subjectName.localeCompare(b.subjectName));
-      setEntGroups(groups);
-    };
-    fetchEntCourses();
-  }, [user]);
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
@@ -331,51 +287,7 @@ const Index = () => {
       </div>
 
       {/* Mes cours ENT */}
-      {entGroups.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-xl font-bold text-foreground">Mes cours ENT</h2>
-          <motion.div
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-            variants={container}
-            initial="hidden"
-            animate="show"
-          >
-            {entGroups.map((group) => (
-              <motion.div
-                key={group.subjectId}
-                variants={item}
-                className="rounded-2xl border border-border bg-card p-5 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
-                onClick={() => setExpandedEntGroup(expandedEntGroup === group.subjectId ? null : group.subjectId)}
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                    <FolderOpen className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-foreground text-sm truncate">{group.subjectName}</h3>
-                    <p className="text-xs text-muted-foreground">{group.courses.length} cours</p>
-                  </div>
-                  <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", expandedEntGroup === group.subjectId && "rotate-90")} />
-                </div>
-                {expandedEntGroup === group.subjectId && (
-                  <div className="mt-3 space-y-1.5 border-t border-border pt-3">
-                    {group.courses.map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-foreground hover:bg-muted transition-colors cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); navigate(`/subject/${group.subjectId}`); }}
-                      >
-                        <BookOpen className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">{c.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      )}
+      {user && <EntCoursesSection userId={user.id} />}
 
       {/* Separator + Prépa du Peuple subjects */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
