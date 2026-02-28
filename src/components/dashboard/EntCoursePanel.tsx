@@ -152,21 +152,58 @@ export function EntCoursePanel({ courseId, courseTitle, courseUrl, courseContent
   }, [courseId]);
 
   const handleGenerateFlashcards = async () => {
+    if (!user) { toast.error("Vous devez être connecté"); return; }
     setGeneratingFlashcards(true);
     try {
+      const contentText = courseContent
+        ? `Cours : ${courseTitle}\nMatière : ${courseSubject ?? "Médecine"}\n\n${courseContent}`
+        : `Cours : ${courseTitle}\nMatière : ${courseSubject ?? "Inconnue"}\nURL du document : ${courseUrl ?? "non disponible"}`;
+
       const { data, error } = await supabase.functions.invoke("generate-flashcards", {
         body: {
-          content: `Cours : ${courseTitle}\nMatière : ${courseSubject ?? "Inconnue"}\nURL du document : ${courseUrl ?? "non disponible"}`,
+          content: contentText,
           subject: courseSubject ?? "Médecine",
           cardCount: 10,
         },
       });
       if (error) throw error;
-      if (data?.flashcards?.length > 0) {
-        toast.success(`${data.flashcards.length} flashcards générées !`);
+      if (data?.error) { toast.error(data.error); setGeneratingFlashcards(false); return; }
+      const cards = data?.flashcards || [];
+      if (cards.length === 0) { toast.info("Aucune flashcard générée."); setGeneratingFlashcards(false); return; }
+
+      // Create or find deck
+      const deckName = `ENT - ${courseSubject ?? courseTitle}`;
+      let deckId: string | null = null;
+      const { data: existingDecks } = await supabase
+        .from("flashcard_decks")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("name", deckName)
+        .limit(1);
+
+      if (existingDecks && existingDecks.length > 0) {
+        deckId = existingDecks[0].id;
       } else {
-        toast.info("Aucune flashcard générée.");
+        const { data: newDeck, error: deckError } = await supabase
+          .from("flashcard_decks")
+          .insert({ user_id: user.id, name: deckName })
+          .select("id")
+          .single();
+        if (deckError) { toast.error("Erreur création du deck"); setGeneratingFlashcards(false); return; }
+        deckId = newDeck.id;
       }
+
+      const inserts = cards.map((c: any) => ({
+        deck_id: deckId!,
+        user_id: user.id,
+        card_type: "qr",
+        front: c.front,
+        back: c.back,
+        explanation: c.explanation || null,
+      }));
+      const { error: insertError } = await supabase.from("flashcards").insert(inserts);
+      if (insertError) { toast.error("Erreur lors de l'import"); return; }
+      toast.success(`${cards.length} flashcards sauvegardées dans "${deckName}" !`);
     } catch (err: any) {
       console.error("Flashcard generation error:", err);
       toast.error("Erreur lors de la génération des flashcards");
