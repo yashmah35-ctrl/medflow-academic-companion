@@ -456,6 +456,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
             {/* Side panel */}
             <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
               <EntCoursePanel
+                courseId={selectedCourse?.id ?? ""}
                 courseTitle={selectedCourse?.title ?? ""}
                 courseUrl={selectedCourse?.url ?? null}
                 courseContent={selectedCourse?.content ?? null}
