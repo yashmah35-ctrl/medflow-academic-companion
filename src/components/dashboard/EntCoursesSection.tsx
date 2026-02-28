@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { BookOpen, ChevronRight, FolderOpen, FolderPlus, Pencil, ArrowRightLeft, Check, X, FileText, Loader2 } from "lucide-react";
+import { BookOpen, ChevronRight, FolderOpen, FolderPlus, Pencil, ArrowRightLeft, Check, X, FileText, Loader2, Upload, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { entSupabase } from "@/lib/entSupabaseClient";
 import { EntCoursePanel } from "./EntCoursePanel";
+import { callWebhook, WEBHOOKS } from "@/lib/webhooks";
 
 interface EntCourse {
   id: string;
@@ -52,6 +53,10 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   // Course detail dialog state
   const [selectedCourse, setSelectedCourse] = useState<{ id: string; title: string; url: string | null; subject: string | null; content: string | null } | null>(null);
   const [courseLoading, setCourseLoading] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchCourses = useCallback(async () => {
     const { data: courses, error } = await entSupabase
@@ -182,7 +187,54 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
     setSelectedCourse(data as any);
   };
 
+  const handleCloseDetail = () => {
+    setSelectedCourse(null);
+    setPdfUrl(null);
+  };
 
+  const handlePdfUpload = async (file: File) => {
+    if (!file || !file.type.includes("pdf")) {
+      toast.error("Veuillez sélectionner un fichier PDF");
+      return;
+    }
+    setUploading(true);
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      setPdfUrl(objectUrl);
+      toast.success("PDF chargé !");
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const base64 = (reader.result as string).split(",")[1];
+        try {
+          await callWebhook(WEBHOOKS.FLASHCARDS, {
+            course_id: selectedCourse?.id,
+            course_title: selectedCourse?.title,
+            subject: selectedCourse?.subject,
+            file_base64: base64,
+            file_name: file.name,
+          });
+          toast.success("Contenu envoyé pour génération de flashcards !");
+        } catch (err) {
+          console.error("Webhook error:", err);
+          toast.error("Erreur lors de l'envoi au webhook");
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("PDF upload error:", err);
+      toast.error("Erreur lors du chargement du PDF");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handlePdfUpload(file);
+  };
 
   if (entGroups.length === 0 && !showNewFolder) return null;
 
@@ -385,7 +437,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
       </Dialog>
 
       {/* Course detail - Split-screen viewer */}
-      <Dialog open={!!selectedCourse} onOpenChange={(v) => { if (!v) setSelectedCourse(null); }}>
+      <Dialog open={!!selectedCourse} onOpenChange={(v) => { if (!v) handleCloseDetail(); }}>
         <DialogContent
           className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden border-border/50 bg-card shadow-2xl"
           onContextMenu={(e) => e.preventDefault()}
@@ -407,50 +459,113 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
               variant="ghost"
               size="icon"
               className="shrink-0 rounded-full h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
-              onClick={() => setSelectedCourse(null)}
+              onClick={handleCloseDetail}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
 
-          {/* Content: embedded doc + side panel */}
+          {/* Content: left panel + side panel */}
           <div className="flex flex-1" style={{ height: "calc(92vh - 60px)" }}>
-            {/* Document area */}
-            <div
-              className="relative flex-1 select-none bg-muted/20"
-              onContextMenu={(e) => e.preventDefault()}
-              style={{ userSelect: "none", WebkitUserSelect: "none" }}
-            >
-              {selectedCourse?.content ? (
-                <div className="h-full overflow-y-auto p-6">
-                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-foreground">
-                    {selectedCourse.content}
-                  </div>
-                  {selectedCourse.url && (
-                    <div className="mt-6 pt-4 border-t border-border">
-                      <Button variant="outline" size="sm" className="gap-2" onClick={() => window.open(selectedCourse.url!, "_blank")}>
-                        <BookOpen className="h-4 w-4" />
-                        Ouvrir sur Madoc
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : selectedCourse?.url ? (
-                <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-                  <FileText className="h-12 w-12 opacity-30" />
-                  <p className="text-sm font-medium text-foreground">Contenu non disponible</p>
-                  <p className="text-xs">Consultez le document sur la plateforme originale</p>
-                  <Button className="gap-2 mt-2" onClick={() => window.open(selectedCourse.url!, "_blank")}>
-                    <BookOpen className="h-4 w-4" />
+            {/* Left: Document area */}
+            <div className="relative flex-1 flex flex-col bg-muted/20 overflow-hidden">
+              {/* Top bar: Madoc button */}
+              <div className="flex items-center gap-3 px-5 py-3 border-b border-border/30 bg-card/50 shrink-0">
+                {selectedCourse?.url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => window.open(selectedCourse.url!, "_blank")}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
                     Ouvrir sur Madoc
                   </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-                  <FileText className="h-12 w-12 opacity-30" />
-                  <p className="text-sm">Aucun document disponible</p>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* PDF viewer or upload zone */}
+              <div className="flex-1 overflow-hidden">
+                {pdfUrl ? (
+                  /* Embedded PDF viewer */
+                  <div className="h-full flex flex-col">
+                    <iframe
+                      src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                      className="w-full flex-1 border-0"
+                      title={selectedCourse?.title ?? "PDF"}
+                    />
+                    <div className="flex items-center justify-between px-4 py-2 border-t border-border/30 bg-card/50 shrink-0">
+                      <p className="text-xs text-muted-foreground">PDF chargé</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs h-7 gap-1"
+                        onClick={() => {
+                          setPdfUrl(null);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                      >
+                        <X className="h-3 w-3" /> Retirer le PDF
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Upload zone + content fallback */
+                  <div className="h-full overflow-y-auto p-6 space-y-6">
+                    {/* Upload zone */}
+                    <div
+                      className={cn(
+                        "border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer",
+                        dragOver
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50 hover:bg-muted/30"
+                      )}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePdfUpload(file);
+                        }}
+                      />
+                      {uploading ? (
+                        <div className="flex flex-col items-center gap-3">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          <p className="text-sm text-muted-foreground">Chargement du PDF...</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
+                            <Upload className="h-6 w-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              Glissez un PDF ici ou cliquez pour sélectionner
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Le PDF sera affiché directement et envoyé pour la génération de flashcards
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Text content fallback */}
+                    {selectedCourse?.content && (
+                      <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-foreground">
+                        {selectedCourse.content}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Side panel */}
