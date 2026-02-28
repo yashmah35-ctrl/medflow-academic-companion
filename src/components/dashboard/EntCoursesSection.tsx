@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { entSupabase } from "@/lib/entSupabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import { EntCoursePanel } from "./EntCoursePanel";
-import { callWebhook, WEBHOOKS } from "@/lib/webhooks";
+import { useAuth } from "@/hooks/useAuth";
 
 interface EntCourse {
   id: string;
@@ -31,6 +32,7 @@ const item = {
 };
 
 export default function EntCoursesSection({ userId }: { userId: string }) {
+  const { user } = useAuth();
   const [entGroups, setEntGroups] = useState<EntGroup[]>([]);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
@@ -88,6 +90,17 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   useEffect(() => {
     fetchCourses();
   }, [fetchCourses]);
+
+  // ─── Load persisted PDF when course opens ────────
+  const loadPersistedPdf = useCallback(async (courseId: string) => {
+    const storagePath = `ent-pdfs/${courseId}.pdf`;
+    const { data } = await supabase.storage
+      .from("course-files")
+      .createSignedUrl(storagePath, 3600);
+    if (data?.signedUrl) {
+      setPdfUrl(data.signedUrl);
+    }
+  }, []);
 
   // Rename folder = update subject field on all courses in that group
   const handleRenameFolder = async (oldName: string) => {
@@ -154,10 +167,6 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
     fetchCourses();
   };
 
-  // Create new empty folder (we don't create a DB entry — we just show it when a course is moved there)
-  // But to satisfy the user we can show a prompt and the folder appears once a course is moved.
-  // Alternative: create a placeholder course. Better: just let user type a new name when moving.
-  // For UX, let's create the folder name and let users move courses into it via the move dialog.
   const handleCreateFolder = () => {
     const name = newFolderName.trim();
     if (!name) return;
@@ -165,7 +174,6 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
       toast.error("Ce dossier existe déjà");
       return;
     }
-    // Add an empty group locally
     setEntGroups((prev) => [...prev, { subjectName: name, courses: [] }].sort((a, b) => a.subjectName.localeCompare(b.subjectName)));
     setShowNewFolder(false);
     setNewFolderName("");
@@ -185,6 +193,9 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
       return;
     }
     setSelectedCourse(data as any);
+    setPdfUrl(null);
+    // Try to load persisted PDF
+    loadPersistedPdf(courseId);
   };
 
   const handleCloseDetail = () => {
@@ -193,34 +204,101 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   };
 
   const handlePdfUpload = async (file: File) => {
-    if (!file || !file.type.includes("pdf")) {
+    if (!file || !file.type.includes("pdf") || !selectedCourse) {
       toast.error("Veuillez sélectionner un fichier PDF");
       return;
     }
     setUploading(true);
     try {
-      const objectUrl = URL.createObjectURL(file);
-      setPdfUrl(objectUrl);
-      toast.success("PDF chargé !");
+      // 1. Upload to Supabase storage for persistence
+      const storagePath = `ent-pdfs/${selectedCourse.id}.pdf`;
+      const { error: uploadError } = await supabase.storage
+        .from("course-files")
+        .upload(storagePath, file, { upsert: true });
 
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        try {
-          await callWebhook(WEBHOOKS.FLASHCARDS, {
-            course_id: selectedCourse?.id,
-            course_title: selectedCourse?.title,
-            subject: selectedCourse?.subject,
-            file_base64: base64,
-            file_name: file.name,
-          });
-          toast.success("Contenu envoyé pour génération de flashcards !");
-        } catch (err) {
-          console.error("Webhook error:", err);
-          toast.error("Erreur lors de l'envoi au webhook");
-        }
-      };
-      reader.readAsDataURL(file);
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        toast.error("Erreur lors de la sauvegarde du PDF");
+        setUploading(false);
+        return;
+      }
+
+      // 2. Get signed URL for display
+      const { data: signedData } = await supabase.storage
+        .from("course-files")
+        .createSignedUrl(storagePath, 3600);
+
+      if (signedData?.signedUrl) {
+        setPdfUrl(signedData.signedUrl);
+      } else {
+        // Fallback to blob URL
+        setPdfUrl(URL.createObjectURL(file));
+      }
+      toast.success("PDF sauvegardé !");
+
+      // 3. Generate flashcards from PDF using edge function
+      if (user) {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const base64 = (reader.result as string).split(",")[1];
+          try {
+            toast.info("Génération des flashcards en cours...");
+            const { data, error } = await supabase.functions.invoke("generate-flashcards", {
+              body: {
+                fileBase64: base64,
+                fileMimeType: file.type,
+                subject: selectedCourse.subject ?? "Médecine",
+                cardCount: 10,
+              },
+            });
+            if (error) throw error;
+            if (data?.error) { toast.error(data.error); return; }
+            const cards = data?.flashcards || [];
+            if (cards.length === 0) { toast.info("Aucune flashcard générée."); return; }
+
+            // Create or find deck named after the course subject
+            const deckName = `ENT - ${selectedCourse.subject ?? selectedCourse.title}`;
+            let deckId: string | null = null;
+
+            // Check if deck already exists
+            const { data: existingDecks } = await supabase
+              .from("flashcard_decks")
+              .select("id")
+              .eq("user_id", user.id)
+              .eq("name", deckName)
+              .limit(1);
+
+            if (existingDecks && existingDecks.length > 0) {
+              deckId = existingDecks[0].id;
+            } else {
+              const { data: newDeck, error: deckError } = await supabase
+                .from("flashcard_decks")
+                .insert({ user_id: user.id, name: deckName })
+                .select("id")
+                .single();
+              if (deckError) { toast.error("Erreur création du deck"); return; }
+              deckId = newDeck.id;
+            }
+
+            // Insert flashcards
+            const inserts = cards.map((c: any) => ({
+              deck_id: deckId!,
+              user_id: user.id,
+              card_type: "qr",
+              front: c.front,
+              back: c.back,
+              explanation: c.explanation || null,
+            }));
+            const { error: insertError } = await supabase.from("flashcards").insert(inserts);
+            if (insertError) { toast.error("Erreur lors de l'import des flashcards"); return; }
+            toast.success(`${cards.length} flashcards générées et sauvegardées dans "${deckName}" !`);
+          } catch (err) {
+            console.error("Flashcard generation error:", err);
+            toast.error("Erreur lors de la génération des flashcards");
+          }
+        };
+        reader.readAsDataURL(file);
+      }
     } catch (err) {
       console.error("PDF upload error:", err);
       toast.error("Erreur lors du chargement du PDF");
@@ -500,7 +578,13 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
                         variant="ghost"
                         size="sm"
                         className="text-xs h-7 gap-1"
-                        onClick={() => {
+                        onClick={async () => {
+                          // Remove from storage too
+                          if (selectedCourse) {
+                            await supabase.storage
+                              .from("course-files")
+                              .remove([`ent-pdfs/${selectedCourse.id}.pdf`]);
+                          }
                           setPdfUrl(null);
                           if (fileInputRef.current) fileInputRef.current.value = "";
                         }}
@@ -538,7 +622,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
                       {uploading ? (
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                          <p className="text-sm text-muted-foreground">Chargement du PDF...</p>
+                          <p className="text-sm text-muted-foreground">Sauvegarde et génération en cours...</p>
                         </div>
                       ) : (
                         <div className="flex flex-col items-center gap-3">
@@ -550,7 +634,7 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
                               Glissez un PDF ici ou cliquez pour sélectionner
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Le PDF sera affiché directement et envoyé pour la génération de flashcards
+                              Le PDF sera sauvegardé et les flashcards générées automatiquement
                             </p>
                           </div>
                         </div>
