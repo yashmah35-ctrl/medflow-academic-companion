@@ -256,29 +256,15 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
             const cards = data?.flashcards || [];
             if (cards.length === 0) { toast.info("Aucune flashcard générée."); return; }
 
-            // Create or find deck named after the course subject
-            const deckName = `ENT - ${selectedCourse.subject ?? selectedCourse.title}`;
-            let deckId: string | null = null;
-
-            // Check if deck already exists
-            const { data: existingDecks } = await supabase
+            // Always create a new dedicated deck named after the course
+            const deckName = selectedCourse.title || selectedCourse.subject || "Cours ENT";
+            const { data: newDeck, error: deckError } = await supabase
               .from("flashcard_decks")
+              .insert({ user_id: user.id, name: deckName })
               .select("id")
-              .eq("user_id", user.id)
-              .eq("name", deckName)
-              .limit(1);
-
-            if (existingDecks && existingDecks.length > 0) {
-              deckId = existingDecks[0].id;
-            } else {
-              const { data: newDeck, error: deckError } = await supabase
-                .from("flashcard_decks")
-                .insert({ user_id: user.id, name: deckName })
-                .select("id")
-                .single();
-              if (deckError) { toast.error("Erreur création du deck"); return; }
-              deckId = newDeck.id;
-            }
+              .single();
+            if (deckError) { toast.error("Erreur création du deck"); return; }
+            const deckId = newDeck.id;
 
             // Insert flashcards
             const inserts = cards.map((c: any) => ({
