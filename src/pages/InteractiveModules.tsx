@@ -1,16 +1,21 @@
+import { useState, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bone, FlaskConical, Puzzle as PuzzleIcon, Stethoscope } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ArrowLeft, Loader2 } from "lucide-react";
+
+const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"));
 
 const modules = [
   {
     id: 1,
-    title: "Anatomie 3D",
-    description: "Explore le corps humain en 3D avec un viewer interactif.",
-    icon: "🦴",
-    available: false,
-    comingSoon: true,
+    title: "Cœur 3D Interactif",
+    description: "Explore l'anatomie du cœur en 3D : ventricules, oreillettes, valves et vaisseaux.",
+    icon: "❤️",
+    available: true,
+    comingSoon: false,
+    viewer: "heart3d" as const,
   },
   {
     id: 2,
@@ -32,7 +37,7 @@ const modules = [
     id: 4,
     title: "ECG Simulator",
     description: "Apprends à lire et interpréter les tracés ECG.",
-    icon: "❤️",
+    icon: "🫀",
     available: false,
     comingSoon: true,
   },
@@ -48,6 +53,34 @@ const item = {
 };
 
 export default function InteractiveModules() {
+  const [activeViewer, setActiveViewer] = useState<string | null>(null);
+
+  if (activeViewer === "heart3d") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setActiveViewer(null)}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Retour
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Cœur 3D Interactif</h1>
+            <p className="text-xs text-muted-foreground">Clique sur les zones colorées pour explorer chaque partie</p>
+          </div>
+        </div>
+        <Suspense
+          fallback={
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">Chargement du modèle 3D…</span>
+            </div>
+          }
+        >
+          <Heart3DViewer />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -83,6 +116,11 @@ export default function InteractiveModules() {
               className="mt-4 w-full"
               variant={m.available ? "default" : "secondary"}
               disabled={!m.available}
+              onClick={() => {
+                if ("viewer" in m && m.viewer) {
+                  setActiveViewer(m.viewer);
+                }
+              }}
             >
               {m.available ? "Lancer" : "Bientôt disponible"}
             </Button>
