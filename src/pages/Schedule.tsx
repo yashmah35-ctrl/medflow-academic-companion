@@ -5,13 +5,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { days, subjectColorMap, subjects, type SubjectColor, type ScheduleBlock } from "@/data/mockData";
-import { Trash2, AlertCircle, CheckCircle2, Plus, Circle, CircleDot, CircleCheck, Loader2 } from "lucide-react";
+import { scheduleBlocks, days, subjectColorMap, subjects, type SubjectColor, type ScheduleBlock } from "@/data/mockData";
+import { Trash2, AlertCircle, CheckCircle2, Plus, Circle, CircleDot, CircleCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
-import { entSupabase } from "@/lib/entSupabaseClient";
-import { startOfISOWeek, differenceInCalendarDays, parseISO } from "date-fns";
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -36,8 +34,7 @@ const blockTypes: ScheduleBlock["type"][] = ["Découverte", "Révision", "Flashc
 
 export default function Schedule() {
   const { user } = useAuth();
-  const [blocks, setBlocks] = useState<ScheduleBlock[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [blocks, setBlocks] = useState(scheduleBlocks);
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
   const [completionMap, setCompletionMap] = useState<Record<string, CompletionStatus>>(() => {
     try {
@@ -56,56 +53,6 @@ export default function Schedule() {
   const [newType, setNewType] = useState<ScheduleBlock["type"]>("Découverte");
   const [newDay, setNewDay] = useState(0);
   const [newHour, setNewHour] = useState(8);
-
-  // Fetch schedule blocks from external Supabase
-  useEffect(() => {
-    if (!user) return;
-    const fetchBlocks = async () => {
-      setLoading(true);
-      const { data, error } = await entSupabase
-        .from("schedule_blocks")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("deleted_by_user", false);
-
-      if (error) {
-        console.error("Error fetching schedule blocks:", error);
-        setLoading(false);
-        return;
-      }
-
-      const weekStart = startOfISOWeek(new Date());
-      const mapped: ScheduleBlock[] = (data || []).map((row: any) => {
-        const date = parseISO(row.scheduled_date);
-        const dayIdx = differenceInCalendarDays(date, weekStart);
-        const hours = Math.floor(row.duration_minutes / 60);
-        const mins = row.duration_minutes % 60;
-        const duration = hours > 0 && mins > 0
-          ? `${hours}h${String(mins).padStart(2, "0")}`
-          : hours > 0 ? `${hours}h` : `${mins}min`;
-
-        return {
-          id: row.id,
-          subjectColor: (row.subject_color as SubjectColor) || "chemistry",
-          title: row.title,
-          duration,
-          type: row.type as ScheduleBlock["type"],
-          day: Math.max(0, Math.min(6, dayIdx)),
-          hour: row.start_hour ?? 8,
-        };
-      });
-
-      setBlocks(mapped);
-      // Sync completion from fetched data
-      const newCompletion: Record<string, CompletionStatus> = {};
-      (data || []).forEach((row: any) => {
-        newCompletion[row.id] = row.completed ? "done" : "not_done";
-      });
-      setCompletionMap(prev => ({ ...newCompletion, ...prev }));
-      setLoading(false);
-    };
-    fetchBlocks();
-  }, [user]);
 
   // Call schedule webhook on mount
   useEffect(() => {
@@ -302,12 +249,6 @@ export default function Schedule() {
         </div>
       </motion.div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">Chargement du planning…</span>
-        </div>
-      ) : (
       <div className="overflow-x-auto">
         <div className="min-w-[800px]">
           <div className="grid grid-cols-8 gap-1 mb-2">
@@ -382,7 +323,6 @@ export default function Schedule() {
           ))}
         </div>
       </div>
-      )}
     </div>
   );
 }
