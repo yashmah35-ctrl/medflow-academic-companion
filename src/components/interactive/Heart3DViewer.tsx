@@ -9,7 +9,7 @@ interface HeartPart {
   name: string;
   description: string;
   color: string;
-  hoverColor: string;
+  position: [number, number, number]; // 3D position for hotspot
 }
 
 const HEART_PARTS: HeartPart[] = [
@@ -19,7 +19,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Chambre la plus puissante du cœur. Il pompe le sang oxygéné vers tout le corps via l'aorte. Sa paroi est la plus épaisse car il doit générer une pression suffisante pour la circulation systémique.",
     color: "#c0392b",
-    hoverColor: "#e74c3c",
+    position: [0.4, -0.6, 0.5],
   },
   {
     id: "ventricule-droit",
@@ -27,7 +27,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Il reçoit le sang désoxygéné de l'oreillette droite et le propulse vers les poumons via l'artère pulmonaire. Sa paroi est plus fine que celle du ventricule gauche.",
     color: "#2980b9",
-    hoverColor: "#3498db",
+    position: [-0.4, -0.6, 0.5],
   },
   {
     id: "oreillette-gauche",
@@ -35,7 +35,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Elle reçoit le sang oxygéné provenant des poumons par les veines pulmonaires. Elle se contracte pour envoyer ce sang dans le ventricule gauche à travers la valve mitrale.",
     color: "#e74c3c",
-    hoverColor: "#ff6b6b",
+    position: [0.5, 0.5, 0.3],
   },
   {
     id: "oreillette-droite",
@@ -43,7 +43,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Elle reçoit le sang désoxygéné du corps par les veines caves supérieure et inférieure. Elle envoie ce sang vers le ventricule droit via la valve tricuspide.",
     color: "#3498db",
-    hoverColor: "#5dade2",
+    position: [-0.5, 0.5, 0.3],
   },
   {
     id: "aorte",
@@ -51,7 +51,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "La plus grande artère du corps. Elle part du ventricule gauche et distribue le sang oxygéné à tous les organes. Elle forme une crosse caractéristique avant de descendre dans le thorax et l'abdomen.",
     color: "#e74c3c",
-    hoverColor: "#ff6b6b",
+    position: [0.1, 1.1, 0],
   },
   {
     id: "artere-pulmonaire",
@@ -59,7 +59,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Elle transporte le sang désoxygéné du ventricule droit vers les poumons pour y être oxygéné. C'est la seule artère qui transporte du sang pauvre en oxygène.",
     color: "#2980b9",
-    hoverColor: "#5dade2",
+    position: [-0.3, 0.9, 0.4],
   },
   {
     id: "valve-mitrale",
@@ -67,7 +67,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Aussi appelée valve bicuspide, elle sépare l'oreillette gauche du ventricule gauche. Elle empêche le reflux du sang lors de la contraction ventriculaire (systole).",
     color: "#f39c12",
-    hoverColor: "#f1c40f",
+    position: [0.3, 0, 0.4],
   },
   {
     id: "valve-tricuspide",
@@ -75,7 +75,7 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Elle sépare l'oreillette droite du ventricule droit. Composée de trois feuillets, elle empêche le reflux du sang vers l'oreillette droite lors de la contraction ventriculaire.",
     color: "#e67e22",
-    hoverColor: "#f39c12",
+    position: [-0.3, 0, 0.4],
   },
   {
     id: "veine-cave",
@@ -83,12 +83,76 @@ const HEART_PARTS: HeartPart[] = [
     description:
       "Les veines caves supérieure et inférieure sont les deux plus grosses veines du corps. Elles ramènent le sang désoxygéné de l'organisme vers l'oreillette droite du cœur.",
     color: "#8e44ad",
-    hoverColor: "#9b59b6",
+    position: [-0.6, 0.8, -0.2],
   },
 ];
 
 const MODEL_URL =
   "https://tpvwxfbcdqpwvdwcrluy.supabase.co/storage/v1/object/public/model/anatomical+heart+3d+model.glb";
+
+function Hotspot({
+  part,
+  isSelected,
+  isHovered,
+  onSelect,
+  onHover,
+  onUnhover,
+}: {
+  part: HeartPart;
+  isSelected: boolean;
+  isHovered: boolean;
+  onSelect: () => void;
+  onHover: () => void;
+  onUnhover: () => void;
+}) {
+  return (
+    <group position={part.position}>
+      <Html center distanceFactor={5} zIndexRange={[100, 0]}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect();
+          }}
+          onMouseEnter={onHover}
+          onMouseLeave={onUnhover}
+          className="relative group"
+          style={{ transform: "translate(-50%, -50%)" }}
+        >
+          {/* Pulse ring */}
+          <span
+            className="absolute inset-0 rounded-full animate-ping opacity-40"
+            style={{
+              backgroundColor: part.color,
+              width: 20,
+              height: 20,
+              top: -2,
+              left: -2,
+            }}
+          />
+          {/* Dot */}
+          <span
+            className="relative block rounded-full border-2 border-white shadow-lg cursor-pointer transition-transform hover:scale-125"
+            style={{
+              backgroundColor: isSelected || isHovered ? "#fff" : part.color,
+              border: `2px solid ${part.color}`,
+              width: 16,
+              height: 16,
+            }}
+          />
+          {/* Tooltip on hover */}
+          {isHovered && !isSelected && (
+            <span
+              className="absolute left-1/2 -translate-x-1/2 -top-7 whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-medium text-white shadow-md pointer-events-none"
+              style={{ backgroundColor: part.color }}
+            >
+              {part.name}
+            </span>
+          )}
+        </button>
+      </Html>
+    </group>
+  );
+}
 
 function HeartModel({
   selectedPart,
@@ -105,16 +169,13 @@ function HeartModel({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const { scene } = useGLTF(MODEL_URL);
-  const { camera } = useThree();
 
-  // Auto-rotate when nothing is selected/hovered
   useFrame((_, delta) => {
     if (groupRef.current && !hoveredPart && !selectedPart) {
       groupRef.current.rotation.y += delta * 0.3;
     }
   });
 
-  // Center and scale the model on load
   useEffect(() => {
     if (scene) {
       const box = new THREE.Box3().setFromObject(scene);
@@ -127,75 +188,21 @@ function HeartModel({
     }
   }, [scene]);
 
-  // Map mesh names from GLB to our part IDs
-  // We'll traverse the scene and make all meshes clickable
-  // The user can click any mesh, and we'll try to match it to a part
-  const meshPartMap = useRef<Map<THREE.Object3D, string>>(new Map());
-
-  useEffect(() => {
-    if (!scene) return;
-    meshPartMap.current.clear();
-    
-    // Log all mesh names for debugging
-    scene.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) {
-        const name = child.name.toLowerCase();
-        // Try to auto-map based on common naming patterns
-        if (name.includes("ventricle") && name.includes("left") || name.includes("lv")) {
-          meshPartMap.current.set(child, "ventricule-gauche");
-        } else if (name.includes("ventricle") && name.includes("right") || name.includes("rv")) {
-          meshPartMap.current.set(child, "ventricule-droit");
-        } else if (name.includes("atri") && name.includes("left") || name.includes("la")) {
-          meshPartMap.current.set(child, "oreillette-gauche");
-        } else if (name.includes("atri") && name.includes("right") || name.includes("ra")) {
-          meshPartMap.current.set(child, "oreillette-droite");
-        } else if (name.includes("aort")) {
-          meshPartMap.current.set(child, "aorte");
-        } else if (name.includes("pulmon")) {
-          meshPartMap.current.set(child, "artere-pulmonaire");
-        } else if (name.includes("mitral") || name.includes("bicuspid")) {
-          meshPartMap.current.set(child, "valve-mitrale");
-        } else if (name.includes("tricuspid")) {
-          meshPartMap.current.set(child, "valve-tricuspide");
-        } else if (name.includes("vena") || name.includes("cava") || name.includes("cave")) {
-          meshPartMap.current.set(child, "veine-cave");
-        }
-      }
-    });
-  }, [scene]);
-
-  const handleClick = (e: any) => {
-    e.stopPropagation();
-    const obj = e.object as THREE.Object3D;
-    const partId = meshPartMap.current.get(obj);
-    if (partId) {
-      onSelectPart(partId);
-    }
-  };
-
-  const handlePointerOver = (e: any) => {
-    e.stopPropagation();
-    const obj = e.object as THREE.Object3D;
-    const partId = meshPartMap.current.get(obj);
-    if (partId) {
-      onHoverPart(partId);
-      document.body.style.cursor = "pointer";
-    }
-  };
-
-  const handlePointerOut = () => {
-    onUnhoverPart();
-    document.body.style.cursor = "auto";
-  };
-
   return (
     <group ref={groupRef}>
-      <primitive
-        object={scene}
-        onClick={handleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-      />
+      <primitive object={scene} />
+      {/* Hotspot buttons in 3D space */}
+      {HEART_PARTS.map((part) => (
+        <Hotspot
+          key={part.id}
+          part={part}
+          isSelected={selectedPart === part.id}
+          isHovered={hoveredPart === part.id}
+          onSelect={() => onSelectPart(part.id)}
+          onHover={() => onHoverPart(part.id)}
+          onUnhover={onUnhoverPart}
+        />
+      ))}
     </group>
   );
 }
@@ -234,11 +241,11 @@ export default function Heart3DViewer() {
         </Canvas>
 
         <div className="absolute bottom-3 left-3 text-xs text-muted-foreground bg-card/80 backdrop-blur-sm px-2 py-1 rounded">
-          🖱️ Glisser pour tourner · Cliquer pour explorer
+          🖱️ Glisser pour tourner · Cliquer sur un point pour explorer
         </div>
       </div>
 
-      {/* Side panel: Legend + Info */}
+      {/* Side panel */}
       <div className="w-full lg:w-72 flex flex-col gap-3">
         {/* Legend */}
         <div className="rounded-xl border border-border bg-card p-4">
@@ -295,7 +302,7 @@ export default function Heart3DViewer() {
         ) : (
           <div className="rounded-xl border border-dashed border-border bg-card/50 p-4 text-center">
             <p className="text-xs text-muted-foreground">
-              Clique sur une partie du cœur pour en savoir plus
+              Clique sur un point coloré du cœur pour en savoir plus
             </p>
           </div>
         )}
