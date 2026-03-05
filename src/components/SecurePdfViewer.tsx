@@ -31,9 +31,8 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
   const iframeSrc = useMemo(() => {
     if (!signedUrl) return null;
-    if (isPdf) {
-      return `${signedUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`;
-    }
+    // Important: keep native PDF viewer URL untouched so all pages remain accessible
+    if (isPdf) return signedUrl;
     return `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
   }, [signedUrl, isPdf]);
 
@@ -90,10 +89,11 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
             {iframeSrc && (
               <iframe
+                key={iframeSrc}
                 src={iframeSrc}
                 className="w-full h-full border-0"
                 onLoad={() => setLoading(false)}
-                sandbox="allow-same-origin allow-scripts allow-popups"
+                sandbox={isPdf ? undefined : "allow-same-origin allow-scripts allow-popups"}
                 title={title}
                 style={{ pointerEvents: "auto" }}
               />
