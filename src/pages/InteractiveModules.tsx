@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import AminoAcidQuiz from "@/components/interactive/aminoacids/AminoAcidQuiz";
+import PeriodicTableModule from "@/components/interactive/periodictable/PeriodicTableModule";
 
 const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"));
 
@@ -29,11 +30,12 @@ const modules = [
   },
   {
     id: 3,
-    title: "Cycle de Krebs Interactif",
-    description: "Visualise et apprends chaque étape du cycle de Krebs.",
-    icon: "🔄",
-    available: false,
-    comingSoon: true,
+    title: "Tableau Périodique Médical",
+    description: "Tableau périodique interactif centré sur les éléments d'intérêt médical : essentiels, oligo-éléments et toxiques.",
+    icon: "⚛️",
+    available: true,
+    comingSoon: false,
+    viewer: "periodictable" as const,
   },
   {
     id: 4,
@@ -56,6 +58,25 @@ const item = {
 
 export default function InteractiveModules() {
   const [activeViewer, setActiveViewer] = useState<string | null>(null);
+
+  if (activeViewer === "periodictable") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setActiveViewer(null)}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Retour
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Tableau Périodique Médical</h1>
+            <p className="text-xs text-muted-foreground">Éléments essentiels, oligo-éléments et toxiques pour la médecine</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border overflow-hidden bg-card p-4">
+          <PeriodicTableModule />
+        </div>
+      </div>
+    );
+  }
 
   if (activeViewer === "aminoacids") {
     return (
