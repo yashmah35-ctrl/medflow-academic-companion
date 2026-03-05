@@ -97,12 +97,27 @@ export default function SubjectDetail() {
   useEffect(() => {
     if (!subjectId) return;
     const fetchFolders = async () => {
-      const { data } = await supabase
-        .from("folders")
-        .select("*")
-        .eq("subject_id", subjectId)
-        .order("created_at", { ascending: true });
-      if (data) setDbFolders(data);
+      // Fetch all folders without default 1000-row limit
+      const allFolders: DBFolder[] = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase
+          .from("folders")
+          .select("*")
+          .eq("subject_id", subjectId)
+          .order("created_at", { ascending: true })
+          .range(offset, offset + batchSize - 1);
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allFolders.push(...data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        }
+      }
+      setDbFolders(allFolders);
     };
     fetchFolders();
   }, [subjectId]);
@@ -111,12 +126,27 @@ export default function SubjectDetail() {
   useEffect(() => {
     if (!folderId) return;
     const fetchCourses = async () => {
-      const { data } = await supabase
-        .from("courses")
-        .select("id, title, source, reading_time, created_at, file_url")
-        .eq("folder_id", folderId)
-        .order("created_at", { ascending: false });
-      if (data) setDbCourses(data);
+      // Fetch all courses without default 1000-row limit
+      const allCourses: DBCourse[] = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase
+          .from("courses")
+          .select("id, title, source, reading_time, created_at, file_url")
+          .eq("folder_id", folderId)
+          .order("created_at", { ascending: false })
+          .range(offset, offset + batchSize - 1);
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allCourses.push(...data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        }
+      }
+      setDbCourses(allCourses);
     };
     fetchCourses();
   }, [folderId]);

@@ -80,8 +80,25 @@ const Index = () => {
 
   useEffect(() => {
     const fetchSubjects = async () => {
-      const { data, error } = await supabase.from("subjects").select("id, name, icon, color");
-      if (!error && data) setSubjects(data);
+      // Fetch all subjects without default 1000-row limit
+      const allSubjects: DBSubject[] = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("subjects")
+          .select("id, name, icon, color")
+          .range(offset, offset + batchSize - 1);
+        if (error || !data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allSubjects.push(...data);
+          offset += batchSize;
+          hasMore = data.length === batchSize;
+        }
+      }
+      setSubjects(allSubjects);
     };
     fetchSubjects();
   }, []);
