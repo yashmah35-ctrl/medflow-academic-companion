@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import AminoAcidQuiz from "@/components/interactive/aminoacids/AminoAcidQuiz";
 
 const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"));
 
@@ -68,13 +69,8 @@ export default function InteractiveModules() {
             <p className="text-xs text-muted-foreground">Quiz interactif sur les 20 acides aminés</p>
           </div>
         </div>
-        <div className="rounded-xl border border-border overflow-hidden bg-white" style={{ height: "calc(100vh - 180px)" }}>
-          <iframe
-            src="https://biomodel.uah.es/m/aa/quiz.htm"
-            className="w-full h-full border-0"
-            title="Quiz Acides Aminés"
-            sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-          />
+        <div className="rounded-xl border border-border overflow-hidden bg-card p-4" style={{ minHeight: "calc(100vh - 200px)" }}>
+          <AminoAcidQuiz />
         </div>
       </div>
     );
