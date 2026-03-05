@@ -24,6 +24,7 @@ const modules = [
     icon: "🧬",
     available: true,
     comingSoon: false,
+    viewer: "aminoacids" as const,
   },
   {
     id: 3,
@@ -54,6 +55,30 @@ const item = {
 
 export default function InteractiveModules() {
   const [activeViewer, setActiveViewer] = useState<string | null>(null);
+
+  if (activeViewer === "aminoacids") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setActiveViewer(null)}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Retour
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-foreground">Quiz Acides Aminés</h1>
+            <p className="text-xs text-muted-foreground">Quiz interactif sur les 20 acides aminés</p>
+          </div>
+        </div>
+        <div className="rounded-xl border border-border overflow-hidden bg-white" style={{ height: "calc(100vh - 180px)" }}>
+          <iframe
+            src="https://biomodel.uah.es/m/aa/quiz.htm"
+            className="w-full h-full border-0"
+            title="Quiz Acides Aminés"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (activeViewer === "heart3d") {
     return (
