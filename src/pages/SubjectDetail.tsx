@@ -328,7 +328,7 @@ export default function SubjectDetail() {
     if (!confirm(`Supprimer "${course.title}" ?`)) return;
     // Delete file from storage if exists
     if (course.file_url) {
-      await supabase.storage.from("course-files").remove([course.file_url]);
+      await entSupabase.storage.from("courses").remove([course.file_url]);
     }
     const { error } = await supabase.from("courses").delete().eq("id", course.id);
     if (error) {
