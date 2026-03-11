@@ -545,8 +545,8 @@ export default function SubjectDetail() {
                       size="sm"
                       variant="outline"
                       onClick={async () => {
-                        const { data } = await supabase.storage
-                          .from("course-files")
+                        const { data } = await entSupabase.storage
+                          .from("courses")
                           .createSignedUrl(course.file_url!, 900);
                         if (data?.signedUrl) {
                           setPdfSignedUrl(data.signedUrl);

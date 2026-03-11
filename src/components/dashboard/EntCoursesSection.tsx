@@ -567,8 +567,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
                         onClick={async () => {
                           // Remove from storage too
                           if (selectedCourse) {
-                            await supabase.storage
-                              .from("course-files")
+                            await entSupabase.storage
+                              .from("courses")
                               .remove([`ent-pdfs/${selectedCourse.id}.pdf`]);
                           }
                           setPdfUrl(null);
