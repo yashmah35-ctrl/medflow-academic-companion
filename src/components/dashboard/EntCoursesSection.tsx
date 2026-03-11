@@ -224,8 +224,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
       }
 
       // 2. Get signed URL for display
-      const { data: signedData } = await supabase.storage
-        .from("course-files")
+      const { data: signedData } = await entSupabase.storage
+        .from("courses")
         .createSignedUrl(storagePath, 3600);
 
       if (signedData?.signedUrl) {
