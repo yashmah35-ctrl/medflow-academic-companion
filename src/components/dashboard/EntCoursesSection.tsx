@@ -212,8 +212,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
     try {
       // 1. Upload to Supabase storage for persistence
       const storagePath = `ent-pdfs/${selectedCourse.id}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("course-files")
+      const { error: uploadError } = await entSupabase.storage
+        .from("courses")
         .upload(storagePath, file, { upsert: true });
 
       if (uploadError) {
