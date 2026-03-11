@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ImagePlus, X, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { entSupabase } from "@/lib/entSupabaseClient";
 import { toast } from "sonner";
 
 interface QuestionImageUploadProps {
@@ -25,9 +25,9 @@ export function QuestionImageUpload({ imageUrl, onImageChange }: QuestionImageUp
         .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-zA-Z0-9._-]/g, "_");
       const path = `${crypto.randomUUID()}/${safeName}`;
-      const { error } = await supabase.storage.from("question-images").upload(path, file);
+      const { error } = await entSupabase.storage.from("subjects").upload(path, file);
       if (error) throw error;
-      const { data: urlData } = supabase.storage.from("question-images").getPublicUrl(path);
+      const { data: urlData } = entSupabase.storage.from("subjects").getPublicUrl(path);
       onImageChange(urlData.publicUrl);
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'upload");

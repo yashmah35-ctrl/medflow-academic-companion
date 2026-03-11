@@ -21,6 +21,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { entSupabase } from "@/lib/entSupabaseClient";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
@@ -251,8 +252,8 @@ export default function SubjectDetail() {
           uploadOptions.duplex = 'half';
         }
         
-        const { error: uploadError } = await supabase.storage
-          .from("course-files")
+        const { error: uploadError } = await entSupabase.storage
+          .from("courses")
           .upload(filePath, file, uploadOptions);
 
         if (uploadError) {
@@ -327,7 +328,7 @@ export default function SubjectDetail() {
     if (!confirm(`Supprimer "${course.title}" ?`)) return;
     // Delete file from storage if exists
     if (course.file_url) {
-      await supabase.storage.from("course-files").remove([course.file_url]);
+      await entSupabase.storage.from("courses").remove([course.file_url]);
     }
     const { error } = await supabase.from("courses").delete().eq("id", course.id);
     if (error) {
@@ -544,8 +545,8 @@ export default function SubjectDetail() {
                       size="sm"
                       variant="outline"
                       onClick={async () => {
-                        const { data } = await supabase.storage
-                          .from("course-files")
+                        const { data } = await entSupabase.storage
+                          .from("courses")
                           .createSignedUrl(course.file_url!, 900);
                         if (data?.signedUrl) {
                           setPdfSignedUrl(data.signedUrl);

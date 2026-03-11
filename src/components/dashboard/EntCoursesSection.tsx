@@ -94,8 +94,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   // ─── Load persisted PDF when course opens ────────
   const loadPersistedPdf = useCallback(async (courseId: string) => {
     const storagePath = `ent-pdfs/${courseId}.pdf`;
-    const { data } = await supabase.storage
-      .from("course-files")
+    const { data } = await entSupabase.storage
+      .from("courses")
       .createSignedUrl(storagePath, 3600);
     if (data?.signedUrl) {
       setPdfUrl(data.signedUrl);
@@ -212,8 +212,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
     try {
       // 1. Upload to Supabase storage for persistence
       const storagePath = `ent-pdfs/${selectedCourse.id}.pdf`;
-      const { error: uploadError } = await supabase.storage
-        .from("course-files")
+      const { error: uploadError } = await entSupabase.storage
+        .from("courses")
         .upload(storagePath, file, { upsert: true });
 
       if (uploadError) {
@@ -224,8 +224,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
       }
 
       // 2. Get signed URL for display
-      const { data: signedData } = await supabase.storage
-        .from("course-files")
+      const { data: signedData } = await entSupabase.storage
+        .from("courses")
         .createSignedUrl(storagePath, 3600);
 
       if (signedData?.signedUrl) {
@@ -567,8 +567,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
                         onClick={async () => {
                           // Remove from storage too
                           if (selectedCourse) {
-                            await supabase.storage
-                              .from("course-files")
+                            await entSupabase.storage
+                              .from("courses")
                               .remove([`ent-pdfs/${selectedCourse.id}.pdf`]);
                           }
                           setPdfUrl(null);
