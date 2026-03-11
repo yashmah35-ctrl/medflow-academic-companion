@@ -252,8 +252,8 @@ export default function SubjectDetail() {
           uploadOptions.duplex = 'half';
         }
         
-        const { error: uploadError } = await supabase.storage
-          .from("course-files")
+        const { error: uploadError } = await entSupabase.storage
+          .from("courses")
           .upload(filePath, file, uploadOptions);
 
         if (uploadError) {
