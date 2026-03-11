@@ -94,8 +94,8 @@ export default function EntCoursesSection({ userId }: { userId: string }) {
   // ─── Load persisted PDF when course opens ────────
   const loadPersistedPdf = useCallback(async (courseId: string) => {
     const storagePath = `ent-pdfs/${courseId}.pdf`;
-    const { data } = await supabase.storage
-      .from("course-files")
+    const { data } = await entSupabase.storage
+      .from("courses")
       .createSignedUrl(storagePath, 3600);
     if (data?.signedUrl) {
       setPdfUrl(data.signedUrl);
