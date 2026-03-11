@@ -21,6 +21,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { entSupabase } from "@/lib/entSupabaseClient";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
