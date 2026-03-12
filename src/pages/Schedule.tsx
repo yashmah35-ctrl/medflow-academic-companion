@@ -9,7 +9,6 @@ import { scheduleBlocks, days, subjectColorMap, subjects, type SubjectColor, typ
 import { Trash2, AlertCircle, CheckCircle2, Plus, Circle, CircleDot, CircleCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
