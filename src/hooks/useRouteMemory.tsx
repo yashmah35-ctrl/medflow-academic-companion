@@ -34,7 +34,12 @@ export function useRestoreRoute() {
   useEffect(() => {
     if (location.pathname === "/") {
       const saved = localStorage.getItem(ROUTE_KEY);
-      if (saved && saved !== "/" && saved !== "/auth") {
+      if (
+        saved &&
+        saved !== "/" &&
+        !saved.startsWith("/auth") &&
+        !saved.startsWith("/reset-password")
+      ) {
         navigate(saved, { replace: true });
       }
     }
