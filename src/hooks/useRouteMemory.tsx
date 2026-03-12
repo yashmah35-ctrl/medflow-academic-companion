@@ -11,15 +11,16 @@ export function useRouteMemory() {
   const location = useLocation();
 
   useEffect(() => {
-    // Don't persist auth-related routes or the root (to avoid overwriting on fresh load)
-    if (
-      location.pathname !== "/" &&
-      location.pathname !== "/auth" &&
-      location.pathname !== "/reset-password"
-    ) {
-      localStorage.setItem(ROUTE_KEY, location.pathname);
+    const isExcludedRoute =
+      location.pathname === "/" ||
+      location.pathname === "/auth" ||
+      location.pathname === "/reset-password";
+
+    if (!isExcludedRoute) {
+      const fullRoute = `${location.pathname}${location.search}${location.hash}`;
+      localStorage.setItem(ROUTE_KEY, fullRoute);
     }
-  }, [location.pathname]);
+  }, [location.pathname, location.search, location.hash]);
 }
 
 /**
@@ -33,7 +34,12 @@ export function useRestoreRoute() {
   useEffect(() => {
     if (location.pathname === "/") {
       const saved = localStorage.getItem(ROUTE_KEY);
-      if (saved && saved !== "/" && saved !== "/auth") {
+      if (
+        saved &&
+        saved !== "/" &&
+        !saved.startsWith("/auth") &&
+        !saved.startsWith("/reset-password")
+      ) {
         navigate(saved, { replace: true });
       }
     }
