@@ -30,12 +30,26 @@ export default function Auth() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session) navigate("/");
+    let isMounted = true;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (isMounted && session) {
+        navigate("/", { replace: true });
+      }
     });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate("/");
+      if (isMounted && session) {
+        navigate("/", { replace: true });
+      }
     });
+
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
