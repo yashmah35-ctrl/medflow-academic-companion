@@ -1,60 +1,129 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle2, XCircle, AlertTriangle, Layers, PenLine, Upload, Image, Type } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
+import { Layers, PenLine, Upload, Image, Type, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { entSupabase } from "@/lib/entSupabaseClient";
 import { useAuth } from "@/hooks/useAuth";
-import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
-type Mode = "select" | "restitution" | "result";
+type Mode = "select" | "restitution";
+type SubjectSource = "prepa" | "ent";
+
+interface SubjectOption {
+  id: string;
+  name: string;
+  icon: string;
+  source: SubjectSource;
+}
+
+interface CourseOption {
+  id: string;
+  title: string;
+  file_url?: string | null;
+}
 
 export default function ActiveLearning() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [mode, setMode] = useState<Mode>("select");
   const [restitutionText, setRestitutionText] = useState("");
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [selectedSubject, setSelectedSubject] = useState("");
+  const [selectedSubjectKey, setSelectedSubjectKey] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
-  const [subjects, setSubjects] = useState<{ id: string; name: string; icon: string }[]>([]);
-  const [courses, setCourses] = useState<{ id: string; title: string }[]>([]);
+  const [showCoursePanel, setShowCoursePanel] = useState(false);
+  const [courseSignedUrl, setCourseSignedUrl] = useState<string | null>(null);
+  const [loadingUrl, setLoadingUrl] = useState(false);
 
+  const [prepaSubjects, setPrepaSubjects] = useState<SubjectOption[]>([]);
+  const [entSubjects, setEntSubjects] = useState<SubjectOption[]>([]);
+  const [courses, setCourses] = useState<CourseOption[]>([]);
+
+  // Parse selected subject key "source:id"
+  const selectedSubject = useMemo(() => {
+    if (!selectedSubjectKey) return null;
+    const [source, ...rest] = selectedSubjectKey.split(":");
+    return { source: source as SubjectSource, id: rest.join(":") };
+  }, [selectedSubjectKey]);
+
+  // Fetch prépa subjects
   useEffect(() => {
     supabase.from("subjects").select("id, name, icon").then(({ data }) => {
-      if (data) setSubjects(data);
+      if (data) setPrepaSubjects(data.map(s => ({ ...s, source: "prepa" as SubjectSource })));
+    });
+  }, []);
+
+  // Fetch ENT subjects (distinct subject names from external courses)
+  useEffect(() => {
+    entSupabase.from("courses").select("subject").then(({ data }) => {
+      if (data) {
+        const unique = [...new Set(data.map((c: any) => c.subject).filter(Boolean))] as string[];
+        setEntSubjects(unique.map(name => ({
+          id: name,
+          name,
+          icon: "🎓",
+          source: "ent" as SubjectSource,
+        })));
+      }
     });
   }, []);
 
   // Fetch courses when subject changes
   useEffect(() => {
-    if (!selectedSubject) {
-      setCourses([]);
+    if (!selectedSubject) { setCourses([]); return; }
+
+    if (selectedSubject.source === "prepa") {
+      const fetchPrepa = async () => {
+        const { data: folders } = await supabase
+          .from("folders").select("id").eq("subject_id", selectedSubject.id);
+        if (folders && folders.length > 0) {
+          const folderIds = folders.map(f => f.id);
+          const { data } = await supabase
+            .from("courses").select("id, title, file_url").in("folder_id", folderIds);
+          setCourses((data || []).map(c => ({ id: c.id, title: c.title, file_url: c.file_url })));
+        } else {
+          setCourses([]);
+        }
+      };
+      fetchPrepa();
+    } else {
+      // ENT courses
+      entSupabase
+        .from("courses")
+        .select("id, title, file_url")
+        .eq("subject", selectedSubject.id)
+        .then(({ data }) => {
+          setCourses((data || []).map((c: any) => ({ id: c.id, title: c.title, file_url: c.file_url })));
+        });
+    }
+  }, [selectedSubject?.source, selectedSubject?.id]);
+
+  // Load signed URL for the selected course
+  const handleShowCourse = async () => {
+    if (!selectedCourse || !selectedSubject) return;
+    setLoadingUrl(true);
+    setCourseSignedUrl(null);
+
+    const course = courses.find(c => c.id === selectedCourse);
+    if (!course?.file_url) {
+      setLoadingUrl(false);
+      setShowCoursePanel(true);
       return;
     }
-    const fetchCourses = async () => {
-      // Get folders for this subject, then courses for those folders
-      const { data: folders } = await supabase
-        .from("folders")
-        .select("id")
-        .eq("subject_id", selectedSubject);
-      if (folders && folders.length > 0) {
-        const folderIds = folders.map((f) => f.id);
-        const { data: coursesData } = await supabase
-          .from("courses")
-          .select("id, title")
-          .in("folder_id", folderIds);
-        setCourses(coursesData || []);
-      } else {
-        setCourses([]);
-      }
-    };
-    fetchCourses();
-  }, [selectedSubject]);
+
+    const storageClient = selectedSubject.source === "ent" ? entSupabase : supabase;
+    const bucket = selectedSubject.source === "ent" ? "courses" : "courses";
+
+    const { data } = await storageClient.storage
+      .from(bucket)
+      .createSignedUrl(course.file_url, 3600);
+
+    setCourseSignedUrl(data?.signedUrl || course.file_url);
+    setShowCoursePanel(true);
+    setLoadingUrl(false);
+  };
 
   if (mode === "select") {
     return (
@@ -65,9 +134,7 @@ export default function ActiveLearning() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="rounded-xl border border-border bg-card p-6 hover:shadow-lg transition-all cursor-pointer group"
             onClick={() => navigate("/flashcards")}
           >
@@ -86,9 +153,7 @@ export default function ActiveLearning() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
             className="rounded-xl border border-border bg-card p-6 hover:shadow-lg transition-all cursor-pointer group"
             onClick={() => setMode("restitution")}
           >
@@ -97,7 +162,7 @@ export default function ActiveLearning() {
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">Restitution Libre</h3>
             <p className="text-sm text-muted-foreground">
-              Choisis une matière et un cours, puis écris tout ce que tu as retenu. Reçois un feedback détaillé de l'IA.
+              Choisis une matière et un cours, puis écris tout ce que tu as retenu. Consulte le cours en parallèle.
             </p>
           </motion.div>
         </div>
@@ -105,105 +170,113 @@ export default function ActiveLearning() {
     );
   }
 
-  if (mode === "restitution") {
+  // Restitution mode with split layout
+  const selectedCourseObj = courses.find(c => c.id === selectedCourse);
 
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => { setMode("select"); setShowFeedback(false); setRestitutionText(""); setSelectedSubject(""); setSelectedCourse(""); }}>← Retour</Button>
-        <div className="rounded-xl border border-border bg-card p-6 space-y-5">
-          <h3 className="text-lg font-semibold text-foreground">Restitution Libre</h3>
-          <p className="text-sm text-muted-foreground">
-            Choisis ta matière et ton cours, puis écris tout ce que tu as retenu.
-          </p>
+  return (
+    <div className="space-y-4">
+      <Button variant="ghost" onClick={() => {
+        setMode("select"); setRestitutionText(""); setSelectedSubjectKey(""); setSelectedCourse("");
+        setShowCoursePanel(false); setCourseSignedUrl(null);
+      }}>← Retour</Button>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Matière</label>
-              <Select value={selectedSubject} onValueChange={(v) => { setSelectedSubject(v); setSelectedCourse(""); }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisis une matière" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.icon} {s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <div className="flex gap-4" style={{ height: "calc(100vh - 180px)" }}>
+        {/* Left: Restitution */}
+        <div className={`flex flex-col gap-4 ${showCoursePanel ? "w-1/2" : "w-full max-w-2xl mx-auto"} transition-all`}>
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4 flex-1 flex flex-col">
+            <h3 className="text-lg font-semibold text-foreground">Restitution Libre</h3>
+            <p className="text-sm text-muted-foreground">
+              Choisis ta matière et ton cours, puis écris tout ce que tu as retenu.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">Matière</label>
+                <Select value={selectedSubjectKey} onValueChange={(v) => { setSelectedSubjectKey(v); setSelectedCourse(""); setShowCoursePanel(false); setCourseSignedUrl(null); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisis une matière" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {entSubjects.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="text-xs text-muted-foreground font-semibold">🎓 Cours ENT</SelectLabel>
+                        {entSubjects.map(s => (
+                          <SelectItem key={`ent:${s.id}`} value={`ent:${s.id}`}>{s.icon} {s.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {prepaSubjects.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="text-xs text-muted-foreground font-semibold">📚 Cours Prépa</SelectLabel>
+                        {prepaSubjects.map(s => (
+                          <SelectItem key={`prepa:${s.id}`} value={`prepa:${s.id}`}>{s.icon} {s.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">Cours</label>
+                <Select value={selectedCourse} onValueChange={(v) => { setSelectedCourse(v); setShowCoursePanel(false); setCourseSignedUrl(null); }} disabled={!selectedSubject}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisis un cours" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Cours</label>
-              <Select value={selectedCourse} onValueChange={setSelectedCourse} disabled={!selectedSubject}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisis un cours" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
+            <Textarea
+              placeholder="Écris tout ce que tu as retenu de ce cours..."
+              className="min-h-[200px] flex-1"
+              value={restitutionText}
+              onChange={(e) => setRestitutionText(e.target.value)}
+              disabled={!selectedCourse}
+            />
+
+            <Button onClick={handleShowCourse} disabled={!selectedCourse || loadingUrl} className="gap-2">
+              {loadingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+              Afficher le cours
+            </Button>
           </div>
-
-          <Textarea
-            placeholder="Écris tout ce que tu as retenu de ce cours..."
-            className="min-h-[200px]"
-            value={restitutionText}
-            onChange={(e) => setRestitutionText(e.target.value)}
-            disabled={!selectedCourse}
-          />
-          <Button onClick={() => {
-            // Call Active Learning webhook
-            if (user) {
-              callWebhook(WEBHOOKS.ACTIVE_LEARNING, {
-                user_id: user.id,
-                subject_id: selectedSubject,
-                course_id: selectedCourse,
-                text: restitutionText,
-              }).catch(() => {});
-            }
-            setShowFeedback(true);
-          }} disabled={restitutionText.length < 10 || !selectedCourse}>
-            Analyser ma restitution
-          </Button>
-
-          {showFeedback && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              <div className="rounded-lg bg-success/10 border border-success/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                  <span className="font-medium text-sm text-foreground">Ce que tu maîtrises bien</span>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                  <li>Bonne compréhension de la structure générale</li>
-                  <li>Les définitions clés sont bien assimilées</li>
-                </ul>
-              </div>
-              <div className="rounded-lg bg-warning/10 border border-warning/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  <span className="font-medium text-sm text-foreground">Ce que tu as oublié</span>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                  <li>Les mécanismes réactionnels ne sont pas mentionnés</li>
-                  <li>Les exemples cliniques manquent</li>
-                </ul>
-              </div>
-              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <XCircle className="h-4 w-4 text-destructive" />
-                  <span className="font-medium text-sm text-foreground">Ce que tu confonds</span>
-                </div>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-6 list-disc">
-                  <li>Confusion entre substrat et coenzyme</li>
-                </ul>
-              </div>
-            </motion.div>
-          )}
         </div>
-      </div>
-    );
-  }
 
-  return null;
+        {/* Right: Course viewer */}
+        {showCoursePanel && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+            className="w-1/2 rounded-xl border border-border bg-card overflow-hidden flex flex-col"
+          >
+            <div className="px-4 py-3 border-b border-border/50 bg-muted/30 flex items-center justify-between shrink-0">
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-foreground truncate">{selectedCourseObj?.title}</h4>
+                <p className="text-xs text-muted-foreground">Consultation du cours</p>
+              </div>
+              <Button variant="ghost" size="sm" className="shrink-0 h-7 text-xs" onClick={() => setShowCoursePanel(false)}>
+                Fermer
+              </Button>
+            </div>
+            <div className="flex-1 bg-muted/20">
+              {courseSignedUrl ? (
+                <iframe
+                  src={courseSignedUrl}
+                  className="w-full h-full border-0"
+                  title={selectedCourseObj?.title || "Cours"}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                  Aucun fichier PDF associé à ce cours.
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
 }
