@@ -11,8 +11,12 @@ export function useRouteMemory() {
   const location = useLocation();
 
   useEffect(() => {
-    // Don't persist auth-related routes
-    if (location.pathname !== "/auth" && location.pathname !== "/reset-password") {
+    // Don't persist auth-related routes or the root (to avoid overwriting on fresh load)
+    if (
+      location.pathname !== "/" &&
+      location.pathname !== "/auth" &&
+      location.pathname !== "/reset-password"
+    ) {
       localStorage.setItem(ROUTE_KEY, location.pathname);
     }
   }, [location.pathname]);
