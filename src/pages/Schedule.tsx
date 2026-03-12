@@ -9,7 +9,6 @@ import { scheduleBlocks, days, subjectColorMap, subjects, type SubjectColor, typ
 import { Trash2, AlertCircle, CheckCircle2, Plus, Circle, CircleDot, CircleCheck } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
@@ -54,12 +53,6 @@ export default function Schedule() {
   const [newDay, setNewDay] = useState(0);
   const [newHour, setNewHour] = useState(8);
 
-  // Call schedule webhook on mount
-  useEffect(() => {
-    if (user) {
-      callWebhook(WEBHOOKS.SCHEDULE, { user_id: user.id }).catch(() => {});
-    }
-  }, [user]);
 
   // Compute progress status
   const totalBlocks = blocks.length;
