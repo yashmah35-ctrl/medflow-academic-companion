@@ -546,23 +546,6 @@ export default function SubjectDetail() {
                       variant="outline"
                       onClick={async () => {
                         const fileKey = course.file_url!;
-                        // Check cache first for instant re-open
-                        const cached = (() => {
-                          try {
-                            const mod = await import("@/components/SecurePdfViewer");
-                            // Can't use dynamic import inline — use exported cache check
-                          } catch { /* noop */ }
-                          return null;
-                        })();
-                        
-                        // Try to use cached URL from the module-level cache
-                        let url: string | null = null;
-                        try {
-                          // Access the cache via a simple in-memory check
-                          const { cacheSignedUrl: _c, ...rest } = await import("@/components/SecurePdfViewer");
-                        } catch {}
-
-                        // Generate signed URL (will be cached by SecurePdfViewer on open)
                         const { data } = await entSupabase.storage
                           .from("courses")
                           .createSignedUrl(fileKey, 3600);
