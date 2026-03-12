@@ -53,12 +53,6 @@ export default function Schedule() {
   const [newDay, setNewDay] = useState(0);
   const [newHour, setNewHour] = useState(8);
 
-  // Call schedule webhook on mount
-  useEffect(() => {
-    if (user) {
-      callWebhook(WEBHOOKS.SCHEDULE, { user_id: user.id }).catch(() => {});
-    }
-  }, [user]);
 
   // Compute progress status
   const totalBlocks = blocks.length;
