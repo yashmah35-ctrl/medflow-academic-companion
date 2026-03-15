@@ -67,12 +67,17 @@ export default function InteractiveModules() {
             <ArrowLeft className="h-4 w-4 mr-1" /> Retour
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Tableau Périodique Médical</h1>
-            <p className="text-xs text-muted-foreground">Éléments essentiels, oligo-éléments et toxiques pour la médecine</p>
+            <h1 className="text-xl font-bold text-foreground">Tableau Périodique Interactif</h1>
+            <p className="text-xs text-muted-foreground">Explore les 118 éléments de manière interactive</p>
           </div>
         </div>
-        <div className="rounded-xl border border-border overflow-hidden bg-card p-4">
-          <PeriodicTableModule />
+        <div className="rounded-xl border border-border overflow-hidden bg-card">
+          <iframe
+            src="https://v0.app/chat/periodic-table-experiment-v2pLSQshdli?ref=RCLGO5"
+            className="w-full border-0"
+            style={{ minHeight: "800px" }}
+            title="Tableau Périodique Interactif"
+          />
         </div>
       </div>
     );
