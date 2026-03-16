@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText } from "lucide-react";
+import { Loader2, X, FileText, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { ExercisePanel } from "@/components/training/ExercisePanel";
+import { renderAsync } from "docx-preview";
 
 interface SecurePdfViewerProps {
   open: boolean;
@@ -17,29 +18,99 @@ interface SecurePdfViewerProps {
 
 export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const docxContainerRef = useRef<HTMLDivElement>(null);
 
-  const isPdf = useMemo(() => {
-    if (fileName) return /\.pdf$/i.test(fileName);
+  const fileType = useMemo(() => {
+    const name = fileName || "";
+    if (/\.pdf$/i.test(name)) return "pdf";
+    if (/\.docx?$/i.test(name)) return "docx";
+    // Try from URL
     if (signedUrl) {
       try {
         const urlPath = new URL(signedUrl).pathname;
-        return /\.pdf$/i.test(urlPath);
-      } catch { return true; }
+        if (/\.pdf$/i.test(urlPath)) return "pdf";
+        if (/\.docx?$/i.test(urlPath)) return "docx";
+      } catch {}
     }
-    return true;
+    // Default to docx since user primarily uploads Word docs
+    return "docx";
   }, [fileName, signedUrl]);
 
-  const iframeSrc = useMemo(() => {
-    if (!signedUrl) return null;
-    // Important: keep native PDF viewer URL untouched so all pages remain accessible
-    if (isPdf) return signedUrl;
-    return `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
-  }, [signedUrl, isPdf]);
+  // Fetch and render DOCX
+  useEffect(() => {
+    if (!open || !signedUrl || fileType !== "docx") return;
+    
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    const loadDocx = async () => {
+      try {
+        const response = await fetch(signedUrl);
+        if (!response.ok) throw new Error("Impossible de charger le document");
+        const blob = await response.blob();
+
+        if (cancelled || !docxContainerRef.current) return;
+
+        // Clear previous content
+        docxContainerRef.current.innerHTML = "";
+
+        await renderAsync(blob, docxContainerRef.current, undefined, {
+          className: "docx-viewer",
+          inWrapper: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
+          ignoreFonts: false,
+          breakPages: true,
+          ignoreLastRenderedPageBreak: true,
+          experimental: false,
+          trimXmlDeclaration: true,
+          useBase64URL: true,
+          renderHeaders: true,
+          renderFooters: true,
+          renderFootnotes: true,
+          renderEndnotes: true,
+        });
+
+        if (!cancelled) setLoading(false);
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.message || "Erreur de chargement");
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDocx();
+    return () => { cancelled = true; };
+  }, [open, signedUrl, fileType]);
+
+  // For PDF files, use sandbox to block toolbar
+  const pdfSrc = useMemo(() => {
+    if (!signedUrl || fileType !== "pdf") return null;
+    // Add #toolbar=0 to hide the native PDF toolbar
+    return signedUrl + (signedUrl.includes("#") ? "&toolbar=0" : "#toolbar=0");
+  }, [signedUrl, fileType]);
 
   const showExercisePanel = !!subjectId;
 
+  // Block keyboard shortcuts for downloading/printing
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Block Ctrl+S, Ctrl+P, Ctrl+Shift+S
+      if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S" || e.key === "p" || e.key === "P")) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [open]);
+
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setLoading(true); }}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setLoading(true); setError(null); } }}>
       <DialogContent
         className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden border-border/50 bg-card shadow-2xl"
         onContextMenu={(e) => e.preventDefault()}
@@ -65,7 +136,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
           </Button>
         </div>
 
-        {/* Content area: PDF + Exercise Panel */}
+        {/* Content area */}
         <div className="flex flex-1" style={{ height: "calc(92vh - 60px)" }}>
           {/* Document area */}
           <div
@@ -73,6 +144,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             onContextMenu={(e) => e.preventDefault()}
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
+            {/* Loading spinner */}
             {loading && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 gap-4">
                 <div className="relative">
@@ -87,13 +159,34 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
                 </div>
               </div>
             )}
-            {iframeSrc && (
+
+            {/* Error state */}
+            {error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10 gap-3">
+                <FileText className="h-12 w-12 text-muted-foreground" />
+                <p className="text-sm text-destructive font-medium">{error}</p>
+                <p className="text-xs text-muted-foreground">Impossible d'afficher ce document</p>
+              </div>
+            )}
+
+            {/* DOCX Viewer */}
+            {fileType === "docx" && signedUrl && (
+              <div
+                ref={docxContainerRef}
+                className="w-full h-full overflow-auto docx-secure-container"
+                onContextMenu={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
+                style={{ userSelect: "none", WebkitUserSelect: "none" }}
+              />
+            )}
+
+            {/* PDF Viewer (fallback with toolbar hidden) */}
+            {fileType === "pdf" && pdfSrc && (
               <iframe
-                key={iframeSrc}
-                src={iframeSrc}
+                key={pdfSrc}
+                src={pdfSrc}
                 className="w-full h-full border-0"
                 onLoad={() => setLoading(false)}
-                sandbox={isPdf ? undefined : "allow-same-origin allow-scripts allow-popups"}
                 title={title}
                 style={{ pointerEvents: "auto" }}
               />
