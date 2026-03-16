@@ -112,3 +112,33 @@
     backface-visibility: hidden;
   }
 }
+
+/* Secure DOCX viewer styles */
+.docx-secure-container {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
+.docx-secure-container * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+.docx-secure-container .docx-wrapper {
+  background: hsl(var(--muted) / 0.3) !important;
+  padding: 20px !important;
+}
+
+.docx-secure-container .docx-wrapper > section.docx {
+  background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 4px !important;
+  margin-bottom: 20px !important;
+}
+
+.docx-secure-container img {
+  pointer-events: none !important;
+  -webkit-user-drag: none !important;
+}
