@@ -113,7 +113,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setLoading(true); setError(null); } }}>
       <DialogContent
         className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden border-border/50 bg-card shadow-2xl [&>button:last-child]:hidden"
-        onContextMenu={(e) => e.preventDefault()}
       >
         {/* Premium header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-gradient-to-r from-card via-card to-muted/30">
