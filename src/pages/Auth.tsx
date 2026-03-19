@@ -81,6 +81,70 @@ export default function Auth() {
     }
   };
 
+  // Splash screen animation
+  if (showSplash) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/15 blur-[150px]" />
+        </div>
+
+        <motion.div
+          className="flex flex-col items-center z-10"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          {/* Logo animation */}
+          <motion.img
+            src={logo}
+            alt="La Prépa du Peuple"
+            className="h-40 w-auto object-contain drop-shadow-2xl"
+            initial={{ scale: 0.3, opacity: 0, rotate: -10 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          />
+
+          {/* Title reveal */}
+          <motion.h1
+            className="text-3xl font-bold text-foreground mt-6 tracking-tight"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
+          >
+            La Prépa du Peuple
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p
+            className="text-muted-foreground text-sm mt-2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.9, duration: 0.5 }}
+          >
+            Prépare-toi à réussir
+          </motion.p>
+
+          {/* Loading bar */}
+          <motion.div
+            className="mt-8 h-1 rounded-full bg-primary/30 w-48 overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1 }}
+          >
+            <motion.div
+              className="h-full rounded-full bg-primary"
+              initial={{ width: "0%" }}
+              animate={{ width: "100%" }}
+              transition={{ delay: 1.2, duration: 1.3, ease: "easeInOut" }}
+              onAnimationComplete={() => setShowSplash(false)}
+            />
+          </motion.div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 relative overflow-hidden">
       {/* Background glow effects */}
