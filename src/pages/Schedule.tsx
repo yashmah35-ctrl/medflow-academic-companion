@@ -33,7 +33,13 @@ const blockTypes: ScheduleBlock["type"][] = ["Découverte", "Révision", "Flashc
 
 export default function Schedule() {
   const { user } = useAuth();
-  const [blocks, setBlocks] = useState(scheduleBlocks);
+  const [blocks, setBlocks] = useState<ScheduleBlock[]>(() => {
+    try {
+      const saved = localStorage.getItem("schedule-blocks");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return scheduleBlocks;
+  });
   const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
   const [completionMap, setCompletionMap] = useState<Record<string, CompletionStatus>>(() => {
     try {
