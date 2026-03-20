@@ -48,8 +48,9 @@ interface Subject {
   name: string;
 }
 
-interface TopQuestion {
-  question: string;
+interface TopProposition {
+  propositionText: string;
+  parentQuestion: string;
   count: number;
   years: string[];
 }
