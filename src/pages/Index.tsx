@@ -423,6 +423,7 @@ const Index = () => {
           </motion.div>
         </div>
       </div>
+      <PremiumModal open={premiumModalOpen} onOpenChange={setPremiumModalOpen} />
     </div>
   );
 };
