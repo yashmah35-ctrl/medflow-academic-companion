@@ -138,9 +138,9 @@ export default function Annales() {
     setLoading(false);
   };
 
-  // Compute "Questions les plus tombées" across all annales
-  const topQuestions = useMemo(() => {
-    const questionMap: Record<string, { count: number; years: Set<string>; subjectId: string | null }> = {};
+  // Compute "Propositions les plus tombées" across all annales
+  const topPropositions = useMemo(() => {
+    const propMap: Record<string, { count: number; years: Set<string>; parentQuestion: string }> = {};
 
     const filteredAnnales = topQuestionsSubject === "all"
       ? annales
@@ -149,18 +149,23 @@ export default function Annales() {
     filteredAnnales.forEach((a) => {
       if (!a.questions_json) return;
       a.questions_json.forEach((q) => {
-        const key = q.question.trim().toLowerCase();
-        if (!questionMap[key]) {
-          questionMap[key] = { count: 0, years: new Set(), subjectId: a.subject_id };
-        }
-        questionMap[key].count++;
-        if (a.year) questionMap[key].years.add(a.year);
+        q.propositions.forEach((p) => {
+          if (!p.text.trim()) return;
+          const key = p.text.trim().toLowerCase();
+          if (!propMap[key]) {
+            propMap[key] = { count: 0, years: new Set(), parentQuestion: q.question };
+          }
+          propMap[key].count++;
+          if (a.year) propMap[key].years.add(a.year);
+        });
       });
     });
 
-    let result: TopQuestion[] = Object.entries(questionMap)
-      .map(([question, data]) => ({
-        question: question.charAt(0).toUpperCase() + question.slice(1),
+    let result: TopProposition[] = Object.entries(propMap)
+      .filter(([, data]) => data.count >= 2)
+      .map(([text, data]) => ({
+        propositionText: text.charAt(0).toUpperCase() + text.slice(1),
+        parentQuestion: data.parentQuestion,
         count: data.count,
         years: Array.from(data.years).sort(),
       }))
@@ -168,10 +173,10 @@ export default function Annales() {
 
     if (topQuestionsSearch) {
       const search = topQuestionsSearch.toLowerCase();
-      result = result.filter((q) => q.question.toLowerCase().includes(search));
+      result = result.filter((p) => p.propositionText.toLowerCase().includes(search) || p.parentQuestion.toLowerCase().includes(search));
     }
 
-    return result.slice(0, 15);
+    return result.slice(0, 20);
   }, [annales, topQuestionsSubject, topQuestionsSearch]);
 
   const handleCreate = async () => {
