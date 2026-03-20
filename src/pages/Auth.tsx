@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
+import splashLogo from "@/assets/logo-splash.png";
 
 type AuthMode = "login" | "register";
 type RoleOption = "pass" | "lass" | "college" | "lycee" | "prepa_du_peuple";
@@ -19,6 +20,62 @@ const roleOptions: { value: RoleOption; label: string; emoji: string; desc: stri
   { value: "lycee", label: "Lycée", emoji: "📚", desc: "Matières & Modules interactifs" },
   { value: "prepa_du_peuple", label: "Prépa du Peuple", emoji: "🛠️", desc: "Accès réservé aux administrateurs" },
 ];
+
+const TITLE_TEXT = "La Prépa du Peuple";
+
+function shuffleArray<T>(arr: T[]): T[] {
+  const shuffled = [...arr];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function ScrambledTitle() {
+  const letters = useMemo(() => {
+    return TITLE_TEXT.split("").map((char, i) => ({
+      char,
+      id: i,
+      offsetX: (Math.random() - 0.5) * 400,
+      offsetY: (Math.random() - 0.5) * 300,
+      rotation: (Math.random() - 0.5) * 720,
+    }));
+  }, []);
+
+  return (
+    <div className="flex justify-center items-center h-16 relative">
+      {letters.map((letter, i) => (
+        <motion.span
+          key={letter.id}
+          className="text-3xl font-bold text-foreground inline-block"
+          style={{ display: letter.char === " " ? "inline" : "inline-block", minWidth: letter.char === " " ? "0.3em" : undefined }}
+          initial={{
+            x: letter.offsetX,
+            y: letter.offsetY,
+            rotate: letter.rotation,
+            opacity: 0,
+            scale: 0.3,
+          }}
+          animate={{
+            x: 0,
+            y: 0,
+            rotate: 0,
+            opacity: 1,
+            scale: 1,
+          }}
+          transition={{
+            delay: 3 + i * 0.4,
+            duration: 1.2,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+        >
+          {letter.char}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
 
 export default function Auth() {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -81,7 +138,7 @@ export default function Auth() {
     }
   };
 
-  // Splash screen animation
+  // Splash screen animation — ~20s total
   if (showSplash) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
@@ -97,46 +154,41 @@ export default function Auth() {
         >
           {/* Logo animation */}
           <motion.img
-            src={logo}
+            src={splashLogo}
             alt="La Prépa du Peuple"
-            className="h-40 w-auto object-contain drop-shadow-2xl"
-            initial={{ scale: 0.3, opacity: 0, rotate: -10 }}
+            className="h-44 w-auto object-contain drop-shadow-2xl"
+            initial={{ scale: 0.2, opacity: 0, rotate: -15 }}
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }}
           />
 
-          {/* Title reveal */}
-          <motion.h1
-            className="text-3xl font-bold text-foreground mt-6 tracking-tight"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.6, ease: "easeOut" }}
-          >
-            La Prépa du Peuple
-          </motion.h1>
+          {/* Scrambled title — letters fly in one by one */}
+          <div className="mt-6">
+            <ScrambledTitle />
+          </div>
 
           {/* Subtitle */}
           <motion.p
-            className="text-muted-foreground text-sm mt-2"
+            className="text-muted-foreground text-sm mt-3"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.9, duration: 0.5 }}
+            transition={{ delay: 14, duration: 1 }}
           >
             Prépare-toi à réussir
           </motion.p>
 
-          {/* Loading bar */}
+          {/* Loading bar — starts late, finishes at ~20s */}
           <motion.div
             className="mt-8 h-1 rounded-full bg-primary/30 w-48 overflow-hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.1 }}
+            transition={{ delay: 15 }}
           >
             <motion.div
               className="h-full rounded-full bg-primary"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
-              transition={{ delay: 1.2, duration: 1.3, ease: "easeInOut" }}
+              transition={{ delay: 15.5, duration: 4, ease: "easeInOut" }}
               onAnimationComplete={() => setShowSplash(false)}
             />
           </motion.div>
