@@ -24,6 +24,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { entSupabase } from "@/lib/entSupabaseClient";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PremiumModal } from "@/components/PremiumPaywall";
 
 const container = {
   hidden: { opacity: 0 },
