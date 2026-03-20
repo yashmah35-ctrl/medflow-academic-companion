@@ -70,11 +70,12 @@ const Index = () => {
   const navigate = useNavigate();
   const { role, user, isAdmin } = useAuth();
   const { stats, rank } = useUserStats();
+  const { isSubscribed } = useSubscription();
   const [search, setSearch] = useState("");
   const [studyMinutes, setStudyMinutes] = useState(0);
   const [subjects, setSubjects] = useState<DBSubject[]>([]);
   const [renamingSubject, setRenamingSubject] = useState<string | null>(null);
-  const [renameSubjectValue, setRenameSubjectValue] = useState("");
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
