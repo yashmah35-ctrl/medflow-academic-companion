@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
+import { SubscriptionProvider } from "@/hooks/useSubscription";
+import { PremiumPaywall } from "@/components/PremiumPaywall";
 import Index from "./pages/Index";
 import SubjectDetail from "./pages/SubjectDetail";
 import Schedule from "./pages/Schedule";
@@ -47,11 +49,11 @@ function AppRoutes() {
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />
         <Route path="/schedule" element={<AdminBlockedRoute><Schedule /></AdminBlockedRoute>} />
         <Route path="/learning" element={<AdminBlockedRoute><ActiveLearning /></AdminBlockedRoute>} />
-        <Route path="/errors" element={<AdminBlockedRoute><ErrorNotebook /></AdminBlockedRoute>} />
-        <Route path="/kholles" element={<AdminBlockedRoute><Kholles /></AdminBlockedRoute>} />
-        <Route path="/exams" element={<AdminBlockedRoute><ExamsBlancs /></AdminBlockedRoute>} />
-        <Route path="/annales" element={<AdminBlockedRoute><Annales /></AdminBlockedRoute>} />
-        <Route path="/modules" element={<AdminBlockedRoute><InteractiveModules /></AdminBlockedRoute>} />
+        <Route path="/errors" element={<AdminBlockedRoute><PremiumPaywall><ErrorNotebook /></PremiumPaywall></AdminBlockedRoute>} />
+        <Route path="/kholles" element={<AdminBlockedRoute><PremiumPaywall><Kholles /></PremiumPaywall></AdminBlockedRoute>} />
+        <Route path="/exams" element={<AdminBlockedRoute><PremiumPaywall><ExamsBlancs /></PremiumPaywall></AdminBlockedRoute>} />
+        <Route path="/annales" element={<AdminBlockedRoute><PremiumPaywall><Annales /></PremiumPaywall></AdminBlockedRoute>} />
+        <Route path="/modules" element={<AdminBlockedRoute><PremiumPaywall><InteractiveModules /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
         <Route path="/settings" element={<AdminBlockedRoute><Settings /></AdminBlockedRoute>} />
         <Route path="/announcements" element={<AdminAnnouncements />} />
@@ -66,9 +68,11 @@ const App = () => (
     <BrowserRouter>
       <TooltipProvider>
         <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <AppRoutes />
+          <SubscriptionProvider>
+            <Toaster />
+            <Sonner />
+            <AppRoutes />
+          </SubscriptionProvider>
         </AuthProvider>
       </TooltipProvider>
     </BrowserRouter>
