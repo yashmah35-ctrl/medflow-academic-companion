@@ -76,6 +76,9 @@ const Index = () => {
   const [subjects, setSubjects] = useState<DBSubject[]>([]);
   const [renamingSubject, setRenamingSubject] = useState<string | null>(null);
   const [renameSubjectValue, setRenameSubjectValue] = useState("");
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+
+  const isPremiumLocked = !isSubscribed && !isAdmin;
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
