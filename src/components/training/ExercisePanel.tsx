@@ -11,6 +11,7 @@ import { Play, Plus, Trash2, Pencil, Upload, Camera, Loader2, Dumbbell, BookChec
 import { toast } from "sonner";
 import { QuestionImageUpload } from "./QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
+import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { useAuth } from "@/hooks/useAuth";
 import { TrainingEngine, type Question, type Proposition } from "./TrainingEngine";
 
@@ -322,20 +323,22 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
       const exerciseItem = training.item as AdminExercise;
       const isQIM = exerciseItem.format === "QIM";
 
-      const errorInserts = result.wrong.map((q) => ({
+      const errors = result.wrong.map((q) => ({
         user_id: user.id,
         question: q.question,
         wrong_answer: "Réponse incorrecte",
         correct_answer: q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(", "),
         subject_name: subjectName,
         error_type: "comprehension",
-        occurrence_count: 1,
         source: "exercice",
         propositions_json: q.propositions as unknown as any,
       }));
 
-      await supabase.from("errors").insert(errorInserts);
-      toast.success(`${result.wrong.length} erreur(s) ajoutée(s) au cahier d'erreurs`);
+      const { inserted, updated } = await saveErrorsWithDedup(errors);
+      const msgs: string[] = [];
+      if (inserted > 0) msgs.push(`${inserted} nouvelle(s) erreur(s)`);
+      if (updated > 0) msgs.push(`${updated} erreur(s) mise(s) à jour`);
+      if (msgs.length > 0) toast.success(msgs.join(", "));
     }
     // Chapter reviews: no error saving (by design)
   };

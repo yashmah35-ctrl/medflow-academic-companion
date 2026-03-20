@@ -14,6 +14,7 @@ import { QuestionImageUpload } from "@/components/training/QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
+import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 
 interface Proposition {
   id: string;
@@ -442,14 +443,14 @@ export default function Kholles() {
 
     const subjectName = selectedKholle.subject_name || "Inconnue";
 
-    const errorInserts = wrong.map((q) => {
+    const errors = wrong.map((q) => {
       const correctProps = q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(", ");
       const answers = userAnswers[q.id] || {};
       const wrongProps = q.propositions
         .filter((p) => {
           const a = answers[p.id];
           if (isQIM) {
-            if (!a) return false; // not answered = not wrong
+            if (!a) return false;
             return (a === "vrai") !== p.isCorrect;
           }
           return (a === "selected") !== p.isCorrect;
@@ -464,16 +465,16 @@ export default function Kholles() {
         correct_answer: correctProps,
         subject_name: subjectName,
         error_type: "comprehension",
-        occurrence_count: 1,
         source: "kholle",
         propositions_json: q.propositions as unknown as any,
       };
     });
 
-    const { error } = await supabase.from("errors").insert(errorInserts);
-    if (!error) {
-      toast.success(`${wrong.length} erreur(s) ajoutée(s) au cahier d'erreurs`);
-    }
+    const { inserted, updated } = await saveErrorsWithDedup(errors);
+    const msgs: string[] = [];
+    if (inserted > 0) msgs.push(`${inserted} nouvelle(s) erreur(s)`);
+    if (updated > 0) msgs.push(`${updated} erreur(s) mise(s) à jour`);
+    if (msgs.length > 0) toast.success(msgs.join(", "));
   };
 
   // --- Renders ---
