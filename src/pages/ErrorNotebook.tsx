@@ -11,12 +11,16 @@ import {
   AlertTriangle, ArrowLeft, BookOpen, Brain, Calendar, CheckCircle2,
   Filter, Flame, Search, Sparkles, Target,
   TrendingUp, X, Zap, Clock, ChevronRight, Play,
-  Timer, Trophy, BarChart3, ShieldAlert, Eye
+  Timer, Trophy, BarChart3, ShieldAlert, Eye, FolderOpen, PieChart
 } from "lucide-react";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  PieChart as RechartsPie, Pie, RadialBarChart, RadialBar, Legend
+} from "recharts";
 
 // ===================== TYPES =====================
 interface DBError {
@@ -50,6 +54,13 @@ interface SubjectGroup {
   criticalCount: number;
   masteredCount: number;
   bySource: { kholle: DBError[]; exam: DBError[]; annale: DBError[] };
+}
+
+interface ChapterInfo {
+  courseId: string;
+  courseName: string;
+  folderName: string;
+  errors: DBError[];
 }
 
 // ===================== CONSTANTS =====================
@@ -96,6 +107,17 @@ const severityConfig = {
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
 const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
+
+const CHART_COLORS = [
+  "hsl(var(--primary))",
+  "hsl(var(--destructive))",
+  "hsl(var(--warning))",
+  "hsl(var(--success))",
+  "hsl(210, 60%, 55%)",
+  "hsl(280, 50%, 55%)",
+  "hsl(30, 70%, 55%)",
+  "hsl(160, 50%, 45%)",
+];
 
 // ===================== HELPERS =====================
 function guessSubjectColor(name: string | null): SubjectColor {
@@ -159,7 +181,11 @@ export default function ErrorNotebook() {
   const [tab, setTab] = useState("active");
   const [filterType, setFilterType] = useState("all");
   const [sourceFilter, setSourceFilter] = useState<"all" | "kholle" | "exam" | "annale">("all");
-  
+  const [mainView, setMainView] = useState<"subjects" | "stats" | "chapters">("subjects");
+
+  // Chapter data
+  const [courseMap, setCourseMap] = useState<Record<string, { title: string; folderName: string }>>({});
+
   // Review session state
   const [reviewMode, setReviewMode] = useState(false);
   const [reviewCards, setReviewCards] = useState<DBError[]>([]);
@@ -207,6 +233,32 @@ export default function ErrorNotebook() {
     fetchErrors();
   }, [user]);
 
+  // Fetch course/folder data for chapter grouping
+  useEffect(() => {
+    const fetchCourses = async () => {
+      const { data: courses } = await supabase
+        .from("courses")
+        .select("id, title, folder_id");
+      if (!courses || courses.length === 0) return;
+
+      const folderIds = [...new Set(courses.map(c => c.folder_id))];
+      const { data: folders } = await supabase
+        .from("folders")
+        .select("id, name")
+        .in("id", folderIds);
+
+      const folderMap: Record<string, string> = {};
+      folders?.forEach(f => { folderMap[f.id] = f.name; });
+
+      const map: Record<string, { title: string; folderName: string }> = {};
+      courses.forEach(c => {
+        map[c.id] = { title: c.title, folderName: folderMap[c.folder_id] || "Sans dossier" };
+      });
+      setCourseMap(map);
+    };
+    fetchCourses();
+  }, []);
+
   // Group errors by subject
   const subjectGroups = useMemo(() => {
     const groups: Record<string, SubjectGroup> = {};
@@ -232,6 +284,31 @@ export default function ErrorNotebook() {
     });
   }, [errors, subjectNames]);
 
+  // Chapter grouping
+  const chapterGroups = useMemo(() => {
+    const chapters: Record<string, ChapterInfo> = {};
+    const noChapter: DBError[] = [];
+
+    errors.forEach(err => {
+      if (err.course_id && courseMap[err.course_id]) {
+        const info = courseMap[err.course_id];
+        const key = err.course_id;
+        if (!chapters[key]) {
+          chapters[key] = { courseId: key, courseName: info.title, folderName: info.folderName, errors: [] };
+        }
+        chapters[key].errors.push(err);
+      } else {
+        noChapter.push(err);
+      }
+    });
+
+    const sorted = Object.values(chapters).sort((a, b) => b.errors.length - a.errors.length);
+    if (noChapter.length > 0) {
+      sorted.push({ courseId: "none", courseName: "Non classé", folderName: "—", errors: noChapter });
+    }
+    return sorted;
+  }, [errors, courseMap]);
+
   // Stats
   const totalErrors = errors.length;
   const criticalErrors = errors.filter((e) => e.is_critical || e.consecutive_wrong >= 3).length;
@@ -243,6 +320,65 @@ export default function ErrorNotebook() {
   }).length;
   const correctionRate = totalErrors > 0 ? Math.round((masteredErrors / totalErrors) * 100) : 0;
   const weakSubjects = subjectGroups.filter((g) => g.errors.length > 2 && g.masteredCount / g.errors.length < 0.5).slice(0, 3).map((g) => g.name);
+
+  // Smart review: pick errors across all subjects, prioritizing critical + due
+  const smartReviewErrors = useMemo(() => {
+    return [...errors]
+      .filter(e => !e.mastered && e.mastery_score < 85)
+      .sort((a, b) => {
+        // Critical first
+        const aCrit = a.is_critical || a.consecutive_wrong >= 3 ? 0 : 1;
+        const bCrit = b.is_critical || b.consecutive_wrong >= 3 ? 0 : 1;
+        if (aCrit !== bCrit) return aCrit - bCrit;
+        // Due for review next
+        const aDue = !a.next_review || new Date(a.next_review) <= new Date() ? 0 : 1;
+        const bDue = !b.next_review || new Date(b.next_review) <= new Date() ? 0 : 1;
+        if (aDue !== bDue) return aDue - bDue;
+        // Lowest mastery score
+        return a.mastery_score - b.mastery_score;
+      });
+  }, [errors]);
+
+  // Stats data for charts
+  const subjectChartData = useMemo(() => {
+    return subjectGroups
+      .filter(g => g.errors.length > 0)
+      .map(g => ({
+        name: g.name.length > 15 ? g.name.slice(0, 13) + "…" : g.name,
+        fullName: g.name,
+        total: g.errors.length,
+        mastered: g.masteredCount,
+        critical: g.criticalCount,
+        rate: g.errors.length > 0 ? Math.round((g.masteredCount / g.errors.length) * 100) : 0,
+      }));
+  }, [subjectGroups]);
+
+  const errorTypeData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    errors.forEach(e => {
+      const type = e.error_type || "non_classé";
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return Object.entries(counts).map(([key, value]) => {
+      const reason = errorReasons.find(r => r.id === key);
+      return { name: reason ? `${reason.icon} ${reason.label}` : "📎 Non classé", value, key };
+    });
+  }, [errors]);
+
+  const topRecurring = useMemo(() => {
+    return [...errors]
+      .filter(e => e.occurrence_count >= 2)
+      .sort((a, b) => b.occurrence_count - a.occurrence_count)
+      .slice(0, 8);
+  }, [errors]);
+
+  const patternAnalysis = useMemo(() => {
+    const alwaysWrong = errors.filter(e => e.total_attempts >= 3 && e.mastery_score === 0).length;
+    const improving = errors.filter(e => e.total_attempts >= 2 && e.mastery_score > 0 && e.mastery_score < 85).length;
+    const quickMastery = errors.filter(e => e.total_attempts <= 2 && e.mastery_score >= 85).length;
+    const oscillating = errors.filter(e => e.total_attempts >= 4 && e.mastery_score > 20 && e.mastery_score < 60 && e.consecutive_wrong >= 1).length;
+    return { alwaysWrong, improving, quickMastery, oscillating };
+  }, [errors]);
 
   // Filtered errors for subject detail
   const filteredErrors = useMemo(() => {
@@ -268,17 +404,14 @@ export default function ErrorNotebook() {
     setErrors((prev) => prev.map((e) => (e.id === errId ? { ...e, ...updates } : e)));
   };
 
-
   const openError = (err: DBError) => {
     startReviewSession([err], 1);
   };
 
-  // Use propositions directly from stored propositions_json, fallback to parsing text
   const loadPropositionsForCard = (card: DBError) => {
     if (card.propositions_json && Array.isArray(card.propositions_json) && card.propositions_json.length > 0) {
       setParsedPropositions(card.propositions_json);
     } else {
-      // Fallback for old errors without propositions_json
       const parseItems = (text: string, isCorrect: boolean) => {
         if (!text || text === "Réponse incorrecte") return [];
         const items = text.split(/,\s*(?=[A-Z]\.\s)/).map(s => s.trim()).filter(Boolean);
@@ -431,6 +564,9 @@ export default function ErrorNotebook() {
               <span className={`h-2 w-2 rounded-full ${config.dot} mr-1.5 inline-block`} />{config.label}
             </Badge>
             <Badge variant="secondary" className="text-xs">{card.subject_name || "Autre"}</Badge>
+            {card.occurrence_count > 1 && (
+              <Badge variant="outline" className="text-xs text-warning border-warning/30">×{card.occurrence_count}</Badge>
+            )}
             {card.error_type && (
               <span className="text-xs text-muted-foreground">
                 {errorReasons.find(r => r.id === card.error_type)?.icon} {errorReasons.find(r => r.id === card.error_type)?.label}
@@ -527,8 +663,6 @@ export default function ErrorNotebook() {
     );
   }
 
-
-
   // ==================== SUBJECT DETAIL VIEW (DECK STYLE) ====================
   if (selectedSubject) {
     const group = subjectGroups.find((g) => g.name === selectedSubject);
@@ -546,6 +680,25 @@ export default function ErrorNotebook() {
       return new Date(e.next_review) <= new Date();
     }).length || 0;
 
+    // Chapter breakdown for this subject
+    const subjectChapters = useMemo(() => {
+      if (!group) return [];
+      const chapMap: Record<string, { name: string; folder: string; errors: DBError[] }> = {};
+      const uncategorized: DBError[] = [];
+      group.errors.forEach(err => {
+        if (err.course_id && courseMap[err.course_id]) {
+          const info = courseMap[err.course_id];
+          if (!chapMap[err.course_id]) chapMap[err.course_id] = { name: info.title, folder: info.folderName, errors: [] };
+          chapMap[err.course_id].errors.push(err);
+        } else {
+          uncategorized.push(err);
+        }
+      });
+      const result = Object.values(chapMap).sort((a, b) => b.errors.length - a.errors.length);
+      if (uncategorized.length > 0) result.push({ name: "Non classé", folder: "—", errors: uncategorized });
+      return result;
+    }, [group, courseMap]);
+
     return (
       <div className="space-y-5">
         <Button variant="ghost" size="sm" onClick={() => { setSelectedSubject(null); setTab("active"); setFilterType("all"); setSearch(""); setSourceFilter("all"); }} className="gap-1.5">
@@ -556,7 +709,6 @@ export default function ErrorNotebook() {
         <div>
           <p className="text-xs text-muted-foreground mb-1">Algorithme d'apprentissage : <span className="text-primary font-medium">Répétition adaptative ⓘ</span></p>
           
-          {/* Deck-style hero card */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-4 mt-2">
             <div className="text-center space-y-1">
               <p className="text-5xl font-bold text-foreground">{todayCards}</p>
@@ -565,25 +717,19 @@ export default function ErrorNotebook() {
             
             <div className="flex items-center justify-center gap-6 text-sm">
               <div className="flex items-center gap-1.5">
-                <div className="h-5 w-5 rounded-md bg-primary/20 flex items-center justify-center">
-                  <Zap className="h-3 w-3 text-primary" />
-                </div>
+                <div className="h-5 w-5 rounded-md bg-primary/20 flex items-center justify-center"><Zap className="h-3 w-3 text-primary" /></div>
                 <span className="font-bold text-foreground">{newCards}</span>
                 <span className="text-muted-foreground">À étudier</span>
               </div>
               <div className="h-5 w-px bg-border" />
               <div className="flex items-center gap-1.5">
-                <div className="h-5 w-5 rounded-md bg-warning/20 flex items-center justify-center">
-                  <Clock className="h-3 w-3 text-warning" />
-                </div>
+                <div className="h-5 w-5 rounded-md bg-warning/20 flex items-center justify-center"><Clock className="h-3 w-3 text-warning" /></div>
                 <span className="font-bold text-foreground">{learningCards}</span>
                 <span className="text-muted-foreground">En cours</span>
               </div>
               <div className="h-5 w-px bg-border" />
               <div className="flex items-center gap-1.5">
-                <div className="h-5 w-5 rounded-md bg-success/20 flex items-center justify-center">
-                  <CheckCircle2 className="h-3 w-3 text-success" />
-                </div>
+                <div className="h-5 w-5 rounded-md bg-success/20 flex items-center justify-center"><CheckCircle2 className="h-3 w-3 text-success" /></div>
                 <span className="font-bold text-foreground">{masteredCards}</span>
                 <span className="text-muted-foreground">Maîtrisées</span>
               </div>
@@ -599,7 +745,7 @@ export default function ErrorNotebook() {
           </motion.div>
         </div>
 
-        {/* Quick session button */}
+        {/* Critical errors CTA */}
         {criticalCards > 0 && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -616,13 +762,39 @@ export default function ErrorNotebook() {
           </motion.div>
         )}
 
-        {/* Cards list header */}
+        {/* Chapter breakdown */}
+        {subjectChapters.length > 1 && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-border bg-card p-5 space-y-3">
+            <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><FolderOpen className="h-4 w-4 text-primary" /> Par chapitre</h3>
+            <div className="space-y-2">
+              {subjectChapters.map((ch, idx) => {
+                const chMastered = ch.errors.filter(e => e.mastered || e.mastery_score >= 85).length;
+                const chRate = ch.errors.length > 0 ? Math.round((chMastered / ch.errors.length) * 100) : 0;
+                return (
+                  <div key={idx} className="rounded-xl border border-border bg-muted/10 p-3 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{ch.name}</p>
+                        {ch.folder !== "—" && <p className="text-[10px] text-muted-foreground">{ch.folder}</p>}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs shrink-0">
+                        <span className="text-muted-foreground">{ch.errors.length} err.</span>
+                        <span className={`font-bold ${chRate >= 80 ? "text-success" : chRate >= 40 ? "text-warning" : "text-destructive"}`}>{chRate}%</span>
+                      </div>
+                    </div>
+                    <Progress value={chRate} className="h-1" />
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Cards list */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-foreground">Cartes du paquet ({subjectTotal})</h3>
           </div>
-          
-          {/* Mastery distribution bar */}
           {subjectTotal > 0 && (
             <div className="space-y-1.5">
               <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
@@ -694,7 +866,7 @@ export default function ErrorNotebook() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`h-2.5 w-2.5 rounded-full ${config.dot}`} />
                     <Badge className={`${config.color} border text-xs`} variant="outline">{config.label}</Badge>
-                    <span className="text-xs text-muted-foreground">×{err.occurrence_count}</span>
+                    {err.occurrence_count > 1 && <span className="text-xs font-bold text-warning">×{err.occurrence_count}</span>}
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
@@ -705,7 +877,6 @@ export default function ErrorNotebook() {
                       <span>{errorReasons.find((r) => r.id === err.error_type)?.icon} {errorReasons.find((r) => r.id === err.error_type)?.label}</span>
                     )}
                   </div>
-                  {/* Mini mastery bar */}
                   <div className="flex items-center gap-1.5">
                     <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
                       <div className={`h-full rounded-full ${err.mastery_score >= 85 ? "bg-success" : err.mastery_score >= 50 ? "bg-warning" : "bg-destructive"}`} style={{ width: `${err.mastery_score}%` }} />
@@ -748,7 +919,6 @@ export default function ErrorNotebook() {
               </div>
             </div>
 
-            {/* Mastery distribution */}
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground">Distribution des scores de maîtrise</p>
               <div className="grid grid-cols-5 gap-1">
@@ -816,7 +986,27 @@ export default function ErrorNotebook() {
         </div>
       </motion.div>
 
-      {/* Quick session CTA */}
+      {/* Smart Review CTA */}
+      {smartReviewErrors.length > 0 && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Brain className="h-5 w-5 text-primary shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Révision intelligente</p>
+              <p className="text-xs text-muted-foreground">
+                {smartReviewErrors.filter(e => e.is_critical || e.consecutive_wrong >= 3).length} critiques + {smartReviewErrors.filter(e => !e.next_review || new Date(e.next_review) <= new Date()).length} à revoir · toutes matières
+              </p>
+            </div>
+          </div>
+          <Button size="sm" className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
+            onClick={() => startReviewSession(smartReviewErrors, 15)}>
+            <Play className="h-4 w-4 mr-1.5" /> Lancer
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Critical errors CTA */}
       {criticalErrors > 0 && (
         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
           className="rounded-2xl bg-gradient-to-r from-destructive/10 to-warning/10 border border-destructive/20 p-4 flex items-center justify-between gap-3">
@@ -846,44 +1036,243 @@ export default function ErrorNotebook() {
         </motion.div>
       )}
 
-      {/* Subject Cards */}
-      <div>
-        <h2 className="text-lg font-bold text-foreground mb-3 flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" /> Par matière</h2>
-        <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
-          {subjectGroups.map((group) => {
-            const colors = subjectColorMap[group.color] || subjectColorMap.chemistry;
-            const rate = group.errors.length > 0 ? Math.round((group.masteredCount / group.errors.length) * 100) : 0;
-            return (
-              <motion.div key={group.name} variants={item} onClick={() => setSelectedSubject(group.name)}
-                className={`rounded-2xl border border-border ${colors.light} p-5 cursor-pointer hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 space-y-3`}>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-foreground text-sm">{group.name}</h3>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="space-y-1.5 text-xs text-muted-foreground">
-                  <p>→ {group.errors.length} erreur{group.errors.length > 1 ? "s" : ""}</p>
-                  <p>→ {group.criticalCount} critique{group.criticalCount > 1 ? "s" : ""}</p>
-                  <p>→ {rate}% corrigées</p>
-                </div>
-                <div className="flex gap-1.5 flex-wrap">
-                  {group.bySource.kholle.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Khôlles: {group.bySource.kholle.length}</Badge>)}
-                  {group.bySource.exam.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">EB: {group.bySource.exam.length}</Badge>)}
-                  {group.bySource.annale.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Annales: {group.bySource.annale.length}</Badge>)}
-                </div>
-                <Progress value={rate} className="h-1.5" />
-              </motion.div>
-            );
-          })}
-        </motion.div>
-
-        {subjectGroups.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
-            <Zap className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-            <p className="font-medium">Aucune erreur enregistrée</p>
-            <p className="text-sm mt-1">Continue à t'entraîner pour remplir ton cahier d'erreurs !</p>
-          </div>
-        )}
+      {/* View tabs */}
+      <div className="flex gap-2">
+        {[
+          { key: "subjects" as const, label: "Par matière", icon: BookOpen },
+          { key: "chapters" as const, label: "Par chapitre", icon: FolderOpen },
+          { key: "stats" as const, label: "Statistiques", icon: PieChart },
+        ].map(v => (
+          <button key={v.key} onClick={() => setMainView(v.key)}
+            className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${mainView === v.key ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>
+            <v.icon className="h-4 w-4" /> {v.label}
+          </button>
+        ))}
       </div>
+
+      {/* ==================== BY SUBJECT VIEW ==================== */}
+      {mainView === "subjects" && (
+        <div>
+          <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
+            {subjectGroups.map((group) => {
+              const colors = subjectColorMap[group.color] || subjectColorMap.chemistry;
+              const rate = group.errors.length > 0 ? Math.round((group.masteredCount / group.errors.length) * 100) : 0;
+              return (
+                <motion.div key={group.name} variants={item} onClick={() => setSelectedSubject(group.name)}
+                  className={`rounded-2xl border border-border ${colors.light} p-5 cursor-pointer hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 space-y-3`}>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-foreground text-sm">{group.name}</h3>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                    <p>→ {group.errors.length} erreur{group.errors.length > 1 ? "s" : ""}</p>
+                    <p>→ {group.criticalCount} critique{group.criticalCount > 1 ? "s" : ""}</p>
+                    <p>→ {rate}% corrigées</p>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {group.bySource.kholle.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Khôlles: {group.bySource.kholle.length}</Badge>)}
+                    {group.bySource.exam.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">EB: {group.bySource.exam.length}</Badge>)}
+                    {group.bySource.annale.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Annales: {group.bySource.annale.length}</Badge>)}
+                  </div>
+                  <Progress value={rate} className="h-1.5" />
+                </motion.div>
+              );
+            })}
+          </motion.div>
+
+          {subjectGroups.length === 0 && (
+            <div className="text-center py-16 text-muted-foreground">
+              <Zap className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+              <p className="font-medium">Aucune erreur enregistrée</p>
+              <p className="text-sm mt-1">Continue à t'entraîner pour remplir ton cahier d'erreurs !</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ==================== BY CHAPTER VIEW ==================== */}
+      {mainView === "chapters" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+          {chapterGroups.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <FolderOpen className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+              <p className="font-medium">Aucune erreur liée à un chapitre</p>
+              <p className="text-sm mt-1">Les erreurs seront classées par chapitre quand elles sont liées à un cours.</p>
+            </div>
+          ) : (
+            chapterGroups.map((ch) => {
+              const mastered = ch.errors.filter(e => e.mastered || e.mastery_score >= 85).length;
+              const critical = ch.errors.filter(e => e.is_critical || e.consecutive_wrong >= 3).length;
+              const rate = ch.errors.length > 0 ? Math.round((mastered / ch.errors.length) * 100) : 0;
+              return (
+                <motion.div key={ch.courseId} variants={item}
+                  className="rounded-2xl border border-border bg-card p-4 space-y-3 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-foreground text-sm truncate">{ch.courseName}</p>
+                      <p className="text-xs text-muted-foreground">{ch.folderName}</p>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs shrink-0">
+                      <span className="text-muted-foreground">{ch.errors.length} err.</span>
+                      {critical > 0 && <span className="text-destructive font-bold">{critical} crit.</span>}
+                      <span className={`font-bold ${rate >= 80 ? "text-success" : rate >= 40 ? "text-warning" : "text-destructive"}`}>{rate}%</span>
+                    </div>
+                  </div>
+                  <Progress value={rate} className="h-1.5" />
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-1.5 flex-wrap text-[10px]">
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">{mastered}/{ch.errors.length} maîtrisées</Badge>
+                    </div>
+                    {ch.errors.filter(e => !e.mastered && e.mastery_score < 85).length > 0 && (
+                      <Button size="sm" variant="ghost" className="text-xs h-7 gap-1"
+                        onClick={() => startReviewSession(ch.errors, 10)}>
+                        <Play className="h-3 w-3" /> Réviser
+                      </Button>
+                    )}
+                  </div>
+                </motion.div>
+              );
+            })
+          )}
+        </motion.div>
+      )}
+
+      {/* ==================== STATISTICS VIEW ==================== */}
+      {mainView === "stats" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
+          {totalErrors === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <BarChart3 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
+              <p className="font-medium">Pas encore de données</p>
+              <p className="text-sm mt-1">Entraîne-toi pour voir tes statistiques apparaître !</p>
+            </div>
+          ) : (
+            <>
+              {/* Correction rate by subject */}
+              {subjectChartData.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><BarChart3 className="h-4 w-4 text-primary" /> Taux de correction par matière</h3>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={subjectChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} domain={[0, 100]} unit="%" />
+                        <Tooltip
+                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "12px" }}
+                          formatter={(value: number) => [`${value}%`, "Taux"]}
+                          labelFormatter={(label: string, payload: any[]) => payload?.[0]?.payload?.fullName || label}
+                        />
+                        <Bar dataKey="rate" radius={[6, 6, 0, 0]}>
+                          {subjectChartData.map((_, idx) => (
+                            <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Error count by subject */}
+              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><Target className="h-4 w-4 text-destructive" /> Nombre d'erreurs par matière</h3>
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={subjectChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "12px" }}
+                        labelFormatter={(label: string, payload: any[]) => payload?.[0]?.payload?.fullName || label}
+                      />
+                      <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="critical" name="Critiques" fill="hsl(var(--destructive))" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="mastered" name="Maîtrisées" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Error type distribution */}
+              {errorTypeData.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><PieChart className="h-4 w-4 text-warning" /> Types d'erreurs</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RechartsPie>
+                          <Pie data={errorTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3}>
+                            {errorTypeData.map((_, idx) => (
+                              <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "12px" }} />
+                        </RechartsPie>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="flex flex-col justify-center space-y-2">
+                      {errorTypeData.map((d, idx) => (
+                        <div key={d.key} className="flex items-center gap-2 text-sm">
+                          <span className="h-3 w-3 rounded-full shrink-0" style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }} />
+                          <span className="text-foreground flex-1">{d.name}</span>
+                          <span className="font-bold text-foreground">{d.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Pattern analysis */}
+              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><Brain className="h-4 w-4 text-primary" /> Analyse des patterns</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="rounded-xl bg-destructive/5 border border-destructive/15 p-3 text-center space-y-1">
+                    <p className="text-2xl font-bold text-destructive">{patternAnalysis.alwaysWrong}</p>
+                    <p className="text-[10px] text-muted-foreground">Toujours fausses</p>
+                    <p className="text-[10px] text-destructive/70">≥3 tentatives, score 0</p>
+                  </div>
+                  <div className="rounded-xl bg-warning/5 border border-warning/15 p-3 text-center space-y-1">
+                    <p className="text-2xl font-bold text-warning">{patternAnalysis.oscillating}</p>
+                    <p className="text-[10px] text-muted-foreground">Instables</p>
+                    <p className="text-[10px] text-warning/70">Score entre 20-60</p>
+                  </div>
+                  <div className="rounded-xl bg-primary/5 border border-primary/15 p-3 text-center space-y-1">
+                    <p className="text-2xl font-bold text-primary">{patternAnalysis.improving}</p>
+                    <p className="text-[10px] text-muted-foreground">En progression</p>
+                    <p className="text-[10px] text-primary/70">Score en hausse</p>
+                  </div>
+                  <div className="rounded-xl bg-success/5 border border-success/15 p-3 text-center space-y-1">
+                    <p className="text-2xl font-bold text-success">{patternAnalysis.quickMastery}</p>
+                    <p className="text-[10px] text-muted-foreground">Maîtrise rapide</p>
+                    <p className="text-[10px] text-success/70">≤2 tentatives</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Most recurring errors */}
+              {topRecurring.length > 0 && (
+                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
+                  <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><Flame className="h-4 w-4 text-destructive" /> Erreurs les plus récurrentes</h3>
+                  <div className="space-y-2">
+                    {topRecurring.map((err) => (
+                      <div key={err.id} onClick={() => openError(err)}
+                        className="rounded-xl border border-border bg-muted/10 p-3 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors">
+                        <span className="text-lg font-bold text-warning shrink-0">×{err.occurrence_count}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{err.question}</p>
+                          <p className="text-[10px] text-muted-foreground">{err.subject_name || "Autre"} · Score: {err.mastery_score}/100</p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </motion.div>
+      )}
     </div>
   );
 }
