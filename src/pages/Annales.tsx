@@ -856,11 +856,11 @@ export default function Annales() {
         </Button>
       </div>
 
-      {/* Questions les plus tombées */}
+      {/* Propositions les plus tombées */}
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-foreground">Questions les plus tombées</h3>
+          <h3 className="font-semibold text-foreground">Propositions les plus tombées</h3>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <Select value={topQuestionsSubject} onValueChange={setTopQuestionsSubject}>
