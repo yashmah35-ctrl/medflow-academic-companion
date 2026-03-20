@@ -11,6 +11,7 @@ import { Play, Plus, Trash2, Pencil, Upload, Camera, Loader2, Dumbbell, BookChec
 import { toast } from "sonner";
 import { QuestionImageUpload } from "./QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
+import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { useAuth } from "@/hooks/useAuth";
 import { TrainingEngine, type Question, type Proposition } from "./TrainingEngine";
 

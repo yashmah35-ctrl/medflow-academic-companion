@@ -14,6 +14,7 @@ import { QuestionImageUpload } from "@/components/training/QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
+import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 
 interface Proposition {
   id: string;
