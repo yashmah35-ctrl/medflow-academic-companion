@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { SubscriptionProvider } from "@/hooks/useSubscription";
+import { PremiumPaywall } from "@/components/PremiumPaywall";
 import Index from "./pages/Index";
 import SubjectDetail from "./pages/SubjectDetail";
 import Schedule from "./pages/Schedule";
