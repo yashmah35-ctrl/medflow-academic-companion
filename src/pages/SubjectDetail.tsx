@@ -621,6 +621,7 @@ export default function SubjectDetail() {
         subjectName={subject?.name}
         courseId={pdfCourseId}
       />
+      <PremiumModal open={premiumModalOpen} onOpenChange={setPremiumModalOpen} />
     </div>
   );
 }
