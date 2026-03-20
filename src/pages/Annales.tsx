@@ -48,8 +48,9 @@ interface Subject {
   name: string;
 }
 
-interface TopQuestion {
-  question: string;
+interface TopProposition {
+  propositionText: string;
+  parentQuestion: string;
   count: number;
   years: string[];
 }
@@ -137,9 +138,9 @@ export default function Annales() {
     setLoading(false);
   };
 
-  // Compute "Questions les plus tombées" across all annales
-  const topQuestions = useMemo(() => {
-    const questionMap: Record<string, { count: number; years: Set<string>; subjectId: string | null }> = {};
+  // Compute "Propositions les plus tombées" across all annales
+  const topPropositions = useMemo(() => {
+    const propMap: Record<string, { count: number; years: Set<string>; parentQuestion: string }> = {};
 
     const filteredAnnales = topQuestionsSubject === "all"
       ? annales
@@ -148,18 +149,23 @@ export default function Annales() {
     filteredAnnales.forEach((a) => {
       if (!a.questions_json) return;
       a.questions_json.forEach((q) => {
-        const key = q.question.trim().toLowerCase();
-        if (!questionMap[key]) {
-          questionMap[key] = { count: 0, years: new Set(), subjectId: a.subject_id };
-        }
-        questionMap[key].count++;
-        if (a.year) questionMap[key].years.add(a.year);
+        q.propositions.forEach((p) => {
+          if (!p.text.trim()) return;
+          const key = p.text.trim().toLowerCase();
+          if (!propMap[key]) {
+            propMap[key] = { count: 0, years: new Set(), parentQuestion: q.question };
+          }
+          propMap[key].count++;
+          if (a.year) propMap[key].years.add(a.year);
+        });
       });
     });
 
-    let result: TopQuestion[] = Object.entries(questionMap)
-      .map(([question, data]) => ({
-        question: question.charAt(0).toUpperCase() + question.slice(1),
+    let result: TopProposition[] = Object.entries(propMap)
+      .filter(([, data]) => data.count >= 2)
+      .map(([text, data]) => ({
+        propositionText: text.charAt(0).toUpperCase() + text.slice(1),
+        parentQuestion: data.parentQuestion,
         count: data.count,
         years: Array.from(data.years).sort(),
       }))
@@ -167,10 +173,10 @@ export default function Annales() {
 
     if (topQuestionsSearch) {
       const search = topQuestionsSearch.toLowerCase();
-      result = result.filter((q) => q.question.toLowerCase().includes(search));
+      result = result.filter((p) => p.propositionText.toLowerCase().includes(search) || p.parentQuestion.toLowerCase().includes(search));
     }
 
-    return result.slice(0, 15);
+    return result.slice(0, 20);
   }, [annales, topQuestionsSubject, topQuestionsSearch]);
 
   const handleCreate = async () => {
@@ -850,11 +856,11 @@ export default function Annales() {
         </Button>
       </div>
 
-      {/* Questions les plus tombées */}
+      {/* Propositions les plus tombées */}
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <BarChart3 className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-foreground">Questions les plus tombées</h3>
+          <h3 className="font-semibold text-foreground">Propositions les plus tombées</h3>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 mb-4">
           <Select value={topQuestionsSubject} onValueChange={setTopQuestionsSubject}>
@@ -874,24 +880,27 @@ export default function Annales() {
           </div>
         </div>
         <div className="space-y-3">
-          {topQuestions.length > 0 ? topQuestions.map((t, i) => (
-            <div key={i} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-sm font-bold text-muted-foreground w-6 shrink-0">#{i + 1}</span>
-                <span className="text-sm text-foreground truncate">{t.question}</span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex gap-1 flex-wrap">
-                  {t.years.map((y) => (
-                    <Badge key={y} variant="secondary" className="text-xs">{y}</Badge>
-                  ))}
+          {topPropositions.length > 0 ? topPropositions.map((t, i) => (
+            <div key={i} className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-sm font-bold text-muted-foreground w-6 shrink-0">#{i + 1}</span>
+                  <span className="text-sm text-foreground">{t.propositionText}</span>
                 </div>
-                <span className="text-xs font-semibold text-primary">{t.count}×</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex gap-1 flex-wrap">
+                    {t.years.map((y) => (
+                      <Badge key={y} variant="secondary" className="text-xs">{y}</Badge>
+                    ))}
+                  </div>
+                  <span className="text-xs font-semibold text-primary">{t.count}×</span>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground ml-9 truncate">↳ {t.parentQuestion}</p>
             </div>
           )) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Ajoute des annales avec des questions pour voir les tendances.
+              Ajoute des annales avec des questions pour voir les propositions récurrentes.
             </p>
           )}
         </div>
