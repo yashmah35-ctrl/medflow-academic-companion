@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus, Pencil, Trash2, Crown } from "lucide-react";
 import { SecurePdfViewer } from "@/components/SecurePdfViewer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -24,6 +24,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { entSupabase } from "@/lib/entSupabaseClient";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PremiumModal } from "@/components/PremiumPaywall";
 
 const container = {
   hidden: { opacity: 0 },
@@ -75,6 +77,8 @@ export default function SubjectDetail() {
   const [pdfFileName, setPdfFileName] = useState("");
   const [pdfCourseId, setPdfCourseId] = useState<string | undefined>(undefined);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+  const { isSubscribed } = useSubscription();
 
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
@@ -545,6 +549,11 @@ export default function SubjectDetail() {
                       size="sm"
                       variant="outline"
                       onClick={async () => {
+                        // Block Prépa courses for non-subscribers
+                        if (course.source === "bonus" && !isSubscribed && !isAdmin) {
+                          setPremiumModalOpen(true);
+                          return;
+                        }
                         const { data } = await entSupabase.storage
                           .from("courses")
                           .createSignedUrl(course.file_url!, 900);
@@ -559,7 +568,11 @@ export default function SubjectDetail() {
                         }
                       }}
                     >
-                      <Eye className="h-4 w-4 mr-1" /> Consulter
+                      {course.source === "bonus" && !isSubscribed && !isAdmin ? (
+                        <><Crown className="h-4 w-4 mr-1 text-amber-500" /> Premium</>
+                      ) : (
+                        <><Eye className="h-4 w-4 mr-1" /> Consulter</>
+                      )}
                     </Button>
                   )}
                   {isCurrentFolderOwner && (
@@ -608,6 +621,7 @@ export default function SubjectDetail() {
         subjectName={subject?.name}
         courseId={pdfCourseId}
       />
+      <PremiumModal open={premiumModalOpen} onOpenChange={setPremiumModalOpen} />
     </div>
   );
 }
