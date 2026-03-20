@@ -4,7 +4,7 @@ import { scheduleBlocks } from "@/data/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Info } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Info, Crown } from "lucide-react";
 import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
 import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
 import shsImg from "@/assets/subjects/shs.png";
@@ -28,6 +28,8 @@ import BloomingTree from "@/components/dashboard/BloomingTree";
 import StudyTimer from "@/components/dashboard/StudyTimer";
 import { supabase } from "@/integrations/supabase/client";
 import EntCoursesSection from "@/components/dashboard/EntCoursesSection";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PremiumModal } from "@/components/PremiumPaywall";
 
 interface DBSubject {
   id: string;
