@@ -77,6 +77,8 @@ export default function SubjectDetail() {
   const [pdfFileName, setPdfFileName] = useState("");
   const [pdfCourseId, setPdfCourseId] = useState<string | undefined>(undefined);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+  const { isSubscribed } = useSubscription();
 
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
