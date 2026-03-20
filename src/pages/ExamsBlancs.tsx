@@ -439,7 +439,7 @@ export default function ExamsBlancs() {
 
     const subjectName = selectedExam.subject_name || "Inconnue";
 
-    const errorInserts = wrong.map((q) => {
+    const errors = wrong.map((q) => {
       const correctProps = q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(", ");
       const answers = userAnswers[q.id] || {};
       const wrongProps = q.propositions
@@ -461,16 +461,16 @@ export default function ExamsBlancs() {
         correct_answer: correctProps,
         subject_name: subjectName,
         error_type: "comprehension",
-        occurrence_count: 1,
         source: "exam",
         propositions_json: q.propositions as unknown as any,
       };
     });
 
-    const { error } = await supabase.from("errors").insert(errorInserts);
-    if (!error) {
-      toast.success(`${wrong.length} erreur(s) ajoutée(s) au cahier d'erreurs`);
-    }
+    const { inserted, updated } = await saveErrorsWithDedup(errors);
+    const msgs: string[] = [];
+    if (inserted > 0) msgs.push(`${inserted} nouvelle(s) erreur(s)`);
+    if (updated > 0) msgs.push(`${updated} erreur(s) mise(s) à jour`);
+    if (msgs.length > 0) toast.success(msgs.join(", "));
   };
 
   // --- Renders ---

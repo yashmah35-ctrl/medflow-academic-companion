@@ -492,7 +492,7 @@ export default function Annales() {
 
     const subjectName = selectedAnnale.subject_name || "Inconnue";
 
-    const errorInserts = wrong.map((q) => {
+    const errors = wrong.map((q) => {
       const correctProps = q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(", ");
       const answers = userAnswers[q.id] || {};
       const wrongProps = q.propositions
@@ -511,16 +511,16 @@ export default function Annales() {
         correct_answer: correctProps,
         subject_name: subjectName,
         error_type: "comprehension",
-        occurrence_count: 1,
         source: "annale",
         propositions_json: q.propositions as unknown as any,
       };
     });
 
-    const { error } = await supabase.from("errors").insert(errorInserts);
-    if (!error) {
-      toast.success(`${wrong.length} erreur(s) ajoutée(s) au cahier d'erreurs`);
-    }
+    const { inserted, updated } = await saveErrorsWithDedup(errors);
+    const msgs: string[] = [];
+    if (inserted > 0) msgs.push(`${inserted} nouvelle(s) erreur(s)`);
+    if (updated > 0) msgs.push(`${updated} erreur(s) mise(s) à jour`);
+    if (msgs.length > 0) toast.success(msgs.join(", "));
   };
 
   // --- Detail view ---
