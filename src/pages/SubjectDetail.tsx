@@ -549,6 +549,11 @@ export default function SubjectDetail() {
                       size="sm"
                       variant="outline"
                       onClick={async () => {
+                        // Block Prépa courses for non-subscribers
+                        if (course.source === "bonus" && !isSubscribed && !isAdmin) {
+                          setPremiumModalOpen(true);
+                          return;
+                        }
                         const { data } = await entSupabase.storage
                           .from("courses")
                           .createSignedUrl(course.file_url!, 900);
@@ -563,7 +568,11 @@ export default function SubjectDetail() {
                         }
                       }}
                     >
-                      <Eye className="h-4 w-4 mr-1" /> Consulter
+                      {course.source === "bonus" && !isSubscribed && !isAdmin ? (
+                        <><Crown className="h-4 w-4 mr-1 text-amber-500" /> Premium</>
+                      ) : (
+                        <><Eye className="h-4 w-4 mr-1" /> Consulter</>
+                      )}
                     </Button>
                   )}
                   {isCurrentFolderOwner && (
