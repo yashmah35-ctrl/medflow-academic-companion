@@ -59,6 +59,9 @@ export default function Schedule() {
   const [newDay, setNewDay] = useState(0);
   const [newHour, setNewHour] = useState(8);
 
+  useEffect(() => {
+    localStorage.setItem("schedule-blocks", JSON.stringify(blocks));
+  }, [blocks]);
 
   // Compute progress status
   const totalBlocks = blocks.length;
