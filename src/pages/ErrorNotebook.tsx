@@ -681,7 +681,7 @@ export default function ErrorNotebook() {
     }).length || 0;
 
     // Chapter breakdown for this subject
-    const subjectChapters = useMemo(() => {
+    const subjectChapters = (() => {
       if (!group) return [];
       const chapMap: Record<string, { name: string; folder: string; errors: DBError[] }> = {};
       const uncategorized: DBError[] = [];
@@ -697,7 +697,7 @@ export default function ErrorNotebook() {
       const result = Object.values(chapMap).sort((a, b) => b.errors.length - a.errors.length);
       if (uncategorized.length > 0) result.push({ name: "Non classé", folder: "—", errors: uncategorized });
       return result;
-    }, [group, courseMap]);
+    })();
 
     return (
       <div className="space-y-5">
