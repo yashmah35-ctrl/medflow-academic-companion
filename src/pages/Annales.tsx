@@ -880,24 +880,27 @@ export default function Annales() {
           </div>
         </div>
         <div className="space-y-3">
-          {topQuestions.length > 0 ? topQuestions.map((t, i) => (
-            <div key={i} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <span className="text-sm font-bold text-muted-foreground w-6 shrink-0">#{i + 1}</span>
-                <span className="text-sm text-foreground truncate">{t.question}</span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex gap-1 flex-wrap">
-                  {t.years.map((y) => (
-                    <Badge key={y} variant="secondary" className="text-xs">{y}</Badge>
-                  ))}
+          {topPropositions.length > 0 ? topPropositions.map((t, i) => (
+            <div key={i} className="flex flex-col gap-1 py-2 border-b border-border/50 last:border-0">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-sm font-bold text-muted-foreground w-6 shrink-0">#{i + 1}</span>
+                  <span className="text-sm text-foreground">{t.propositionText}</span>
                 </div>
-                <span className="text-xs font-semibold text-primary">{t.count}×</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex gap-1 flex-wrap">
+                    {t.years.map((y) => (
+                      <Badge key={y} variant="secondary" className="text-xs">{y}</Badge>
+                    ))}
+                  </div>
+                  <span className="text-xs font-semibold text-primary">{t.count}×</span>
+                </div>
               </div>
+              <p className="text-xs text-muted-foreground ml-9 truncate">↳ {t.parentQuestion}</p>
             </div>
           )) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Ajoute des annales avec des questions pour voir les tendances.
+              Ajoute des annales avec des questions pour voir les propositions récurrentes.
             </p>
           )}
         </div>
