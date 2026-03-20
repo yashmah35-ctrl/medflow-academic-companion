@@ -4,7 +4,7 @@ import { scheduleBlocks } from "@/data/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Info } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Info, Crown } from "lucide-react";
 import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
 import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
 import shsImg from "@/assets/subjects/shs.png";
@@ -28,6 +28,8 @@ import BloomingTree from "@/components/dashboard/BloomingTree";
 import StudyTimer from "@/components/dashboard/StudyTimer";
 import { supabase } from "@/integrations/supabase/client";
 import EntCoursesSection from "@/components/dashboard/EntCoursesSection";
+import { useSubscription } from "@/hooks/useSubscription";
+import { PremiumModal } from "@/components/PremiumPaywall";
 
 interface DBSubject {
   id: string;
@@ -68,11 +70,15 @@ const Index = () => {
   const navigate = useNavigate();
   const { role, user, isAdmin } = useAuth();
   const { stats, rank } = useUserStats();
+  const { isSubscribed } = useSubscription();
   const [search, setSearch] = useState("");
   const [studyMinutes, setStudyMinutes] = useState(0);
   const [subjects, setSubjects] = useState<DBSubject[]>([]);
   const [renamingSubject, setRenamingSubject] = useState<string | null>(null);
   const [renameSubjectValue, setRenameSubjectValue] = useState("");
+  const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+
+  const isPremiumLocked = !isSubscribed && !isAdmin;
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
@@ -327,14 +333,27 @@ const Index = () => {
               key={s.id}
               variants={item}
               className={`group relative overflow-hidden rounded-2xl border border-border ${colors.light} p-5 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col`}
-              onClick={() => navigate(`/subject/${s.id}`)}
+              onClick={() => {
+                if (isPremiumLocked) {
+                  setPremiumModalOpen(true);
+                  return;
+                }
+                navigate(`/subject/${s.id}`);
+              }}
             >
-              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Renommer"
-                  onClick={() => { setRenamingSubject(s.id); setRenameSubjectValue(s.name); }}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+              {isPremiumLocked && (
+                <div className="absolute top-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/90 shadow-sm">
+                  <Crown className="h-3.5 w-3.5 text-white" />
+                </div>
+              )}
+              {!isPremiumLocked && (
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={(e) => e.stopPropagation()}>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Renommer"
+                    onClick={() => { setRenamingSubject(s.id); setRenameSubjectValue(s.name); }}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
               <div className="flex items-start justify-between mb-3">
                 {subjectImageMap[s.name] ? (
                   <div className="h-12 w-12 rounded-xl overflow-hidden shadow-sm">
@@ -357,8 +376,8 @@ const Index = () => {
                 <h3 className="font-bold text-foreground text-sm leading-tight mb-2">{s.name}</h3>
               )}
               <div className="mt-auto">
-                <Button size="sm" className="w-full rounded-lg font-semibold text-xs">
-                  Continuer
+                <Button size="sm" className={cn("w-full rounded-lg font-semibold text-xs", isPremiumLocked && "bg-amber-500/80 hover:bg-amber-500")}>
+                  {isPremiumLocked ? "Premium" : "Continuer"}
                 </Button>
               </div>
             </motion.div>
@@ -404,6 +423,7 @@ const Index = () => {
           </motion.div>
         </div>
       </div>
+      <PremiumModal open={premiumModalOpen} onOpenChange={setPremiumModalOpen} />
     </div>
   );
 };
