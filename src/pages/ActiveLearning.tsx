@@ -38,7 +38,7 @@ export default function ActiveLearning() {
   const [loadingUrl, setLoadingUrl] = useState(false);
 
   const [prepaSubjects, setPrepaSubjects] = useState<SubjectOption[]>([]);
-  const [entSubjects, setEntSubjects] = useState<SubjectOption[]>([]);
+  const [_entSubjects] = useState<SubjectOption[]>([]);
   const [courses, setCourses] = useState<CourseOption[]>([]);
 
   // Parse selected subject key "source:id"
