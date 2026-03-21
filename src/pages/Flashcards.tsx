@@ -780,12 +780,30 @@ export default function Flashcards() {
   // ─── REVIEW MODE ─────────────────────────────────
   if (view === "review" && reviewCards.length > 0) {
     const card = reviewCards[reviewIndex];
+    const cardSRS = selectedDeck ? getCardState(selectedDeck.id, card.id) : { level: 0, interval: 0, lastRating: null, nextReview: 0, reviewCount: 0 };
     const displayFront = card.card_type === "cloze" && card.cloze_text
       ? parseCloze(card.cloze_text)[0]?.question || card.front
       : card.front;
     const displayBack = card.card_type === "cloze" && card.cloze_text
       ? parseCloze(card.cloze_text)[0]?.answer || card.back
       : card.back;
+    const buttonPreviews = getButtonPreviews(cardSRS.level);
+    const reviewedCount = Object.keys(reviewRatings).length;
+
+    // Level dots component
+    const LevelDots = ({ level }: { level: number }) => (
+      <div className="flex gap-1 items-center">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div
+            key={i}
+            className={`w-2 h-2 rounded-full transition-all ${
+              i < level ? "bg-primary" : i === level ? "bg-primary/50 ring-1 ring-primary" : "bg-muted-foreground/20"
+            }`}
+          />
+        ))}
+        <span className="text-[10px] text-muted-foreground ml-1">Niv.{level}</span>
+      </div>
+    );
 
     return (
       <div className="max-w-2xl mx-auto space-y-4">
@@ -804,64 +822,100 @@ export default function Flashcards() {
           </div>
         </div>
 
-        {/* Progress */}
-        <Progress value={((reviewIndex + 1) / reviewCards.length) * 100} className="h-1.5" />
+        {/* Progress bar: reviewed / total due */}
+        <div className="space-y-1">
+          <Progress value={(reviewedCount / totalDueToday) * 100} className="h-1.5" />
+          <p className="text-[10px] text-muted-foreground text-right">
+            {reviewedCount}/{totalDueToday} révisées aujourd'hui
+          </p>
+        </div>
 
         {/* Card */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={`${card.id}-${isFlipped}`}
-            initial={{ opacity: 0, rotateY: isFlipped ? 90 : 0, scale: 0.95 }}
-            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            onClick={() => !isFlipped && setIsFlipped(true)}
-            className="rounded-2xl border border-border bg-card p-8 sm:p-12 min-h-[300px] flex flex-col items-center justify-center cursor-pointer hover:shadow-xl transition-shadow select-none"
-          >
-            {!isFlipped ? (
-              <div className="text-center space-y-4">
-                <Badge variant="outline" className="text-xs">Question</Badge>
-                <h3 className="text-lg sm:text-xl font-semibold text-foreground leading-relaxed">{displayFront}</h3>
-                <p className="text-sm text-muted-foreground animate-pulse">Clique ou appuie sur Espace ⎵</p>
+        <div className="relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${card.id}-${isFlipped}`}
+              initial={{ opacity: 0, rotateY: isFlipped ? 90 : 0, scale: 0.95 }}
+              animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              onClick={() => !isFlipped && setIsFlipped(true)}
+              className={`rounded-2xl border border-border bg-card p-8 sm:p-12 min-h-[300px] flex flex-col items-center justify-center cursor-pointer hover:shadow-xl transition-all select-none relative ${
+                regressionFlash ? "ring-2 ring-destructive" : ""
+              }`}
+            >
+              {/* Level indicator */}
+              <div className="absolute top-4 left-4">
+                <LevelDots level={cardSRS.level} />
               </div>
-            ) : (
-              <div className="text-center space-y-4 w-full">
-                <Badge variant="outline" className="text-xs border-success text-success">Réponse</Badge>
-                <div className="text-base sm:text-lg text-foreground whitespace-pre-line leading-relaxed">{displayBack}</div>
-                {card.explanation && (
-                  <div className="rounded-lg bg-muted/50 p-3 mt-4 text-left">
-                    <p className="text-xs text-muted-foreground">{card.explanation}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
 
-        {/* Rating buttons */}
+              {/* Regression animation overlay */}
+              {regressionFlash && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 2 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute top-4 right-4 flex items-center gap-1 text-destructive text-xs font-bold"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                  <span>{regressionFlash.oldLevel} → {regressionFlash.newLevel}</span>
+                </motion.div>
+              )}
+
+              {!isFlipped ? (
+                <div className="text-center space-y-4">
+                  <Badge variant="outline" className="text-xs">Question</Badge>
+                  <h3 className="text-lg sm:text-xl font-semibold text-foreground leading-relaxed">{displayFront}</h3>
+                  <p className="text-sm text-muted-foreground animate-pulse">Clique ou appuie sur Espace ⎵</p>
+                </div>
+              ) : (
+                <div className="text-center space-y-4 w-full">
+                  <Badge variant="outline" className="text-xs border-success text-success">Réponse</Badge>
+                  <div className="text-base sm:text-lg text-foreground whitespace-pre-line leading-relaxed">{displayBack}</div>
+                  {card.explanation && (
+                    <div className="rounded-lg bg-muted/50 p-3 mt-4 text-left">
+                      <p className="text-xs text-muted-foreground">{card.explanation}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Rating buttons with SRS intervals */}
         {isFlipped && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-4 gap-2"
           >
-            {[
-              { key: "again", label: "À revoir", sub: "<1 min", icon: <RotateCcw className="h-4 w-4" />, color: "border-destructive/40 hover:bg-destructive/10 text-destructive" },
-              { key: "hard", label: "Difficile", sub: "1-2j", icon: <span>😓</span>, color: "border-warning/40 hover:bg-warning/10 text-warning" },
-              { key: "good", label: "Correct", sub: "3-4j", icon: <span>😊</span>, color: "border-success/40 hover:bg-success/10 text-success" },
-              { key: "easy", label: "Facile", sub: "7+j", icon: <span>🎯</span>, color: "border-primary/40 hover:bg-primary/10 text-primary" },
-            ].map((btn) => (
-              <Button
-                key={btn.key}
-                variant="outline"
-                className={`flex flex-col py-3 h-auto ${btn.color}`}
-                onClick={() => rateReviewCard(btn.key)}
-              >
-                {btn.icon}
-                <span className="text-xs font-semibold mt-1">{btn.label}</span>
-                <span className="text-[10px] text-muted-foreground">{btn.sub}</span>
-              </Button>
-            ))}
+            {buttonPreviews.map((btn) => {
+              const colors: Record<string, string> = {
+                again: "border-destructive/40 hover:bg-destructive/10 text-destructive",
+                hard: "border-warning/40 hover:bg-warning/10 text-warning",
+                good: "border-success/40 hover:bg-success/10 text-success",
+                easy: "border-primary/40 hover:bg-primary/10 text-primary",
+              };
+              const icons: Record<string, React.ReactNode> = {
+                again: <RotateCcw className="h-4 w-4" />,
+                hard: <span>😓</span>,
+                good: <span>😊</span>,
+                easy: <span>🎯</span>,
+              };
+              return (
+                <Button
+                  key={btn.rating}
+                  variant="outline"
+                  className={`flex flex-col py-3 h-auto ${colors[btn.rating]}`}
+                  onClick={() => rateReviewCard(btn.rating)}
+                >
+                  {icons[btn.rating]}
+                  <span className="text-xs font-semibold mt-1">{btn.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{btn.sub}</span>
+                </Button>
+              );
+            })}
           </motion.div>
         )}
 
@@ -882,19 +936,41 @@ export default function Flashcards() {
       good: Object.values(reviewRatings).filter(r => r === "good").length,
       easy: Object.values(reviewRatings).filter(r => r === "easy").length,
     };
+    const totalReviewed = Object.keys(reviewRatings).length;
     const goodTotal = counts.good + counts.easy;
+
+    // Count mastered cards (level 6)
+    const masteredCount = selectedDeck
+      ? reviewCards.filter(c => {
+          const s = getCardState(selectedDeck.id, c.id);
+          return s.level === 6;
+        }).length
+      : 0;
+
+    // Motivational messages
+    const getMotivation = () => {
+      const ratio = goodTotal / totalReviewed;
+      if (ratio === 1) return "🔥 Parfait ! Tu maîtrises toutes les cartes !";
+      if (ratio >= 0.8) return "💪 Excellente session ! Continue comme ça !";
+      if (ratio >= 0.5) return "👍 Bonne session ! Les cartes difficiles reviendront bientôt.";
+      return "📚 Pas de panique, la répétition est la clé de la mémorisation !";
+    };
+
+    const formatTime = (s: number) => {
+      if (s < 60) return `${s}s`;
+      return `${Math.floor(s / 60)}m ${s % 60}s`;
+    };
 
     return (
       <div className="max-w-md mx-auto text-center space-y-6 py-10">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-          <div className="text-6xl mb-4">{goodTotal === reviewCards.length ? "🎉" : "📊"}</div>
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="space-y-6">
+          <div className="text-6xl mb-4">{goodTotal === totalReviewed ? "🎉" : "📊"}</div>
           <h2 className="text-2xl font-bold text-foreground">Session terminée !</h2>
-          <p className="text-muted-foreground mt-2">
-            {goodTotal}/{reviewCards.length} cartes maîtrisées en {elapsed}s
+          <p className="text-muted-foreground">
+            {totalReviewed} cartes révisées en {formatTime(elapsed)}
           </p>
-          <Progress value={(goodTotal / reviewCards.length) * 100} className="h-3 mt-4" />
 
-          <div className="grid grid-cols-4 gap-2 mt-6 text-sm">
+          <div className="grid grid-cols-4 gap-2 text-sm">
             {[
               { label: "À revoir", count: counts.again, color: "bg-destructive/10 text-destructive" },
               { label: "Difficile", count: counts.hard, color: "bg-warning/10 text-warning" },
@@ -908,9 +984,16 @@ export default function Flashcards() {
             ))}
           </div>
 
-          {goodTotal === reviewCards.length && (
-            <p className="mt-4 text-sm text-success font-medium">🔥 Parfait ! Tu maîtrises toutes les cartes !</p>
+          {/* Mastered indicator */}
+          {masteredCount > 0 && (
+            <div className="flex items-center justify-center gap-2 text-sm text-primary">
+              <Trophy className="h-5 w-5" />
+              <span className="font-semibold">{masteredCount} carte{masteredCount > 1 ? "s" : ""} maîtrisée{masteredCount > 1 ? "s" : ""} (niveau 6)</span>
+            </div>
           )}
+
+          {/* Motivation */}
+          <p className="text-sm font-medium text-foreground">{getMotivation()}</p>
         </motion.div>
 
         <div className="flex gap-2 justify-center">
