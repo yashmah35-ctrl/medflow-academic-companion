@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { renderAsync } from "docx-preview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,6 +37,7 @@ export default function ActiveLearning() {
   const [showCoursePanel, setShowCoursePanel] = useState(false);
   const [courseSignedUrl, setCourseSignedUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const docxContainerRef = useRef<HTMLDivElement>(null);
 
   const [prepaSubjects, setPrepaSubjects] = useState<SubjectOption[]>([]);
   
@@ -77,6 +79,15 @@ export default function ActiveLearning() {
     }
   }, [selectedSubject?.source, selectedSubject?.id]);
 
+  // Detect file type from URL
+  const getFileType = (url: string): "pdf" | "docx" => {
+    try {
+      const path = new URL(url).pathname;
+      if (/\.pdf$/i.test(path)) return "pdf";
+    } catch {}
+    return "docx";
+  };
+
   // Load signed URL for the selected course
   const handleShowCourse = async () => {
     if (!selectedCourse || !selectedSubject) return;
@@ -90,16 +101,37 @@ export default function ActiveLearning() {
       return;
     }
 
-    const storageClient = supabase;
     const bucket = "course-files";
-
-    const { data } = await storageClient.storage
+    const { data } = await supabase.storage
       .from(bucket)
       .createSignedUrl(course.file_url, 3600);
 
-    setCourseSignedUrl(data?.signedUrl || course.file_url);
+    const url = data?.signedUrl || null;
+    setCourseSignedUrl(url);
     setShowCoursePanel(true);
     setLoadingUrl(false);
+
+    // If docx, fetch and render
+    if (url && getFileType(course.file_url) === "docx") {
+      setTimeout(async () => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Fetch failed");
+          const blob = await res.blob();
+          if (docxContainerRef.current) {
+            docxContainerRef.current.innerHTML = "";
+            await renderAsync(blob, docxContainerRef.current, undefined, {
+              className: "docx-preview-wrapper",
+              inWrapper: true,
+              ignoreWidth: false,
+              ignoreHeight: true,
+            });
+          }
+        } catch (err) {
+          console.error("DOCX render error:", err);
+        }
+      }, 100);
+    }
   };
 
   if (mode === "select") {
@@ -230,16 +262,25 @@ export default function ActiveLearning() {
                 Fermer
               </Button>
             </div>
-            <div className="flex-1 bg-muted/20">
+            <div className="flex-1 bg-muted/20 overflow-auto">
               {courseSignedUrl ? (
-                <iframe
-                  src={courseSignedUrl}
-                  className="w-full h-full border-0"
-                  title={selectedCourseObj?.title || "Cours"}
-                />
+                (() => {
+                  const course = courses.find(c => c.id === selectedCourse);
+                  const type = course?.file_url ? getFileType(course.file_url) : "docx";
+                  if (type === "pdf") {
+                    return (
+                      <iframe
+                        src={courseSignedUrl}
+                        className="w-full h-full border-0"
+                        title={selectedCourseObj?.title || "Cours"}
+                      />
+                    );
+                  }
+                  return <div ref={docxContainerRef} className="p-4" />;
+                })()
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  Aucun fichier PDF associé à ce cours.
+                  Aucun fichier associé à ce cours.
                 </div>
               )}
             </div>
