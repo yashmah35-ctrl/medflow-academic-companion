@@ -40,6 +40,15 @@ const modules = [
   },
   {
     id: 4,
+    title: "Schémas à Compléter",
+    description: "Importe un schéma annoté, place des repères et teste ta mémoire en retrouvant tous les labels.",
+    icon: "🖼️",
+    available: true,
+    comingSoon: false,
+    viewer: "schemas" as const,
+  },
+  {
+    id: 5,
     title: "ECG Simulator",
     description: "Apprends à lire et interpréter les tracés ECG.",
     icon: "🫀",
