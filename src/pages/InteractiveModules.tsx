@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ArrowLeft, Loader2 } from "lucide-react";
 import AminoAcidQuiz from "@/components/interactive/aminoacids/AminoAcidQuiz";
 import PeriodicTableModule from "@/components/interactive/periodictable/PeriodicTableModule";
+import SchemaModule from "@/components/interactive/schemas/SchemaModule";
 
 const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"));
 
