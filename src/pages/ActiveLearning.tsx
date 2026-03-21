@@ -37,6 +37,7 @@ export default function ActiveLearning() {
   const [showCoursePanel, setShowCoursePanel] = useState(false);
   const [courseSignedUrl, setCourseSignedUrl] = useState<string | null>(null);
   const [loadingUrl, setLoadingUrl] = useState(false);
+  const docxContainerRef = useRef<HTMLDivElement>(null);
 
   const [prepaSubjects, setPrepaSubjects] = useState<SubjectOption[]>([]);
   
