@@ -263,6 +263,15 @@ export default function SubjectDetail() {
           continue;
         }
 
+        // Verify the file actually exists in storage after upload
+        const { data: verifyData } = await supabase.storage
+          .from("course-files")
+          .createSignedUrl(filePath, 60);
+        if (!verifyData?.signedUrl) {
+          toast.error(`Upload échoué pour "${file.name}" — fichier non trouvé après upload`);
+          continue;
+        }
+
         const estimatedMinutes = Math.max(5, Math.round(sizeMB * 15));
 
         const { data: course, error: insertError } = await supabase
