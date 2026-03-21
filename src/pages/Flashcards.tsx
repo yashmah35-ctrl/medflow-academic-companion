@@ -96,6 +96,8 @@ export default function Flashcards() {
   const [isFlipped, setIsFlipped] = useState(false);
   const [reviewRatings, setReviewRatings] = useState<Record<string, string>>({});
   const [reviewStartTime, setReviewStartTime] = useState<number>(0);
+  const [regressionFlash, setRegressionFlash] = useState<{ oldLevel: number; newLevel: number } | null>(null);
+  const [totalDueToday, setTotalDueToday] = useState(0);
 
   // AI Import
   const [showImportDialog, setShowImportDialog] = useState(false);
