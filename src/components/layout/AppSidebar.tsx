@@ -66,13 +66,6 @@ const allNavGroups: NavGroup[] = [
       { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
     ],
   },
-  {
-    label: "⚙️ Réglages",
-    adminHidden: true,
-    items: [
-      { title: "Paramètres", path: "/settings", icon: Settings, restricted: false },
-    ],
-  },
 ];
 
 export function AppSidebar() {
