@@ -188,16 +188,10 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
   // Open PDF
   const handleOpenFile = async (course: PersonalCourse) => {
     if (!course.file_url) return;
-    const { data } = await supabase.storage
-      .from("course-files")
-      .createSignedUrl(course.file_url, 3600);
-    if (data?.signedUrl) {
-      setPdfSignedUrl(data.signedUrl);
-      setPdfTitle(course.title);
-      setPdfViewerOpen(true);
-    } else {
-      toast.error("Impossible d'ouvrir le fichier");
-    }
+    const publicUrl = getCoursePublicUrl(course.file_url);
+    setPdfSignedUrl(publicUrl);
+    setPdfTitle(course.title);
+    setPdfViewerOpen(true);
   };
 
   return (
