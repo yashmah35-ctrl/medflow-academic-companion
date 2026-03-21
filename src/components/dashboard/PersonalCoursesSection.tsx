@@ -188,7 +188,7 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
   // Open PDF
   const handleOpenFile = async (course: PersonalCourse) => {
     if (!course.file_url) return;
-    const publicUrl = getCoursePublicUrl(course.file_url);
+    const publicUrl = await resolveCourseUrl(course.file_url);
     setPdfSignedUrl(publicUrl);
     setPdfTitle(course.title);
     setPdfViewerOpen(true);

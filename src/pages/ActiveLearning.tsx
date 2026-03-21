@@ -102,7 +102,7 @@ export default function ActiveLearning() {
       return;
     }
 
-    const url = getCoursePublicUrl(course.file_url);
+    const url = await resolveCourseUrl(course.file_url);
     setCourseSignedUrl(url);
     setShowCoursePanel(true);
     setLoadingUrl(false);

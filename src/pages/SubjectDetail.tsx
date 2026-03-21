@@ -538,12 +538,12 @@ export default function SubjectDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
+                      onClick={async () => {
                         if (course.source === "bonus" && !isSubscribed && !isAdmin) {
                           setPremiumModalOpen(true);
                           return;
                         }
-                        const publicUrl = getCoursePublicUrl(course.file_url!);
+                        const publicUrl = await resolveCourseUrl(course.file_url!);
                         setPdfSignedUrl(publicUrl);
                         setPdfTitle(course.title);
                         setPdfFileName(course.file_url || "");
