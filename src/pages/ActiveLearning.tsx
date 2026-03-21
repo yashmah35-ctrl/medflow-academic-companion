@@ -90,9 +90,8 @@ export default function ActiveLearning() {
       return;
     }
 
-    // All storage is on the external Supabase project
-    const storageClient = entSupabase;
-    const bucket = "courses";
+    const storageClient = supabase;
+    const bucket = "course-files";
 
     const { data } = await storageClient.storage
       .from(bucket)

@@ -286,13 +286,6 @@ export default function SubjectDetail() {
           setDbCourses((prev) => [course, ...prev]);
           imported++;
 
-          // Call Flashcards webhook for the new course
-          callWebhook(WEBHOOKS.FLASHCARDS, {
-            user_id: user.id,
-            course_id: course.id,
-            course_title: course.title,
-            folder_id: folderId,
-          }).catch(() => {});
         }
       } catch (err: any) {
         toast.error(`Erreur "${file.name}": ${err?.message || "Erreur inconnue"}`);
