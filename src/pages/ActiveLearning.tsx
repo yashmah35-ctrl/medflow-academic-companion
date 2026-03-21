@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 type Mode = "select" | "restitution";
-type SubjectSource = "prepa" | "ent";
+type SubjectSource = "prepa";
 
 interface SubjectOption {
   id: string;
