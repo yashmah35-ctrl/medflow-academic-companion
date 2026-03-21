@@ -156,10 +156,8 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
       const filePath = `${userId}/${uploadingFolderId}/${Date.now()}-${safeName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("course-files")
-        .upload(filePath, file);
-      if (uploadError) { toast.error(`Erreur upload: ${file.name}`); continue; }
+      const { error: uploadErrorMsg } = await uploadCourseFile(filePath, file);
+      if (uploadErrorMsg) { toast.error(`Erreur upload: ${file.name}`); continue; }
 
       const { data: course, error: insertError } = await supabase
         .from("courses")
