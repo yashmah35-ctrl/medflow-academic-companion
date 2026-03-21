@@ -966,6 +966,21 @@ export default function Flashcards() {
             {totalReviewed} cartes révisées en {formatTime(elapsed)}
           </p>
 
+          {/* Total & À réviser stats */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { icon: Layers, label: "Total", value: selectedDeck?.cardCount ?? reviewCards.length, color: "text-primary" },
+              { icon: Flame, label: "À réviser", value: selectedDeck?.dueCount ?? 0, color: "text-warning" },
+            ].map((stat, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-3 text-center">
+                <stat.icon className={`h-5 w-5 mx-auto mb-1 ${stat.color}`} />
+                <p className="text-lg font-bold text-foreground">{stat.value}</p>
+                <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Rating breakdown */}
           <div className="grid grid-cols-4 gap-2 text-sm">
             {[
               { label: "À revoir", count: counts.again, color: "bg-destructive/10 text-destructive" },
