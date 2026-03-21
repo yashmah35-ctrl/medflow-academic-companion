@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus, Pencil, Trash2, Crown } from "lucide-react";
+import { getCoursePublicUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
 import { SecurePdfViewer } from "@/components/SecurePdfViewer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";

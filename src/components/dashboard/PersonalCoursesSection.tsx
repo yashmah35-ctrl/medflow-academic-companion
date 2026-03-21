@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getCoursePublicUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
 import { motion } from "framer-motion";
 import {
   FolderOpen, FolderPlus, ChevronRight, BookOpen, Pencil, Check, X,
