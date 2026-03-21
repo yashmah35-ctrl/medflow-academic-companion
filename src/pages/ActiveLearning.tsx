@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Layers, PenLine, Upload, Image, Type, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { entSupabase } from "@/lib/entSupabaseClient";
+
 import { useAuth } from "@/hooks/useAuth";
 
 type Mode = "select" | "restitution";
