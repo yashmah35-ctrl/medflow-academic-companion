@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { getCoursePublicUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
 import { motion } from "framer-motion";
 import {
   FolderOpen, FolderPlus, ChevronRight, BookOpen, Pencil, Check, X,
@@ -132,7 +133,7 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
   const handleDeleteCourse = async (course: PersonalCourse, folderId: string) => {
     if (!confirm(`Supprimer "${course.title}" ?`)) return;
     if (course.file_url) {
-      await supabase.storage.from("course-files").remove([course.file_url]);
+      await deleteCourseFile(course.file_url);
     }
     const { error } = await supabase.from("courses").delete().eq("id", course.id);
     if (error) { toast.error("Erreur"); return; }
@@ -155,10 +156,8 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
       const filePath = `${userId}/${uploadingFolderId}/${Date.now()}-${safeName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("course-files")
-        .upload(filePath, file);
-      if (uploadError) { toast.error(`Erreur upload: ${file.name}`); continue; }
+      const { error: uploadErrorMsg } = await uploadCourseFile(filePath, file);
+      if (uploadErrorMsg) { toast.error(`Erreur upload: ${file.name}`); continue; }
 
       const { data: course, error: insertError } = await supabase
         .from("courses")
@@ -189,16 +188,10 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
   // Open PDF
   const handleOpenFile = async (course: PersonalCourse) => {
     if (!course.file_url) return;
-    const { data } = await supabase.storage
-      .from("course-files")
-      .createSignedUrl(course.file_url, 3600);
-    if (data?.signedUrl) {
-      setPdfSignedUrl(data.signedUrl);
-      setPdfTitle(course.title);
-      setPdfViewerOpen(true);
-    } else {
-      toast.error("Impossible d'ouvrir le fichier");
-    }
+    const publicUrl = getCoursePublicUrl(course.file_url);
+    setPdfSignedUrl(publicUrl);
+    setPdfTitle(course.title);
+    setPdfViewerOpen(true);
   };
 
   return (

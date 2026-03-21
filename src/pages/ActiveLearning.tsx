@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { renderAsync } from "docx-preview";
+import { getCoursePublicUrl } from "@/lib/externalStorage";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -101,12 +102,7 @@ export default function ActiveLearning() {
       return;
     }
 
-    const bucket = "course-files";
-    const { data } = await supabase.storage
-      .from(bucket)
-      .createSignedUrl(course.file_url, 3600);
-
-    const url = data?.signedUrl || null;
+    const url = getCoursePublicUrl(course.file_url);
     setCourseSignedUrl(url);
     setShowCoursePanel(true);
     setLoadingUrl(false);

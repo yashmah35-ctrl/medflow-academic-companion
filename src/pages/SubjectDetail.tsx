@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus, Pencil, Trash2, Crown } from "lucide-react";
+import { getCoursePublicUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
 import { SecurePdfViewer } from "@/components/SecurePdfViewer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -254,21 +255,10 @@ export default function SubjectDetail() {
           uploadOptions.duplex = 'half';
         }
         
-        const { error: uploadError } = await supabase.storage
-          .from("course-files")
-          .upload(filePath, file, uploadOptions);
+        const { error: uploadErrorMsg } = await uploadCourseFile(filePath, file);
 
-        if (uploadError) {
-          toast.error(`Erreur upload "${file.name}": ${uploadError.message}`);
-          continue;
-        }
-
-        // Verify the file actually exists in storage after upload
-        const { data: verifyData } = await supabase.storage
-          .from("course-files")
-          .createSignedUrl(filePath, 60);
-        if (!verifyData?.signedUrl) {
-          toast.error(`Upload échoué pour "${file.name}" — fichier non trouvé après upload`);
+        if (uploadErrorMsg) {
+          toast.error(`Erreur upload "${file.name}": ${uploadErrorMsg}`);
           continue;
         }
 
@@ -332,7 +322,7 @@ export default function SubjectDetail() {
     if (!confirm(`Supprimer "${course.title}" ?`)) return;
     // Delete file from storage if exists
     if (course.file_url) {
-      await supabase.storage.from("course-files").remove([course.file_url]);
+      await deleteCourseFile(course.file_url);
     }
     const { error } = await supabase.from("courses").delete().eq("id", course.id);
     if (error) {
@@ -548,35 +538,17 @@ export default function SubjectDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={async () => {
-                        // Block Prépa courses for non-subscribers
+                      onClick={() => {
                         if (course.source === "bonus" && !isSubscribed && !isAdmin) {
                           setPremiumModalOpen(true);
                           return;
                         }
-                        const { data, error } = await supabase.storage
-                          .from("course-files")
-                          .createSignedUrl(course.file_url!, 3600);
-                        if (data?.signedUrl) {
-                          // Verify the file actually exists by doing a HEAD request
-                          try {
-                            const headRes = await fetch(data.signedUrl, { method: "HEAD" });
-                            if (!headRes.ok) {
-                              toast.error("Le fichier de ce cours est introuvable. Veuillez le réimporter.");
-                              return;
-                            }
-                          } catch {
-                            // If HEAD fails, still try to open — some CORS configs block HEAD
-                          }
-                          setPdfSignedUrl(data.signedUrl);
-                          setPdfTitle(course.title);
-                          setPdfFileName(course.file_url || "");
-                          setPdfCourseId(course.id);
-                          setPdfViewerOpen(true);
-                        } else {
-                          console.error("createSignedUrl error:", error);
-                          toast.error("Le fichier de ce cours est introuvable. Veuillez le réimporter.");
-                        }
+                        const publicUrl = getCoursePublicUrl(course.file_url!);
+                        setPdfSignedUrl(publicUrl);
+                        setPdfTitle(course.title);
+                        setPdfFileName(course.file_url || "");
+                        setPdfCourseId(course.id);
+                        setPdfViewerOpen(true);
                       }}
                     >
                       {course.source === "bonus" && !isSubscribed && !isAdmin ? (
