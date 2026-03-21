@@ -270,6 +270,34 @@ export default function Flashcards() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const isWord = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" 
+      || file.type === "application/msword"
+      || file.name.endsWith(".docx") || file.name.endsWith(".doc");
+
+    if (isWord) {
+      // Word files: extract text client-side since Gemini doesn't support Word MIME
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const { renderAsync } = await import("docx-preview");
+        const container = document.createElement("div");
+        await renderAsync(arrayBuffer, container);
+        const extractedText = container.innerText || container.textContent || "";
+        if (!extractedText.trim()) {
+          toast.error("Impossible d'extraire le texte du fichier Word.");
+          return;
+        }
+        setImportText(extractedText.substring(0, 15000));
+        setImportFile(null);
+        toast.success("Texte extrait du fichier Word !");
+      } catch (err) {
+        console.error("Word extraction error:", err);
+        toast.error("Erreur lors de la lecture du fichier Word.");
+      }
+      return;
+    }
+
+    // PDF and images: send as base64
     const reader = new FileReader();
     reader.onload = () => {
       const base64 = (reader.result as string).split(",")[1];
