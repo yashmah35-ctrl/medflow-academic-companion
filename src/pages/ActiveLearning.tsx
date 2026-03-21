@@ -187,7 +187,7 @@ export default function ActiveLearning() {
 
       <div className="flex gap-4" style={{ height: "calc(100vh - 180px)" }}>
         {/* Left: Restitution */}
-        <div className={`flex flex-col gap-4 ${showCoursePanel ? "w-1/2" : "w-full max-w-2xl mx-auto"} transition-all`}>
+        <div className={`flex flex-col gap-4 ${showCoursePanel ? "w-[35%] min-w-[320px] shrink-0" : "w-full max-w-2xl mx-auto"} transition-all`}>
           <div className="rounded-xl border border-border bg-card p-5 space-y-4 flex-1 flex flex-col">
             <h3 className="text-lg font-semibold text-foreground">Restitution Libre</h3>
             <p className="text-sm text-muted-foreground">
