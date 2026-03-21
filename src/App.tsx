@@ -53,7 +53,7 @@ function AppRoutes() {
         <Route path="/kholles" element={<AdminBlockedRoute><PremiumPaywall><Kholles /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/exams" element={<AdminBlockedRoute><PremiumPaywall><ExamsBlancs /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/annales" element={<AdminBlockedRoute><PremiumPaywall><Annales /></PremiumPaywall></AdminBlockedRoute>} />
-        <Route path="/modules" element={<AdminBlockedRoute><PremiumPaywall><InteractiveModules /></PremiumPaywall></AdminBlockedRoute>} />
+        <Route path="/modules" element={<InteractiveModules />} />
         <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
         <Route path="/settings" element={<AdminBlockedRoute><Settings /></AdminBlockedRoute>} />
         <Route path="/announcements" element={<AdminAnnouncements />} />
