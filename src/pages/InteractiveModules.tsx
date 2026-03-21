@@ -1,14 +1,11 @@
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import AminoAcidQuiz from "@/components/interactive/aminoacids/AminoAcidQuiz";
 import PeriodicTableModule from "@/components/interactive/periodictable/PeriodicTableModule";
 import SchemaModule from "@/components/interactive/schemas/SchemaModule";
-
-const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"));
 
 const modules = [
   {
