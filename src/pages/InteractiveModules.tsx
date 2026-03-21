@@ -96,32 +96,6 @@ export default function InteractiveModules() {
     );
   }
 
-  if (activeViewer === "heart3d") {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setActiveViewer(null)}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Retour
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Cœur 3D Interactif</h1>
-            <p className="text-xs text-muted-foreground">Clique sur les zones colorées pour explorer chaque partie</p>
-          </div>
-        </div>
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">Chargement du modèle 3D…</span>
-            </div>
-          }
-        >
-          <Heart3DViewer />
-        </Suspense>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div>
