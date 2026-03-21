@@ -346,32 +346,46 @@ export default function Flashcards() {
   // ─── Review ──────────────────────────────────────
   const startReview = async () => {
     if (!selectedDeck) return;
+    // Fetch ALL cards from deck, filter due via SRS localStorage
     const { data } = await supabase
       .from("flashcards")
       .select("*")
       .eq("deck_id", selectedDeck.id)
-      .lte("next_review", new Date().toISOString())
-      .order("next_review", { ascending: true });
-    const reviewable = (data as Card[]) || [];
-    if (reviewable.length === 0) { toast.info("Aucune carte à réviser !"); return; }
-    setReviewCards(reviewable);
+      .order("created_at", { ascending: true });
+    const allCards = (data as Card[]) || [];
+    if (allCards.length === 0) { toast.info("Aucune carte dans ce deck !"); return; }
+
+    const dueIds = getDueCardIds(selectedDeck.id, allCards.map(c => c.id));
+    const dueCards = allCards.filter(c => dueIds.includes(c.id));
+    if (dueCards.length === 0) { toast.info("Aucune carte à réviser !"); return; }
+
+    setReviewCards(dueCards);
+    setTotalDueToday(dueCards.length);
     setReviewIndex(0);
     setIsFlipped(false);
     setReviewRatings({});
+    setRegressionFlash(null);
     setReviewStartTime(Date.now());
     setView("review");
   };
 
   const rateReviewCard = async (rating: string) => {
     const card = reviewCards[reviewIndex];
-    const next = computeNextReview(card, rating);
-    const nextReviewDate = new Date();
-    nextReviewDate.setDate(nextReviewDate.getDate() + next.interval_days);
+    const srsRating = rating as SRSRating;
 
+    // Update SRS state in localStorage
+    const { newState, regressed, oldLevel } = updateCardState(selectedDeck!.id, card.id, srsRating);
+
+    // Show regression animation
+    if (regressed) {
+      setRegressionFlash({ oldLevel, newLevel: newState.level });
+      toast.error(`Carte revenue au niveau ${newState.level}`, { duration: 2000 });
+      setTimeout(() => setRegressionFlash(null), 1500);
+    }
+
+    // Also update DB for compatibility
+    const nextReviewDate = new Date(newState.nextReview);
     await supabase.from("flashcards").update({
-      ease_factor: next.ease_factor,
-      interval_days: next.interval_days,
-      difficulty: next.difficulty,
       next_review: nextReviewDate.toISOString(),
       review_count: card.review_count + 1,
     }).eq("id", card.id);
