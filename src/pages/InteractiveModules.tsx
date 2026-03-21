@@ -12,15 +12,6 @@ const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"
 
 const modules = [
   {
-    id: 1,
-    title: "Cœur 3D Interactif",
-    description: "Explore l'anatomie du cœur en 3D : ventricules, oreillettes, valves et vaisseaux.",
-    icon: "❤️",
-    available: true,
-    comingSoon: false,
-    viewer: "heart3d" as const,
-  },
-  {
     id: 2,
     title: "Quiz Acides Aminés",
     description: "Flashcards sur les 20 acides aminés : structure, nom, propriétés, code à 1 et 3 lettres.",
@@ -46,14 +37,6 @@ const modules = [
     available: true,
     comingSoon: false,
     viewer: "schemas" as const,
-  },
-  {
-    id: 5,
-    title: "ECG Simulator",
-    description: "Apprends à lire et interpréter les tracés ECG.",
-    icon: "🫀",
-    available: false,
-    comingSoon: true,
   },
 ];
 
