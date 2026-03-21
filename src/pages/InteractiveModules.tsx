@@ -1,25 +1,13 @@
-import { useState, lazy, Suspense } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import AminoAcidQuiz from "@/components/interactive/aminoacids/AminoAcidQuiz";
 import PeriodicTableModule from "@/components/interactive/periodictable/PeriodicTableModule";
 import SchemaModule from "@/components/interactive/schemas/SchemaModule";
 
-const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"));
-
 const modules = [
-  {
-    id: 1,
-    title: "Cœur 3D Interactif",
-    description: "Explore l'anatomie du cœur en 3D : ventricules, oreillettes, valves et vaisseaux.",
-    icon: "❤️",
-    available: true,
-    comingSoon: false,
-    viewer: "heart3d" as const,
-  },
   {
     id: 2,
     title: "Quiz Acides Aminés",
@@ -46,14 +34,6 @@ const modules = [
     available: true,
     comingSoon: false,
     viewer: "schemas" as const,
-  },
-  {
-    id: 5,
-    title: "ECG Simulator",
-    description: "Apprends à lire et interpréter les tracés ECG.",
-    icon: "🫀",
-    available: false,
-    comingSoon: true,
   },
 ];
 
@@ -112,32 +92,6 @@ export default function InteractiveModules() {
         <div className="rounded-xl border border-border overflow-hidden bg-card p-4" style={{ minHeight: "calc(100vh - 200px)" }}>
           <AminoAcidQuiz />
         </div>
-      </div>
-    );
-  }
-
-  if (activeViewer === "heart3d") {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setActiveViewer(null)}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Retour
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">Cœur 3D Interactif</h1>
-            <p className="text-xs text-muted-foreground">Clique sur les zones colorées pour explorer chaque partie</p>
-          </div>
-        </div>
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">Chargement du modèle 3D…</span>
-            </div>
-          }
-        >
-          <Heart3DViewer />
-        </Suspense>
       </div>
     );
   }
