@@ -137,6 +137,46 @@ export default function SchemaModule({ onBack }: SchemaModuleProps) {
     </div>
   );
 
+  // ── Admin view ──
+  if (isAdmin) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4 mr-1" /> Retour
+          </Button>
+          <div className="flex-1">
+            <h1 className="text-xl font-bold text-foreground">Gestion des Schémas</h1>
+            <p className="text-xs text-muted-foreground">Créez des schémas visibles par tous les étudiants</p>
+          </div>
+          <Button size="sm" onClick={() => setView("create")}>
+            <Plus className="h-4 w-4 mr-1" /> Ajouter un schéma
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : publicSchemas.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {publicSchemas.map(s => (
+              <SchemaCard key={s.id} schema={s} canEdit={true} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16 text-muted-foreground rounded-xl border border-dashed border-border">
+            <p className="text-sm mb-3">Aucun schéma public pour le moment</p>
+            <Button size="sm" onClick={() => setView("create")}>
+              <Plus className="h-4 w-4 mr-1" /> Créer le premier schéma
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Student view ──
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -158,7 +198,6 @@ export default function SchemaModule({ onBack }: SchemaModuleProps) {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Section 1: Admin schemas */}
           {publicSchemas.length > 0 && (
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
@@ -166,13 +205,12 @@ export default function SchemaModule({ onBack }: SchemaModuleProps) {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {publicSchemas.map(s => (
-                  <SchemaCard key={s.id} schema={s} canEdit={isAdmin} />
+                  <SchemaCard key={s.id} schema={s} canEdit={false} />
                 ))}
               </div>
             </div>
           )}
 
-          {/* Section 2: Personal schemas */}
           <div>
             <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-3">
               📝 Mes Schémas
