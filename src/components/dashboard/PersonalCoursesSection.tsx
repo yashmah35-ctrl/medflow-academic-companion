@@ -133,7 +133,7 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
   const handleDeleteCourse = async (course: PersonalCourse, folderId: string) => {
     if (!confirm(`Supprimer "${course.title}" ?`)) return;
     if (course.file_url) {
-      await supabase.storage.from("course-files").remove([course.file_url]);
+      await deleteCourseFile(course.file_url);
     }
     const { error } = await supabase.from("courses").delete().eq("id", course.id);
     if (error) { toast.error("Erreur"); return; }
