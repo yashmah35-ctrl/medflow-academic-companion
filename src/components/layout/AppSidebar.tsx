@@ -39,7 +39,7 @@ const allNavGroups: NavGroup[] = [
     items: [
       { title: "Matières", path: "/", icon: BookOpen, restricted: false },
       { title: "Apprentissage", path: "/learning", icon: Brain, restricted: false, adminHidden: true },
-      { title: "Modules", path: "/modules", icon: Puzzle, restricted: false, adminHidden: true },
+      { title: "Modules", path: "/modules", icon: Puzzle, restricted: false },
       { title: "Emploi du temps", path: "/schedule", icon: Calendar, restricted: false, adminHidden: true },
     ],
   },
