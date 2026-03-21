@@ -69,6 +69,10 @@ const item = {
 export default function InteractiveModules() {
   const [activeViewer, setActiveViewer] = useState<string | null>(null);
 
+  if (activeViewer === "schemas") {
+    return <SchemaModule onBack={() => setActiveViewer(null)} />;
+  }
+
   if (activeViewer === "periodictable") {
     return (
       <div className="space-y-4">
