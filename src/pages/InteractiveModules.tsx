@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { ArrowLeft, Loader2 } from "lucide-react";
 import AminoAcidQuiz from "@/components/interactive/aminoacids/AminoAcidQuiz";
 import PeriodicTableModule from "@/components/interactive/periodictable/PeriodicTableModule";
+import SchemaModule from "@/components/interactive/schemas/SchemaModule";
 
 const Heart3DViewer = lazy(() => import("@/components/interactive/Heart3DViewer"));
 
@@ -39,6 +40,15 @@ const modules = [
   },
   {
     id: 4,
+    title: "Schémas à Compléter",
+    description: "Importe un schéma annoté, place des repères et teste ta mémoire en retrouvant tous les labels.",
+    icon: "🖼️",
+    available: true,
+    comingSoon: false,
+    viewer: "schemas" as const,
+  },
+  {
+    id: 5,
     title: "ECG Simulator",
     description: "Apprends à lire et interpréter les tracés ECG.",
     icon: "🫀",
@@ -58,6 +68,10 @@ const item = {
 
 export default function InteractiveModules() {
   const [activeViewer, setActiveViewer] = useState<string | null>(null);
+
+  if (activeViewer === "schemas") {
+    return <SchemaModule onBack={() => setActiveViewer(null)} />;
+  }
 
   if (activeViewer === "periodictable") {
     return (
