@@ -55,20 +55,6 @@ export default function ActiveLearning() {
     });
   }, []);
 
-  // Fetch ENT subjects (distinct subject names from external courses)
-  useEffect(() => {
-    entSupabase.from("courses").select("subject").then(({ data }) => {
-      if (data) {
-        const unique = [...new Set(data.map((c: any) => c.subject).filter(Boolean))] as string[];
-        setEntSubjects(unique.map(name => ({
-          id: name,
-          name,
-          icon: "🎓",
-          source: "ent" as SubjectSource,
-        })));
-      }
-    });
-  }, []);
 
   // Fetch courses when subject changes
   useEffect(() => {
