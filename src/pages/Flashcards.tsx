@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Search, Layers, BarChart3, Flame, Clock, Trash2, Edit3, Play,
-  RotateCcw, ArrowLeft, BookOpen, ChevronRight, X, Type, ImageIcon, Upload, FileText, Sparkles, Loader2
+  RotateCcw, ArrowLeft, BookOpen, ChevronRight, X, Type, ImageIcon, Upload, FileText, Sparkles, Loader2,
+  ArrowDown, Star, Trophy
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
