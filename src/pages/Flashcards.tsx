@@ -119,18 +119,16 @@ export default function Flashcards() {
 
     if (error) { toast.error("Erreur chargement decks"); setLoading(false); return; }
 
-    // Get card counts per deck
+    // Get card counts per deck using SRS localStorage
     const deckList: Deck[] = [];
     for (const d of deckRows || []) {
-      const { count: totalCount } = await supabase
-        .from("flashcards").select("*", { count: "exact", head: true })
+      const { data: cardData } = await supabase
+        .from("flashcards").select("id", { count: "exact" })
         .eq("deck_id", d.id);
-      const { count: dueCount } = await supabase
-        .from("flashcards").select("*", { count: "exact", head: true })
-        .eq("deck_id", d.id).lte("next_review", new Date().toISOString());
-
-      const total = totalCount || 0;
-      const due = dueCount || 0;
+      const cardIds = (cardData || []).map((c: any) => c.id);
+      const total = cardIds.length;
+      const dueIds = getDueCardIds(d.id, cardIds);
+      const due = dueIds.length;
       const mastery = total > 0 ? Math.round(((total - due) / total) * 100) : 0;
 
       deckList.push({
