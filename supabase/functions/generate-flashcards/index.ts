@@ -21,29 +21,47 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error("ANTHROPIC_API_KEY is not configured");
     }
 
     const count = cardCount || 10;
     const subjectHint = subject ? ` (matière : ${subject})` : "";
 
-    // Build message content - either text or multimodal with file
+    const systemPrompt = `Tu es un expert en médecine pour étudiants PASS/LAS français. À partir du contenu fourni, génère exactement ${count} flashcards médicales précises en français. Réponds UNIQUEMENT avec un JSON valide, sans texte avant ni après. Format: {"flashcards": [{"front": "question", "back": "réponse", "explanation": "explication optionnelle"}]}`;
+
+    // Build messages for Claude
     const userContent: any[] = [];
 
     if (fileBase64) {
-      // Send file as image_url (works for PDF/images with Gemini)
       const mimeType = fileMimeType || "application/pdf";
-      userContent.push({
-        type: "image_url",
-        image_url: {
-          url: `data:${mimeType};base64,${fileBase64}`,
-        },
-      });
+      // Claude supports images and PDFs as base64
+      const mediaType = mimeType.startsWith("image/") ? mimeType : "image/png";
+      
+      if (mimeType === "application/pdf") {
+        // For PDFs, use Claude's document support
+        userContent.push({
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: fileBase64,
+          },
+        });
+      } else {
+        userContent.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: mediaType,
+            data: fileBase64,
+          },
+        });
+      }
       userContent.push({
         type: "text",
-        text: `À partir de ce document${subjectHint}, génère exactement ${count} flashcards de qualité pour aider à mémoriser les concepts clés. Extrais les informations importantes et crée des questions/réponses précises.`,
+        text: `À partir de ce document${subjectHint}, génère exactement ${count} flashcards de qualité pour aider à mémoriser les concepts clés.`,
       });
     } else {
       userContent.push({
@@ -52,54 +70,23 @@ serve(async (req) => {
       });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        system: systemPrompt,
         messages: [
-          {
-            role: "system",
-            content: "Tu es un expert en pédagogie médicale. Tu crées des flashcards de haute qualité pour aider les étudiants à mémoriser efficacement. Chaque flashcard doit être claire, concise et tester un concept précis. Pour les documents PDF ou Word, extrais d'abord le contenu puis génère les flashcards.",
-          },
           {
             role: "user",
             content: userContent,
           },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "generate_flashcards",
-              description: "Génère une liste de flashcards à partir du contenu fourni.",
-              parameters: {
-                type: "object",
-                properties: {
-                  flashcards: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        front: { type: "string", description: "La question (recto de la carte)" },
-                        back: { type: "string", description: "La réponse (verso de la carte)" },
-                        explanation: { type: "string", description: "Explication complémentaire optionnelle" },
-                      },
-                      required: ["front", "back"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["flashcards"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "generate_flashcards" } },
       }),
     });
 
@@ -110,14 +97,8 @@ serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Crédits IA épuisés." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
       const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
+      console.error("Anthropic API error:", response.status, t);
       return new Response(
         JSON.stringify({ error: "Erreur du service IA" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -125,17 +106,24 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const textContent = data.content?.find((c: any) => c.type === "text")?.text;
 
-    if (!toolCall?.function?.arguments) {
-      console.error("No tool call in response:", JSON.stringify(data));
+    if (!textContent) {
+      console.error("No text in Claude response:", JSON.stringify(data));
       return new Response(
         JSON.stringify({ error: "L'IA n'a pas pu générer de flashcards." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const result = JSON.parse(toolCall.function.arguments);
+    // Extract JSON from response (handle potential markdown code blocks)
+    let jsonStr = textContent.trim();
+    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[1].trim();
+    }
+
+    const result = JSON.parse(jsonStr);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
