@@ -74,15 +74,6 @@ export default function ActiveLearning() {
         }
       };
       fetchPrepa();
-    } else {
-      // ENT courses
-      entSupabase
-        .from("courses")
-        .select("id, title, file_url")
-        .eq("subject", selectedSubject.id)
-        .then(({ data }) => {
-          setCourses((data || []).map((c: any) => ({ id: c.id, title: c.title, file_url: c.file_url })));
-        });
     }
   }, [selectedSubject?.source, selectedSubject?.id]);
 
