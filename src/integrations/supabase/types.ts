@@ -520,7 +520,7 @@ export type Database = {
           id: string
           is_public: boolean
           name: string
-          subject_id: string
+          subject_id: string | null
         }
         Insert: {
           course_count?: number
@@ -530,7 +530,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           name: string
-          subject_id: string
+          subject_id?: string | null
         }
         Update: {
           course_count?: number
@@ -540,7 +540,7 @@ export type Database = {
           id?: string
           is_public?: boolean
           name?: string
-          subject_id?: string
+          subject_id?: string | null
         }
         Relationships: [
           {

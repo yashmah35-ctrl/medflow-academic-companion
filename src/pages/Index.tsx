@@ -4,7 +4,7 @@ import { scheduleBlocks } from "@/data/mockData";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Info, Crown } from "lucide-react";
+import { BookOpen, BarChart3, Target, Flame, Trophy, Search, Sparkles, TreePine, Pencil, Crown } from "lucide-react";
 import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
 import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
 import shsImg from "@/assets/subjects/shs.png";
@@ -27,7 +27,7 @@ import { useState, useCallback, useEffect } from "react";
 import BloomingTree from "@/components/dashboard/BloomingTree";
 import StudyTimer from "@/components/dashboard/StudyTimer";
 import { supabase } from "@/integrations/supabase/client";
-import EntCoursesSection from "@/components/dashboard/EntCoursesSection";
+import PersonalCoursesSection from "@/components/dashboard/PersonalCoursesSection";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 
@@ -292,14 +292,8 @@ const Index = () => {
       </motion.div>
 
 
-      {/* Info banner */}
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-primary/5 px-4 py-2.5 text-sm text-muted-foreground">
-        <Info className="h-4 w-4 shrink-0 text-primary" />
-        <span>💡 Synchronisez vos cours via l'extension Chrome MedFlow</span>
-      </div>
-
-      {/* Mes cours ENT */}
-      {user && <EntCoursesSection userId={user.id} />}
+      {/* Mes cours personnels */}
+      {user && <PersonalCoursesSection userId={user.id} />}
 
       {/* Separator + Prépa du Peuple subjects */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

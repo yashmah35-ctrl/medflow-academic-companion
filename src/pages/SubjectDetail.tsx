@@ -21,9 +21,7 @@ import {
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { entSupabase } from "@/lib/entSupabaseClient";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
-import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 
@@ -256,8 +254,8 @@ export default function SubjectDetail() {
           uploadOptions.duplex = 'half';
         }
         
-        const { error: uploadError } = await entSupabase.storage
-          .from("courses")
+        const { error: uploadError } = await supabase.storage
+          .from("course-files")
           .upload(filePath, file, uploadOptions);
 
         if (uploadError) {
@@ -288,13 +286,6 @@ export default function SubjectDetail() {
           setDbCourses((prev) => [course, ...prev]);
           imported++;
 
-          // Call Flashcards webhook for the new course
-          callWebhook(WEBHOOKS.FLASHCARDS, {
-            user_id: user.id,
-            course_id: course.id,
-            course_title: course.title,
-            folder_id: folderId,
-          }).catch(() => {});
         }
       } catch (err: any) {
         toast.error(`Erreur "${file.name}": ${err?.message || "Erreur inconnue"}`);
@@ -332,7 +323,7 @@ export default function SubjectDetail() {
     if (!confirm(`Supprimer "${course.title}" ?`)) return;
     // Delete file from storage if exists
     if (course.file_url) {
-      await entSupabase.storage.from("courses").remove([course.file_url]);
+      await supabase.storage.from("course-files").remove([course.file_url]);
     }
     const { error } = await supabase.from("courses").delete().eq("id", course.id);
     if (error) {
@@ -554,8 +545,8 @@ export default function SubjectDetail() {
                           setPremiumModalOpen(true);
                           return;
                         }
-                        const { data } = await entSupabase.storage
-                          .from("courses")
+                        const { data } = await supabase.storage
+                          .from("course-files")
                           .createSignedUrl(course.file_url!, 900);
                         if (data?.signedUrl) {
                           setPdfSignedUrl(data.signedUrl);

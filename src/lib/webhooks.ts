@@ -1,9 +1,7 @@
 const N8N_BASE = "https://n8n.srv1366613.hstgr.cloud/webhook/medflow";
 
 export const WEBHOOKS = {
-  ENT: `${N8N_BASE}/ent-connexion`,
   FLASHCARDS: `${N8N_BASE}/generate-flashcards`,
-  
   OCR: `${N8N_BASE}/ocr-analyzer`,
   ACTIVE_LEARNING: `${N8N_BASE}/active-learning`,
   ANNALES: `${N8N_BASE}/annales-analyzer`,

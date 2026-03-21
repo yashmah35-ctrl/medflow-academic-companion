@@ -7,11 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Layers, PenLine, Upload, Image, Type, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { entSupabase } from "@/lib/entSupabaseClient";
+
 import { useAuth } from "@/hooks/useAuth";
 
 type Mode = "select" | "restitution";
-type SubjectSource = "prepa" | "ent";
+type SubjectSource = "prepa";
 
 interface SubjectOption {
   id: string;
@@ -38,7 +38,7 @@ export default function ActiveLearning() {
   const [loadingUrl, setLoadingUrl] = useState(false);
 
   const [prepaSubjects, setPrepaSubjects] = useState<SubjectOption[]>([]);
-  const [entSubjects, setEntSubjects] = useState<SubjectOption[]>([]);
+  
   const [courses, setCourses] = useState<CourseOption[]>([]);
 
   // Parse selected subject key "source:id"
@@ -55,20 +55,6 @@ export default function ActiveLearning() {
     });
   }, []);
 
-  // Fetch ENT subjects (distinct subject names from external courses)
-  useEffect(() => {
-    entSupabase.from("courses").select("subject").then(({ data }) => {
-      if (data) {
-        const unique = [...new Set(data.map((c: any) => c.subject).filter(Boolean))] as string[];
-        setEntSubjects(unique.map(name => ({
-          id: name,
-          name,
-          icon: "🎓",
-          source: "ent" as SubjectSource,
-        })));
-      }
-    });
-  }, []);
 
   // Fetch courses when subject changes
   useEffect(() => {
@@ -88,15 +74,6 @@ export default function ActiveLearning() {
         }
       };
       fetchPrepa();
-    } else {
-      // ENT courses
-      entSupabase
-        .from("courses")
-        .select("id, title, file_url")
-        .eq("subject", selectedSubject.id)
-        .then(({ data }) => {
-          setCourses((data || []).map((c: any) => ({ id: c.id, title: c.title, file_url: c.file_url })));
-        });
     }
   }, [selectedSubject?.source, selectedSubject?.id]);
 
@@ -113,9 +90,8 @@ export default function ActiveLearning() {
       return;
     }
 
-    // All storage is on the external Supabase project
-    const storageClient = entSupabase;
-    const bucket = "courses";
+    const storageClient = supabase;
+    const bucket = "course-files";
 
     const { data } = await storageClient.storage
       .from(bucket)
@@ -198,14 +174,6 @@ export default function ActiveLearning() {
                     <SelectValue placeholder="Choisis une matière" />
                   </SelectTrigger>
                   <SelectContent>
-                    {entSubjects.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel className="text-xs text-muted-foreground font-semibold">🎓 Cours ENT</SelectLabel>
-                        {entSubjects.map(s => (
-                          <SelectItem key={`ent:${s.id}`} value={`ent:${s.id}`}>{s.icon} {s.name}</SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
                     {prepaSubjects.length > 0 && (
                       <SelectGroup>
                         <SelectLabel className="text-xs text-muted-foreground font-semibold">📚 Cours Prépa</SelectLabel>
