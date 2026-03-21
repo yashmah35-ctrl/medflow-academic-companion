@@ -1,0 +1,1 @@
+ALTER TABLE public.folders ALTER COLUMN subject_id DROP NOT NULL;
