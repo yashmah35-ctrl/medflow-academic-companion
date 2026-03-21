@@ -255,21 +255,10 @@ export default function SubjectDetail() {
           uploadOptions.duplex = 'half';
         }
         
-        const { error: uploadError } = await supabase.storage
-          .from("course-files")
-          .upload(filePath, file, uploadOptions);
+        const { error: uploadErrorMsg } = await uploadCourseFile(filePath, file);
 
-        if (uploadError) {
-          toast.error(`Erreur upload "${file.name}": ${uploadError.message}`);
-          continue;
-        }
-
-        // Verify the file actually exists in storage after upload
-        const { data: verifyData } = await supabase.storage
-          .from("course-files")
-          .createSignedUrl(filePath, 60);
-        if (!verifyData?.signedUrl) {
-          toast.error(`Upload échoué pour "${file.name}" — fichier non trouvé après upload`);
+        if (uploadErrorMsg) {
+          toast.error(`Erreur upload "${file.name}": ${uploadErrorMsg}`);
           continue;
         }
 
