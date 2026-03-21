@@ -566,12 +566,10 @@ export default function Flashcards() {
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           {[
             { icon: Layers, label: "Total", value: selectedDeck.cardCount, color: "text-primary" },
             { icon: Flame, label: "À réviser", value: selectedDeck.dueCount, color: "text-warning" },
-            { icon: BarChart3, label: "Maîtrise", value: `${selectedDeck.mastery}%`, color: "text-success" },
-            { icon: Clock, label: "Créé le", value: new Date(selectedDeck.created_at).toLocaleDateString("fr-FR"), color: "text-muted-foreground" },
           ].map((stat, i) => (
             <div key={i} className="rounded-xl border border-border bg-card p-3 text-center">
               <stat.icon className={`h-5 w-5 mx-auto mb-1 ${stat.color}`} />
