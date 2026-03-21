@@ -262,16 +262,25 @@ export default function ActiveLearning() {
                 Fermer
               </Button>
             </div>
-            <div className="flex-1 bg-muted/20">
+            <div className="flex-1 bg-muted/20 overflow-auto">
               {courseSignedUrl ? (
-                <iframe
-                  src={courseSignedUrl}
-                  className="w-full h-full border-0"
-                  title={selectedCourseObj?.title || "Cours"}
-                />
+                (() => {
+                  const course = courses.find(c => c.id === selectedCourse);
+                  const type = course?.file_url ? getFileType(course.file_url) : "docx";
+                  if (type === "pdf") {
+                    return (
+                      <iframe
+                        src={courseSignedUrl}
+                        className="w-full h-full border-0"
+                        title={selectedCourseObj?.title || "Cours"}
+                      />
+                    );
+                  }
+                  return <div ref={docxContainerRef} className="p-4" />;
+                })()
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                  Aucun fichier PDF associé à ce cours.
+                  Aucun fichier associé à ce cours.
                 </div>
               )}
             </div>
