@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { getCoursePublicUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
+import { resolveCourseUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
 import { motion } from "framer-motion";
 import {
   FolderOpen, FolderPlus, ChevronRight, BookOpen, Pencil, Check, X,
@@ -188,7 +188,7 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
   // Open PDF
   const handleOpenFile = async (course: PersonalCourse) => {
     if (!course.file_url) return;
-    const publicUrl = getCoursePublicUrl(course.file_url);
+    const publicUrl = await resolveCourseUrl(course.file_url);
     setPdfSignedUrl(publicUrl);
     setPdfTitle(course.title);
     setPdfViewerOpen(true);

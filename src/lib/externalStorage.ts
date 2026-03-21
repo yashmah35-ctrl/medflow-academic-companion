@@ -1,37 +1,79 @@
 /**
- * External Supabase storage for course files.
- * Bucket "courses" on project tpvwxfbcdqpwvdwcrluy is PUBLIC.
+ * Course file storage utilities.
+ * - OLD files: served from external Supabase project (tpvwxfbcdqpwvdwcrluy) bucket "courses"
+ * - NEW files: uploaded to Lovable Cloud bucket "course-files"
  */
+
+import { supabase } from "@/integrations/supabase/client";
 
 const EXTERNAL_STORAGE_BASE =
   "https://tpvwxfbcdqpwvdwcrluy.supabase.co/storage/v1";
+const EXTERNAL_BUCKET = "courses";
 
-const BUCKET = "courses";
+const LOVABLE_CLOUD_BUCKET = "course-files";
 
-/** Get a public URL for a file in the external courses bucket */
-export function getCoursePublicUrl(filePath: string): string {
-  return `${EXTERNAL_STORAGE_BASE}/object/public/${BUCKET}/${encodeURIComponent(filePath).replace(/%2F/g, "/")}`;
+/**
+ * Build external public URL (for files known to be on the old bucket)
+ */
+export function getExternalCourseUrl(filePath: string): string {
+  if (filePath.startsWith("http")) return filePath;
+  return `${EXTERNAL_STORAGE_BASE}/object/public/${EXTERNAL_BUCKET}/${encodeURIComponent(filePath).replace(/%2F/g, "/")}`;
 }
 
-/** Upload a file to the external courses bucket (uses public upload endpoint) */
+/**
+ * Get a public URL for a course file (sync version — returns Lovable Cloud URL).
+ * Use resolveCourseUrl for smart fallback.
+ */
+export function getCoursePublicUrl(filePath: string): string {
+  if (filePath.startsWith("http")) return filePath;
+
+  const { data } = supabase.storage
+    .from(LOVABLE_CLOUD_BUCKET)
+    .getPublicUrl(filePath);
+
+  return data?.publicUrl ?? getExternalCourseUrl(filePath);
+}
+
+/**
+ * Async version that checks Lovable Cloud first, falls back to external bucket.
+ * Use this when opening/viewing a course to ensure the correct URL is resolved.
+ */
+export async function resolveCourseUrl(filePath: string): Promise<string> {
+  if (filePath.startsWith("http")) return filePath;
+
+  // Try Lovable Cloud first
+  const { data } = supabase.storage
+    .from(LOVABLE_CLOUD_BUCKET)
+    .getPublicUrl(filePath);
+
+  if (data?.publicUrl) {
+    try {
+      const res = await fetch(data.publicUrl, { method: "HEAD" });
+      if (res.ok) return data.publicUrl;
+    } catch {
+      // not found in Cloud, try external
+    }
+  }
+
+  // Fall back to external bucket
+  return getExternalCourseUrl(filePath);
+}
+
+/** Upload a file to Lovable Cloud course-files bucket */
 export async function uploadCourseFile(
   filePath: string,
   file: File
 ): Promise<{ error: string | null }> {
   try {
-    const url = `${EXTERNAL_STORAGE_BASE}/object/${BUCKET}/${filePath}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": file.type || "application/octet-stream",
-        // Public bucket — use anon key for upload auth
-        Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdnd4ZmJjZHFwd3Zkd2NybHV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk5NzgzNTUsImV4cCI6MjA1NTU1NDM1NX0.sc6_x41sFNL-r0mGFUBR_SJu6wXSsKkYehLGmBKZl2M`,
-      },
-      body: file,
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      return { error: body || `Upload failed (${res.status})` };
+    const { error } = await supabase.storage
+      .from(LOVABLE_CLOUD_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+      });
+
+    if (error) {
+      return { error: error.message };
     }
     return { error: null };
   } catch (err: any) {
@@ -39,16 +81,10 @@ export async function uploadCourseFile(
   }
 }
 
-/** Delete a file from the external courses bucket */
+/** Delete a file from Lovable Cloud course-files bucket */
 export async function deleteCourseFile(filePath: string): Promise<void> {
   try {
-    const url = `${EXTERNAL_STORAGE_BASE}/object/${BUCKET}/${filePath}`;
-    await fetch(url, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRwdnd4ZmJjZHFwd3Zkd2NybHV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk5NzgzNTUsImV4cCI6MjA1NTU1NDM1NX0.sc6_x41sFNL-r0mGFUBR_SJu6wXSsKkYehLGmBKZl2M`,
-      },
-    });
+    await supabase.storage.from(LOVABLE_CLOUD_BUCKET).remove([filePath]);
   } catch {
     // Silent fail on delete
   }

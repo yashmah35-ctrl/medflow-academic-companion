@@ -1,7 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, BookOpen, Dumbbell, FolderPlus, Eye, Lock, Plus, Pencil, Trash2, Crown } from "lucide-react";
-import { getCoursePublicUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
+import { resolveCourseUrl, uploadCourseFile, deleteCourseFile } from "@/lib/externalStorage";
 import { SecurePdfViewer } from "@/components/SecurePdfViewer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -538,12 +538,12 @@ export default function SubjectDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
+                      onClick={async () => {
                         if (course.source === "bonus" && !isSubscribed && !isAdmin) {
                           setPremiumModalOpen(true);
                           return;
                         }
-                        const publicUrl = getCoursePublicUrl(course.file_url!);
+                        const publicUrl = await resolveCourseUrl(course.file_url!);
                         setPdfSignedUrl(publicUrl);
                         setPdfTitle(course.title);
                         setPdfFileName(course.file_url || "");
