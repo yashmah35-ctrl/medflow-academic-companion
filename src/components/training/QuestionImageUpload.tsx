@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ImagePlus, X, Loader2 } from "lucide-react";
-import { entSupabase } from "@/lib/entSupabaseClient";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface QuestionImageUploadProps {
