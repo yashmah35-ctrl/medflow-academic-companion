@@ -538,35 +538,17 @@ export default function SubjectDetail() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={async () => {
-                        // Block Prépa courses for non-subscribers
+                      onClick={() => {
                         if (course.source === "bonus" && !isSubscribed && !isAdmin) {
                           setPremiumModalOpen(true);
                           return;
                         }
-                        const { data, error } = await supabase.storage
-                          .from("course-files")
-                          .createSignedUrl(course.file_url!, 3600);
-                        if (data?.signedUrl) {
-                          // Verify the file actually exists by doing a HEAD request
-                          try {
-                            const headRes = await fetch(data.signedUrl, { method: "HEAD" });
-                            if (!headRes.ok) {
-                              toast.error("Le fichier de ce cours est introuvable. Veuillez le réimporter.");
-                              return;
-                            }
-                          } catch {
-                            // If HEAD fails, still try to open — some CORS configs block HEAD
-                          }
-                          setPdfSignedUrl(data.signedUrl);
-                          setPdfTitle(course.title);
-                          setPdfFileName(course.file_url || "");
-                          setPdfCourseId(course.id);
-                          setPdfViewerOpen(true);
-                        } else {
-                          console.error("createSignedUrl error:", error);
-                          toast.error("Le fichier de ce cours est introuvable. Veuillez le réimporter.");
-                        }
+                        const publicUrl = getCoursePublicUrl(course.file_url!);
+                        setPdfSignedUrl(publicUrl);
+                        setPdfTitle(course.title);
+                        setPdfFileName(course.file_url || "");
+                        setPdfCourseId(course.id);
+                        setPdfViewerOpen(true);
                       }}
                     >
                       {course.source === "bonus" && !isSubscribed && !isAdmin ? (
