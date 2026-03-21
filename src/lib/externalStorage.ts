@@ -13,30 +13,50 @@ const EXTERNAL_BUCKET = "courses";
 const LOVABLE_CLOUD_BUCKET = "course-files";
 
 /**
- * Get a public URL for a course file.
- * Handles both old external paths and new Lovable Cloud paths.
- */
-export function getCoursePublicUrl(filePath: string): string {
-  // If it's already a full URL, return as-is
-  if (filePath.startsWith("http")) return filePath;
-
-  // Try Lovable Cloud bucket first (new uploads)
-  const { data } = supabase.storage
-    .from(LOVABLE_CLOUD_BUCKET)
-    .getPublicUrl(filePath);
-
-  if (data?.publicUrl) return data.publicUrl;
-
-  // Fallback to external bucket (old uploads)
-  return `${EXTERNAL_STORAGE_BASE}/object/public/${EXTERNAL_BUCKET}/${encodeURIComponent(filePath).replace(/%2F/g, "/")}`;
-}
-
-/**
  * Build external public URL (for files known to be on the old bucket)
  */
 export function getExternalCourseUrl(filePath: string): string {
   if (filePath.startsWith("http")) return filePath;
   return `${EXTERNAL_STORAGE_BASE}/object/public/${EXTERNAL_BUCKET}/${encodeURIComponent(filePath).replace(/%2F/g, "/")}`;
+}
+
+/**
+ * Get a public URL for a course file (sync version — returns Lovable Cloud URL).
+ * Use resolveCourseUrl for smart fallback.
+ */
+export function getCoursePublicUrl(filePath: string): string {
+  if (filePath.startsWith("http")) return filePath;
+
+  const { data } = supabase.storage
+    .from(LOVABLE_CLOUD_BUCKET)
+    .getPublicUrl(filePath);
+
+  return data?.publicUrl ?? getExternalCourseUrl(filePath);
+}
+
+/**
+ * Async version that checks Lovable Cloud first, falls back to external bucket.
+ * Use this when opening/viewing a course to ensure the correct URL is resolved.
+ */
+export async function resolveCourseUrl(filePath: string): Promise<string> {
+  if (filePath.startsWith("http")) return filePath;
+
+  // Try Lovable Cloud first
+  const { data } = supabase.storage
+    .from(LOVABLE_CLOUD_BUCKET)
+    .getPublicUrl(filePath);
+
+  if (data?.publicUrl) {
+    try {
+      const res = await fetch(data.publicUrl, { method: "HEAD" });
+      if (res.ok) return data.publicUrl;
+    } catch {
+      // not found in Cloud, try external
+    }
+  }
+
+  // Fall back to external bucket
+  return getExternalCourseUrl(filePath);
 }
 
 /** Upload a file to Lovable Cloud course-files bucket */
@@ -64,7 +84,6 @@ export async function uploadCourseFile(
 /** Delete a file from Lovable Cloud course-files bucket */
 export async function deleteCourseFile(filePath: string): Promise<void> {
   try {
-    // Try deleting from Lovable Cloud bucket
     await supabase.storage.from(LOVABLE_CLOUD_BUCKET).remove([filePath]);
   } catch {
     // Silent fail on delete
