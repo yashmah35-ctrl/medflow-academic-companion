@@ -53,25 +53,7 @@ interface Card {
 type View = "decks" | "deck-detail" | "card-editor" | "review" | "review-result";
 
 // ─── Spaced Repetition Algorithm ────────────────────
-function computeNextReview(card: Card, rating: string) {
-  let { ease_factor, interval_days } = card;
-  const ef = Number(ease_factor);
-
-  switch (rating) {
-    case "again":
-      return { interval_days: 0, ease_factor: Math.max(1.3, ef - 0.2), difficulty: 3 };
-    case "hard":
-      return { interval_days: Math.max(1, Math.round(interval_days * 1.2)), ease_factor: Math.max(1.3, ef - 0.15), difficulty: 2 };
-    case "good":
-      return { interval_days: interval_days === 0 ? 1 : Math.round(interval_days * ef), ease_factor: ef, difficulty: 2 };
-    case "easy":
-      return { interval_days: interval_days === 0 ? 4 : Math.round(interval_days * ef * 1.3), ease_factor: ef + 0.15, difficulty: 2 };
-    default:
-      return { interval_days, ease_factor: ef, difficulty: 2 };
-  }
-}
-
-// ─── Cloze helpers ──────────────────────────────────
+// Old SM-2 algorithm removed — now using SRS from @/lib/srs
 function parseCloze(text: string): { question: string; answer: string }[] {
   const regex = /\{\{c\d+::(.+?)\}\}/g;
   const results: { question: string; answer: string }[] = [];
