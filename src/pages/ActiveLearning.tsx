@@ -79,6 +79,15 @@ export default function ActiveLearning() {
     }
   }, [selectedSubject?.source, selectedSubject?.id]);
 
+  // Detect file type from URL
+  const getFileType = (url: string): "pdf" | "docx" => {
+    try {
+      const path = new URL(url).pathname;
+      if (/\.pdf$/i.test(path)) return "pdf";
+    } catch {}
+    return "docx";
+  };
+
   // Load signed URL for the selected course
   const handleShowCourse = async () => {
     if (!selectedCourse || !selectedSubject) return;
@@ -92,16 +101,37 @@ export default function ActiveLearning() {
       return;
     }
 
-    const storageClient = supabase;
     const bucket = "course-files";
-
-    const { data } = await storageClient.storage
+    const { data } = await supabase.storage
       .from(bucket)
       .createSignedUrl(course.file_url, 3600);
 
-    setCourseSignedUrl(data?.signedUrl || course.file_url);
+    const url = data?.signedUrl || null;
+    setCourseSignedUrl(url);
     setShowCoursePanel(true);
     setLoadingUrl(false);
+
+    // If docx, fetch and render
+    if (url && getFileType(course.file_url) === "docx") {
+      setTimeout(async () => {
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Fetch failed");
+          const blob = await res.blob();
+          if (docxContainerRef.current) {
+            docxContainerRef.current.innerHTML = "";
+            await renderAsync(blob, docxContainerRef.current, undefined, {
+              className: "docx-preview-wrapper",
+              inWrapper: true,
+              ignoreWidth: false,
+              ignoreHeight: true,
+            });
+          }
+        } catch (err) {
+          console.error("DOCX render error:", err);
+        }
+      }, 100);
+    }
   };
 
   if (mode === "select") {
