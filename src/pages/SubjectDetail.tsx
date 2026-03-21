@@ -552,8 +552,8 @@ export default function SubjectDetail() {
                           setPremiumModalOpen(true);
                           return;
                         }
-                        const { data } = await entSupabase.storage
-                          .from("courses")
+                        const { data } = await supabase.storage
+                          .from("course-files")
                           .createSignedUrl(course.file_url!, 900);
                         if (data?.signedUrl) {
                           setPdfSignedUrl(data.signedUrl);
