@@ -58,35 +58,10 @@ serve(async (req) => {
       });
     }
 
-    // Create or find price for MedFlow Premium 10€/month
-    let priceId: string;
-    const prices = await stripe.prices.list({
-      lookup_keys: ["medflow_premium_monthly"],
-      limit: 1,
-    });
-
-    if (prices.data.length > 0) {
-      priceId = prices.data[0].id;
-    } else {
-      // Search existing products
-      const products = await stripe.products.list({ limit: 100 });
-      let product = products.data.find((p) => p.name === "MedFlow Premium");
-
-      if (!product) {
-        product = await stripe.products.create({
-          name: "MedFlow Premium",
-          description: "Accès complet à toutes les fonctionnalités premium de MedFlow",
-        });
-      }
-
-      const price = await stripe.prices.create({
-        product: product.id,
-        unit_amount: 1000,
-        currency: "eur",
-        recurring: { interval: "month" },
-        lookup_key: "medflow_premium_monthly",
-      });
-      priceId = price.id;
+    // Use the live price ID from secrets
+    const priceId = Deno.env.get("STRIPE_PRICE_ID");
+    if (!priceId) {
+      throw new Error("STRIPE_PRICE_ID is not configured");
     }
 
     const { origin } = new URL(req.url);
