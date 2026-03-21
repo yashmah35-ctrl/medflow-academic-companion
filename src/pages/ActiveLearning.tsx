@@ -102,12 +102,7 @@ export default function ActiveLearning() {
       return;
     }
 
-    const bucket = "course-files";
-    const { data } = await supabase.storage
-      .from(bucket)
-      .createSignedUrl(course.file_url, 3600);
-
-    const url = data?.signedUrl || null;
+    const url = getCoursePublicUrl(course.file_url);
     setCourseSignedUrl(url);
     setShowCoursePanel(true);
     setLoadingUrl(false);
