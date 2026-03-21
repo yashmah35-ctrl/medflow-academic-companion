@@ -27,7 +27,7 @@ import { useState, useCallback, useEffect } from "react";
 import BloomingTree from "@/components/dashboard/BloomingTree";
 import StudyTimer from "@/components/dashboard/StudyTimer";
 import { supabase } from "@/integrations/supabase/client";
-import EntCoursesSection from "@/components/dashboard/EntCoursesSection";
+import PersonalCoursesSection from "@/components/dashboard/PersonalCoursesSection";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 
