@@ -17,6 +17,10 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import {
+  SRSRating, updateCardState, getCardState, getDueCardIds,
+  getButtonPreviews, computeSRSTransition, loadSRSState
+} from "@/lib/srs";
 
 // ─── Types ──────────────────────────────────────────
 interface Deck {
