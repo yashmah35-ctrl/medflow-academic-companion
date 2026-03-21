@@ -247,7 +247,7 @@ export default function ActiveLearning() {
         {showCoursePanel && (
           <motion.div
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-            className="w-1/2 rounded-xl border border-border bg-card overflow-hidden flex flex-col"
+            className="flex-1 min-w-0 rounded-xl border border-border bg-card overflow-hidden flex flex-col"
           >
             <div className="px-4 py-3 border-b border-border/50 bg-muted/30 flex items-center justify-between shrink-0">
               <div className="min-w-0">
