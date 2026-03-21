@@ -174,14 +174,6 @@ export default function ActiveLearning() {
                     <SelectValue placeholder="Choisis une matière" />
                   </SelectTrigger>
                   <SelectContent>
-                    {entSubjects.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel className="text-xs text-muted-foreground font-semibold">🎓 Cours ENT</SelectLabel>
-                        {entSubjects.map(s => (
-                          <SelectItem key={`ent:${s.id}`} value={`ent:${s.id}`}>{s.icon} {s.name}</SelectItem>
-                        ))}
-                      </SelectGroup>
-                    )}
                     {prepaSubjects.length > 0 && (
                       <SelectGroup>
                         <SelectLabel className="text-xs text-muted-foreground font-semibold">📚 Cours Prépa</SelectLabel>
