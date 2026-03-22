@@ -27,7 +27,7 @@ export default function AuthShield3D({ animate = false }: { animate?: boolean })
   const [loaded, setLoaded] = useState(false);
 
   const container = (
-    <div className="w-40 h-40 relative">
+    <div className="w-56 h-56 relative">
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
