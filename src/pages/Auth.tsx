@@ -31,7 +31,7 @@ function shuffleArray<T>(arr: T[]): T[] {
   return shuffled;
 }
 
-function ScrambledTitle() {
+function ScrambledTitle({ startDelay }: { startDelay: number }) {
   const letters = useMemo(() => {
     return TITLE_TEXT.split("").map((char, i) => ({
       char,
