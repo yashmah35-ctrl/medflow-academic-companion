@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
-import { useRef, Suspense, useState, useEffect } from "react";
+import { useRef, Suspense, useState } from "react";
 import * as THREE from "three";
 
 function BouclierModel({ onRotationDone }: { onRotationDone: () => void }) {
@@ -11,7 +11,8 @@ function BouclierModel({ onRotationDone }: { onRotationDone: () => void }) {
 
   useFrame((_, delta) => {
     if (ref.current && !done) {
-      const speed = 3;
+      // Slower rotation — full turn in ~4s
+      const speed = 1.6;
       const step = delta * speed;
       rotated.current += step;
       ref.current.rotation.y += step;
@@ -32,16 +33,13 @@ function ChapeauModel({ visible }: { visible: boolean }) {
   const startY = 4;
   const targetY = 1.6;
   const targetX = -0.9;
-  const [pos, setPos] = useState({ x: 0, y: startY });
+  const posRef = useRef({ x: 0, y: startY });
 
   useFrame((_, delta) => {
     if (!visible || !ref.current) return;
-    setPos((prev) => {
-      const newY = THREE.MathUtils.lerp(prev.y, targetY, delta * 5);
-      const newX = THREE.MathUtils.lerp(prev.x, targetX, delta * 5);
-      return { x: newX, y: newY };
-    });
-    ref.current.position.set(pos.x, pos.y, 0);
+    posRef.current.y = THREE.MathUtils.lerp(posRef.current.y, targetY, delta * 3);
+    posRef.current.x = THREE.MathUtils.lerp(posRef.current.x, targetX, delta * 3);
+    ref.current.position.set(posRef.current.x, posRef.current.y, 0);
   });
 
   if (!visible) return null;
@@ -57,22 +55,8 @@ function ChapeauModel({ visible }: { visible: boolean }) {
   );
 }
 
-export default function SplashScene3D({ onComplete }: { onComplete: () => void }) {
+export default function SplashScene3D({ onAnimDone }: { onAnimDone: () => void }) {
   const [showHat, setShowHat] = useState(false);
-
-  useEffect(() => {
-    // Safety timeout — if animation hangs, still proceed
-    const t = setTimeout(onComplete, 4000);
-    return () => clearTimeout(t);
-  }, [onComplete]);
-
-  useEffect(() => {
-    if (showHat) {
-      // Hat lands in ~0.6s, then we're done
-      const t = setTimeout(onComplete, 800);
-      return () => clearTimeout(t);
-    }
-  }, [showHat, onComplete]);
 
   return (
     <div className="w-52 h-52 mx-auto">
@@ -81,7 +65,11 @@ export default function SplashScene3D({ onComplete }: { onComplete: () => void }
         <directionalLight position={[5, 5, 5]} intensity={1.2} />
         <directionalLight position={[-5, -5, -5]} intensity={0.3} />
         <Suspense fallback={null}>
-          <BouclierModel onRotationDone={() => setShowHat(true)} />
+          <BouclierModel onRotationDone={() => {
+            setShowHat(true);
+            // Hat lands in ~1.5s, then signal done
+            setTimeout(onAnimDone, 1500);
+          }} />
           <ChapeauModel visible={showHat} />
         </Suspense>
       </Canvas>
