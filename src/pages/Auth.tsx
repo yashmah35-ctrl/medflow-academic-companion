@@ -7,9 +7,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import logo from "@/assets/logo.png";
-import splashLogo from "@/assets/logo-splash.png";
 import AuthShield3D from "@/components/auth/AuthShield3D";
+import SplashScene3D from "@/components/auth/SplashScene3D";
 
 type AuthMode = "login" | "register";
 type RoleOption = "pass" | "lass" | "college_lycee" | "prepa_du_peuple";
