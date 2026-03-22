@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import splashLogo from "@/assets/logo-splash.png";
+import AuthShield3D from "@/components/auth/AuthShield3D";
 
 type AuthMode = "login" | "register";
 type RoleOption = "pass" | "lass" | "college_lycee" | "prepa_du_peuple";
