@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import splashLogo from "@/assets/logo-splash.png";
+import AuthShield3D from "@/components/auth/AuthShield3D";
 
 type AuthMode = "login" | "register";
 type RoleOption = "pass" | "lass" | "college_lycee" | "prepa_du_peuple";
@@ -211,7 +212,7 @@ export default function Auth() {
       >
         {/* Logo */}
         <div className="text-center">
-          <img src={logo} alt="La Prépa du Peuple" className="h-28 w-auto mx-auto mb-4 object-contain drop-shadow-2xl" />
+          <AuthShield3D />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">La Prépa du Peuple</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             {mode === "login" ? "Connecte-toi pour continuer" : "Crée ton compte pour commencer"}
