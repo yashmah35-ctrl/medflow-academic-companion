@@ -140,9 +140,10 @@ export default function Auth() {
 
   // Splash screen animation — fast 3D intro
   if (showSplash) {
+    // 3D anim ~5.5s, then scrambled title ~7s, then loading bar ~5s = ~17.5s total
+    const titleStartDelay = animPhase === "3d" ? 999 : 0; // hide title during 3D
     return (
       <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
-        {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/15 blur-[150px]" />
         </div>
@@ -153,28 +154,45 @@ export default function Auth() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          {/* 3D Scene — shield rotates then hat drops */}
-          <SplashScene3D onComplete={() => setShowSplash(false)} />
+          {/* 3D Scene — shield rotates (~4s) then hat drops (~1.5s) */}
+          <SplashScene3D onAnimDone={() => setAnimPhase("text")} />
 
-          {/* Title */}
-          <motion.h1
-            className="text-3xl font-bold text-foreground mt-4"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-          >
-            La Prépa du Peuple
-          </motion.h1>
+          {/* Scrambled title — letters fly in after 3D is done */}
+          {animPhase !== "3d" && (
+            <div className="mt-4">
+              <ScrambledTitle startDelay={0.3} />
+            </div>
+          )}
 
-          {/* Subtitle */}
-          <motion.p
-            className="text-muted-foreground text-sm mt-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8, duration: 0.5 }}
-          >
-            Prépare-toi à réussir
-          </motion.p>
+          {/* Subtitle — appears after title letters settle */}
+          {animPhase !== "3d" && (
+            <motion.p
+              className="text-muted-foreground text-sm mt-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 7, duration: 1 }}
+            >
+              Prépare-toi à réussir
+            </motion.p>
+          )}
+
+          {/* Loading bar — starts after subtitle, finishes at ~17s */}
+          {animPhase !== "3d" && (
+            <motion.div
+              className="mt-6 h-1 rounded-full bg-primary/30 w-48 overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 8 }}
+            >
+              <motion.div
+                className="h-full rounded-full bg-primary"
+                initial={{ width: "0%" }}
+                animate={{ width: "100%" }}
+                transition={{ delay: 8.5, duration: 4, ease: "easeInOut" }}
+                onAnimationComplete={() => setShowSplash(false)}
+              />
+            </motion.div>
+          )}
         </motion.div>
       </div>
     );
