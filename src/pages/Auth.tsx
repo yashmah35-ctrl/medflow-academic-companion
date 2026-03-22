@@ -204,7 +204,7 @@ export default function Auth() {
         className="w-full max-w-md space-y-6 relative z-10"
       >
         {/* Logo */}
-        <div className="text-center">
+        <div className="text-center flex flex-col items-center">
           <AuthShield3D />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">La Prépa du Peuple</h1>
           <p className="text-muted-foreground mt-1 text-sm">
