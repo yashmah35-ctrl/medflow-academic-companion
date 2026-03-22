@@ -137,7 +137,7 @@ export default function Auth() {
     }
   };
 
-  // Splash screen animation — ~20s total
+  // Splash screen animation — fast 3D intro
   if (showSplash) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
@@ -150,47 +150,30 @@ export default function Auth() {
           className="flex flex-col items-center z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
         >
-          {/* Logo animation */}
-          <motion.img
-            src={splashLogo}
-            alt="La Prépa du Peuple"
-            className="h-44 w-auto object-contain drop-shadow-2xl"
-            initial={{ scale: 0.2, opacity: 0, rotate: -15 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }}
-          />
+          {/* 3D Scene — shield rotates then hat drops */}
+          <SplashScene3D onComplete={() => setShowSplash(false)} />
 
-          {/* Scrambled title — letters fly in one by one */}
-          <div className="mt-6">
-            <ScrambledTitle />
-          </div>
+          {/* Title */}
+          <motion.h1
+            className="text-3xl font-bold text-foreground mt-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+          >
+            La Prépa du Peuple
+          </motion.h1>
 
           {/* Subtitle */}
           <motion.p
-            className="text-muted-foreground text-sm mt-3"
+            className="text-muted-foreground text-sm mt-2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 14, duration: 1 }}
+            transition={{ delay: 0.8, duration: 0.5 }}
           >
             Prépare-toi à réussir
           </motion.p>
-
-          {/* Loading bar — starts late, finishes at ~20s */}
-          <motion.div
-            className="mt-8 h-1 rounded-full bg-primary/30 w-48 overflow-hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 15 }}
-          >
-            <motion.div
-              className="h-full rounded-full bg-primary"
-              initial={{ width: "0%" }}
-              animate={{ width: "100%" }}
-              transition={{ delay: 15.5, duration: 4, ease: "easeInOut" }}
-              onAnimationComplete={() => setShowSplash(false)}
-            />
-          </motion.div>
         </motion.div>
       </div>
     );
