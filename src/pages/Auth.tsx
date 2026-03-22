@@ -152,15 +152,8 @@ export default function Auth() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          {/* Logo animation */}
-          <motion.img
-            src={splashLogo}
-            alt="La Prépa du Peuple"
-            className="h-44 w-auto object-contain drop-shadow-2xl"
-            initial={{ scale: 0.2, opacity: 0, rotate: -15 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }}
-          />
+        {/* 3D Shield descending + rotating */}
+          <AuthShield3D animate />
 
           {/* Scrambled title — letters fly in one by one */}
           <div className="mt-6">

@@ -3,6 +3,7 @@ import { useGLTF, OrbitControls } from "@react-three/drei";
 import { useRef, Suspense, useState } from "react";
 import * as THREE from "three";
 import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 function ShieldModel({ onLoaded }: { onLoaded: () => void }) {
   const { scene } = useGLTF("/models/medical_shield.glb");
@@ -22,11 +23,11 @@ function ShieldModel({ onLoaded }: { onLoaded: () => void }) {
   return <primitive ref={ref} object={scene} scale={2.5} position={[0, 0, 0]} />;
 }
 
-export default function AuthShield3D() {
+export default function AuthShield3D({ animate = false }: { animate?: boolean }) {
   const [loaded, setLoaded] = useState(false);
 
-  return (
-    <div className="w-40 h-40 mx-auto relative">
+  const container = (
+    <div className="w-40 h-40 relative">
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -43,6 +44,21 @@ export default function AuthShield3D() {
       </Canvas>
     </div>
   );
+
+  if (animate) {
+    return (
+      <motion.div
+        className="mx-auto"
+        initial={{ y: -200, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }}
+      >
+        {container}
+      </motion.div>
+    );
+  }
+
+  return <div className="mx-auto">{container}</div>;
 }
 
 useGLTF.preload("/models/medical_shield.glb");
