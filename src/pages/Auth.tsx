@@ -7,8 +7,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import logo from "@/assets/logo.png";
+import splashLogo from "@/assets/logo-splash.png";
 import AuthShield3D from "@/components/auth/AuthShield3D";
-import SplashScene3D from "@/components/auth/SplashScene3D";
 
 type AuthMode = "login" | "register";
 type RoleOption = "pass" | "lass" | "college_lycee" | "prepa_du_peuple";
@@ -31,7 +32,7 @@ function shuffleArray<T>(arr: T[]): T[] {
   return shuffled;
 }
 
-function ScrambledTitle({ startDelay }: { startDelay: number }) {
+function ScrambledTitle() {
   const letters = useMemo(() => {
     return TITLE_TEXT.split("").map((char, i) => ({
       char,
@@ -64,7 +65,7 @@ function ScrambledTitle({ startDelay }: { startDelay: number }) {
             scale: 1,
           }}
           transition={{
-          delay: startDelay + i * 0.35,
+            delay: 3 + i * 0.4,
             duration: 1.2,
             ease: [0.16, 1, 0.3, 1],
           }}
@@ -84,7 +85,6 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
-  const [animPhase, setAnimPhase] = useState<"3d" | "text" | "bar">("3d");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -138,12 +138,11 @@ export default function Auth() {
     }
   };
 
-  // Splash screen animation — fast 3D intro
+  // Splash screen animation — ~20s total
   if (showSplash) {
-    // 3D anim ~5.5s, then scrambled title ~7s, then loading bar ~5s = ~17.5s total
-    const titleStartDelay = animPhase === "3d" ? 999 : 0; // hide title during 3D
     return (
       <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
+        {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/15 blur-[150px]" />
         </div>
@@ -152,47 +151,47 @@ export default function Auth() {
           className="flex flex-col items-center z-10"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
         >
-          {/* 3D Scene — shield rotates (~4s) then hat drops (~1.5s) */}
-          <SplashScene3D onAnimDone={() => setAnimPhase("text")} />
+          {/* Logo animation */}
+          <motion.img
+            src={splashLogo}
+            alt="La Prépa du Peuple"
+            className="h-44 w-auto object-contain drop-shadow-2xl"
+            initial={{ scale: 0.2, opacity: 0, rotate: -15 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }}
+          />
 
-          {/* Scrambled title — letters fly in after 3D is done */}
-          {animPhase !== "3d" && (
-            <div className="mt-4">
-              <ScrambledTitle startDelay={0.3} />
-            </div>
-          )}
+          {/* Scrambled title — letters fly in one by one */}
+          <div className="mt-6">
+            <ScrambledTitle />
+          </div>
 
-          {/* Subtitle — appears after title letters settle */}
-          {animPhase !== "3d" && (
-            <motion.p
-              className="text-muted-foreground text-sm mt-2"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 7, duration: 1 }}
-            >
-              Prépare-toi à réussir
-            </motion.p>
-          )}
+          {/* Subtitle */}
+          <motion.p
+            className="text-muted-foreground text-sm mt-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 14, duration: 1 }}
+          >
+            Prépare-toi à réussir
+          </motion.p>
 
-          {/* Loading bar — starts after subtitle, finishes at ~17s */}
-          {animPhase !== "3d" && (
+          {/* Loading bar — starts late, finishes at ~20s */}
+          <motion.div
+            className="mt-8 h-1 rounded-full bg-primary/30 w-48 overflow-hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 15 }}
+          >
             <motion.div
-              className="mt-6 h-1 rounded-full bg-primary/30 w-48 overflow-hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 8 }}
-            >
-              <motion.div
-                className="h-full rounded-full bg-primary"
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{ delay: 8.5, duration: 4, ease: "easeInOut" }}
-                onAnimationComplete={() => setShowSplash(false)}
-              />
-            </motion.div>
-          )}
+              className="h-full rounded-full bg-primary"
+              initial={{ width: "0%" }}
+              animate={{ width: "100%" }}
+              transition={{ delay: 15.5, duration: 4, ease: "easeInOut" }}
+              onAnimationComplete={() => setShowSplash(false)}
+            />
+          </motion.div>
         </motion.div>
       </div>
     );
