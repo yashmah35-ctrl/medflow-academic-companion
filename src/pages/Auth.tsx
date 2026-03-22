@@ -84,6 +84,7 @@ export default function Auth() {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [animPhase, setAnimPhase] = useState<"3d" | "text" | "bar">("3d");
   const navigate = useNavigate();
 
   useEffect(() => {
