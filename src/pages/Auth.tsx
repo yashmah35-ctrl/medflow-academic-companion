@@ -212,7 +212,7 @@ export default function Auth() {
       >
         {/* Logo */}
         <div className="text-center">
-          <img src={logo} alt="La Prépa du Peuple" className="h-28 w-auto mx-auto mb-4 object-contain drop-shadow-2xl" />
+          <AuthShield3D />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">La Prépa du Peuple</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             {mode === "login" ? "Connecte-toi pour continuer" : "Crée ton compte pour commencer"}
