@@ -64,7 +64,7 @@ function ScrambledTitle({ startDelay }: { startDelay: number }) {
             scale: 1,
           }}
           transition={{
-            delay: 3 + i * 0.4,
+          delay: startDelay + i * 0.35,
             duration: 1.2,
             ease: [0.16, 1, 0.3, 1],
           }}
