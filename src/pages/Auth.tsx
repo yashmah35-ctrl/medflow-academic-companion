@@ -95,7 +95,10 @@ export default function Auth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isMounted && session) {
-        syncUserToExternal(session.user.id, session.user.email || '');
+        // Fire sync without blocking navigation
+        syncUserToExternal(session.user.id, session.user.email || '')
+          .then(ok => console.log('[Auth] External sync result:', ok))
+          .catch(err => console.error('[Auth] External sync error:', err));
         navigate("/", { replace: true });
       }
     });
@@ -132,7 +135,9 @@ export default function Auth() {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         if (data.user) {
-          syncUserToExternal(data.user.id, data.user.email || email);
+          syncUserToExternal(data.user.id, data.user.email || email)
+            .then(ok => console.log('[Auth] Login sync result:', ok))
+            .catch(err => console.error('[Auth] Login sync error:', err));
         }
         navigate("/");
       }
