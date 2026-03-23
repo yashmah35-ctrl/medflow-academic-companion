@@ -116,9 +116,10 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
   const showExercisePanel = !!subjectId;
 
-  // Block keyboard shortcuts
+  // Block keyboard shortcuts + hide body scroll when open
   useEffect(() => {
     if (!open) return;
+    document.body.style.overflow = "hidden";
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S" || e.key === "p" || e.key === "P")) {
         e.preventDefault();
@@ -126,7 +127,10 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
       }
     };
     window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, true);
+      document.body.style.overflow = "";
+    };
   }, [open]);
 
   const LoadingSpinner = () => (
