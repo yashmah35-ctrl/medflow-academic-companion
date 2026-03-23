@@ -1,0 +1,1 @@
+ALTER TABLE public.affiliates ADD CONSTRAINT affiliates_code_unique UNIQUE (code);
