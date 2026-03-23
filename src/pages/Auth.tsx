@@ -128,8 +128,11 @@ export default function Auth() {
         if (error) throw error;
         toast.success("Compte créé ! Vérifie tes emails pour confirmer ton inscription.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (data.user) {
+          syncUserToExternal(data.user.id, data.user.email || email);
+        }
         navigate("/");
       }
     } catch (error: any) {
