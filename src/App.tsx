@@ -20,6 +20,7 @@ import Flashcards from "./pages/Flashcards";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import AdminAnnouncements from "./pages/AdminAnnouncements";
+import AdminAffiliates from "./pages/AdminAffiliates";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
