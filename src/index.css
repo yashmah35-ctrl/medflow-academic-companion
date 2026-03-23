@@ -142,3 +142,8 @@
   pointer-events: none !important;
   -webkit-user-drag: none !important;
 }
+
+/* Safe area for bottom nav on iOS */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
