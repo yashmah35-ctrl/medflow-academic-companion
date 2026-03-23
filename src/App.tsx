@@ -58,6 +58,7 @@ function AppRoutes() {
         <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
         <Route path="/settings" element={<AdminBlockedRoute><Settings /></AdminBlockedRoute>} />
         <Route path="/announcements" element={<AdminAnnouncements />} />
+        <Route path="/affiliates" element={<AdminAffiliates />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
