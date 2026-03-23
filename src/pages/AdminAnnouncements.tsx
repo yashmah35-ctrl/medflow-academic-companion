@@ -37,6 +37,7 @@ export default function AdminAnnouncements() {
   const [linkUrl, setLinkUrl] = useState("");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [sending, setSending] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchAnnouncements();
