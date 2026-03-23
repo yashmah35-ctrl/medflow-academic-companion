@@ -501,84 +501,88 @@ export default function SubjectDetail() {
               <motion.div
                 key={course.id}
                 variants={item}
-                className="flex items-center justify-between rounded-xl border border-border bg-card p-4 hover:shadow-sm transition-all"
+                className="rounded-xl border border-border bg-card p-4 hover:shadow-sm transition-all"
               >
-                <div className="flex items-center gap-4 min-w-0 flex-1">
-                  <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-xs shrink-0">
-                    {course.source === "fac" ? "Cours de la Fac" : "Cours de la Prépa du Peuple"}
-                  </Badge>
-                  {course.source === "bonus" && (
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  )}
-                  <div className="min-w-0">
-                    {renamingCourse === course.id ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={renameValue}
-                          onChange={(e) => setRenameValue(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleRenameCourse(course.id)}
-                          className="h-7 text-sm"
-                          autoFocus
-                        />
-                        <Button size="sm" variant="ghost" onClick={() => handleRenameCourse(course.id)}>OK</Button>
-                        <Button size="sm" variant="ghost" onClick={() => setRenamingCourse(null)}>✕</Button>
-                      </div>
-                    ) : (
-                      <h4 className="font-medium text-foreground truncate">{course.title}</h4>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  {/* Badge + Title */}
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-xs shrink-0 mt-0.5">
+                      {course.source === "fac" ? "Cours de la Fac" : "Cours de la Prépa du Peuple"}
+                    </Badge>
+                    {course.source === "bonus" && (
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1" />
                     )}
-                    <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                      <span>{formatDate(course.created_at)}</span>
-                      <span>•</span>
-                      <span>{course.reading_time || "—"}</span>
+                    <div className="min-w-0 flex-1">
+                      {renamingCourse === course.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleRenameCourse(course.id)}
+                            className="h-7 text-sm"
+                            autoFocus
+                          />
+                          <Button size="sm" variant="ghost" onClick={() => handleRenameCourse(course.id)}>OK</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setRenamingCourse(null)}>✕</Button>
+                        </div>
+                      ) : (
+                        <h4 className="font-medium text-foreground truncate">{course.title}</h4>
+                      )}
+                      <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span>{formatDate(course.created_at)}</span>
+                        <span>•</span>
+                        <span>{course.reading_time || "—"}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex gap-1 shrink-0">
-                  {course.file_url && (
+                  {/* Action buttons */}
+                  <div className="flex gap-1 shrink-0 self-end sm:self-center">
+                    {course.file_url && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          if (course.source === "bonus" && !isSubscribed && !isAdmin) {
+                            setPremiumModalOpen(true);
+                            return;
+                          }
+                          const publicUrl = await resolveCourseUrl(course.file_url!);
+                          setPdfSignedUrl(publicUrl);
+                          setPdfTitle(course.title);
+                          setPdfFileName(course.file_url || "");
+                          setPdfCourseId(course.id);
+                          setPdfViewerOpen(true);
+                        }}
+                      >
+                        {course.source === "bonus" && !isSubscribed && !isAdmin ? (
+                          <><Crown className="h-4 w-4 mr-1 text-amber-500" /> Premium</>
+                        ) : (
+                          <><Eye className="h-4 w-4 mr-1" /> Consulter</>
+                        )}
+                      </Button>
+                    )}
+                    {isCurrentFolderOwner && (
+                    <>
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        if (course.source === "bonus" && !isSubscribed && !isAdmin) {
-                          setPremiumModalOpen(true);
-                          return;
-                        }
-                        const publicUrl = await resolveCourseUrl(course.file_url!);
-                        setPdfSignedUrl(publicUrl);
-                        setPdfTitle(course.title);
-                        setPdfFileName(course.file_url || "");
-                        setPdfCourseId(course.id);
-                        setPdfViewerOpen(true);
-                      }}
+                      variant="ghost"
+                      onClick={() => { setRenamingCourse(course.id); setRenameValue(course.title); }}
+                      title="Renommer"
                     >
-                      {course.source === "bonus" && !isSubscribed && !isAdmin ? (
-                        <><Crown className="h-4 w-4 mr-1 text-amber-500" /> Premium</>
-                      ) : (
-                        <><Eye className="h-4 w-4 mr-1" /> Consulter</>
-                      )}
+                      <Pencil className="h-4 w-4" />
                     </Button>
-                  )}
-                  {isCurrentFolderOwner && (
-                  <>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => { setRenamingCourse(course.id); setRenameValue(course.title); }}
-                    title="Renommer"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteCourse(course)}
-                    title="Supprimer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                  </>
-                  )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteCourse(course)}
+                      title="Supprimer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    </>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             ))}
