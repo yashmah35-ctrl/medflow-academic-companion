@@ -71,6 +71,13 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             renderFootnotes: true,
             renderEndnotes: true,
           });
+          // Strip all inline width/min-width from rendered elements
+          const allEls = docxContainerRef.current.querySelectorAll("*");
+          allEls.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            if (htmlEl.style.width) htmlEl.style.width = "";
+            if (htmlEl.style.minWidth) htmlEl.style.minWidth = "";
+          });
         }
 
         // Render into desktop container
