@@ -95,6 +95,7 @@ export default function Auth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isMounted && session) {
+        syncUserToExternal(session.user.id, session.user.email || '');
         navigate("/", { replace: true });
       }
     });
