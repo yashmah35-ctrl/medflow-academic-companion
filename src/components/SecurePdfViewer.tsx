@@ -59,8 +59,8 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
         await renderAsync(blob, docxContainerRef.current, undefined, {
           className: "docx-viewer",
           inWrapper: true,
-          ignoreWidth: false,
-          ignoreHeight: false,
+          ignoreWidth: true,
+          ignoreHeight: true,
           ignoreFonts: false,
           breakPages: true,
           ignoreLastRenderedPageBreak: true,
