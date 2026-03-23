@@ -19,7 +19,7 @@ const roleOptions: { value: RoleOption; label: string; emoji: string; desc: stri
   { value: "pass", label: "PASS", emoji: "🩺", desc: "Accès complet à toutes les matières" },
   { value: "lass", label: "L.AS", emoji: "📖", desc: "Accès complet sauf matières TC" },
   { value: "college_lycee", label: "Collège / Lycée", emoji: "🎒", desc: "Matières & Modules interactifs" },
-  { value: "prepa_du_peuple", label: "Prépa du Peuple", emoji: "🛠️", desc: "Accès réservé aux administrateurs" },
+  
 ];
 
 const TITLE_TEXT = "La Prépa du Peuple";
