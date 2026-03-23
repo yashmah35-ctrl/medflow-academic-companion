@@ -133,9 +133,6 @@
 .docx-secure-container .docx-wrapper {
   background: hsl(var(--muted) / 0.3) !important;
   padding: 10px !important;
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-  box-sizing: border-box !important;
 }
 
 .docx-secure-container .docx-wrapper > section.docx {
@@ -144,27 +141,6 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
   border-radius: 4px !important;
   margin-bottom: 20px !important;
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-  box-sizing: border-box !important;
-  word-wrap: break-word !important;
-  overflow-wrap: break-word !important;
-}
-
-.docx-secure-container .docx-wrapper > section.docx > * {
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-.docx-secure-container .docx-wrapper > section.docx img {
-  max-width: 100% !important;
-  height: auto !important;
-}
-
-.docx-secure-container .docx-wrapper > section.docx table {
-  max-width: 100% !important;
-  table-layout: fixed !important;
-  word-break: break-word !important;
 }
 
 .docx-secure-container img {

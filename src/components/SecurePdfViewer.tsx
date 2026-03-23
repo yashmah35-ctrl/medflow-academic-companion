@@ -175,7 +175,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
         </div>
 
         {/* ===== MOBILE: single vertical scroll, doc full width then exercises below ===== */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden md:hidden">
+        <div className="flex-1 overflow-y-auto md:hidden" style={{ overflowX: "hidden" }}>
           <div
             className="relative select-none bg-muted/20 w-full"
             onContextMenu={(e) => e.preventDefault()}
@@ -186,12 +186,17 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
             {fileType === "docx" && signedUrl && (
               <div
-                ref={docxContainerRef}
-                className="w-full docx-secure-container"
-                onContextMenu={(e) => e.preventDefault()}
-                onDragStart={(e) => e.preventDefault()}
-                style={{ userSelect: "none", WebkitUserSelect: "none" }}
-              />
+                className="w-full overflow-x-auto"
+                style={{ WebkitOverflowScrolling: "touch" }}
+              >
+                <div
+                  ref={docxContainerRef}
+                  className="docx-secure-container"
+                  onContextMenu={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
+                  style={{ userSelect: "none", WebkitUserSelect: "none", minWidth: "fit-content" }}
+                />
+              </div>
             )}
 
             {fileType === "pdf" && pdfSrc && (
