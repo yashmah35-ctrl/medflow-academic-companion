@@ -123,19 +123,52 @@ export default function AdminAnnouncements() {
 
   const getRoleLabel = (role: string) => ROLE_OPTIONS.find((r) => r.value === role)?.label || role;
 
+  const handleSyncAllUsers = async () => {
+    setSyncing(true);
+    try {
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('user_id, full_name');
+      
+      if (error || !profiles || profiles.length === 0) {
+        toast.info("Aucun utilisateur à synchroniser");
+        setSyncing(false);
+        return;
+      }
+
+      const users = profiles.map(p => ({
+        id: p.user_id,
+        email: `user-${p.user_id.slice(0, 8)}@sync-pending.local`,
+      }));
+
+      const result = await syncAllUsersToExternal(users);
+      toast.success(`Sync terminée : ${result.successCount} réussis, ${result.errorCount} erreurs`);
+    } catch (err) {
+      toast.error("Erreur lors de la synchronisation");
+      console.error('[AdminSync]', err);
+    }
+    setSyncing(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
         className="rounded-2xl border border-border bg-gradient-to-br from-card to-card/80 p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
-            <Megaphone className="h-5 w-5 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
+              <Megaphone className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Messages & Annonces</h2>
+              <p className="text-sm text-muted-foreground">Publiez des messages visibles par les étudiants ciblés</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">Messages & Annonces</h2>
-            <p className="text-sm text-muted-foreground">Publiez des messages visibles par les étudiants ciblés</p>
-          </div>
+          <Button variant="outline" size="sm" onClick={handleSyncAllUsers} disabled={syncing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Sync...' : 'Sync utilisateurs'}
+          </Button>
         </div>
       </motion.div>
 
