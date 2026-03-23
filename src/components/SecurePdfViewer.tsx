@@ -59,8 +59,8 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
         await renderAsync(blob, docxContainerRef.current, undefined, {
           className: "docx-viewer",
           inWrapper: true,
-          ignoreWidth: false,
-          ignoreHeight: false,
+          ignoreWidth: true,
+          ignoreHeight: true,
           ignoreFonts: false,
           breakPages: true,
           ignoreLastRenderedPageBreak: true,
@@ -109,13 +109,13 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [open]);
 
-  return (
+    return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setLoading(true); setError(null); } }}>
       <DialogContent
         className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden border-border/50 bg-card shadow-2xl [&>button:last-child]:hidden"
       >
         {/* Premium header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-gradient-to-r from-card via-card to-muted/30">
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border/50 bg-gradient-to-r from-card via-card to-muted/30">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
               <FileText className="h-4.5 w-4.5" />
@@ -135,11 +135,11 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
           </Button>
         </div>
 
-        {/* Content area */}
-        <div className="flex flex-1" style={{ height: "calc(92vh - 60px)" }}>
+        {/* Content area — vertical on mobile, horizontal on desktop */}
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden" style={{ height: "calc(92vh - 56px)" }}>
           {/* Document area */}
           <div
-            className={`relative select-none bg-muted/20 ${showExercisePanel ? "flex-1" : "w-full"}`}
+            className={`relative select-none bg-muted/20 ${showExercisePanel ? "md:flex-1 min-h-[50vh] md:min-h-0" : "w-full"} overflow-auto`}
             onContextMenu={(e) => e.preventDefault()}
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
@@ -179,7 +179,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
               />
             )}
 
-            {/* PDF Viewer (fallback with toolbar hidden) */}
+            {/* PDF Viewer */}
             {fileType === "pdf" && pdfSrc && (
               <iframe
                 key={pdfSrc}
@@ -192,9 +192,9 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {/* Exercise Panel on the right */}
+          {/* Exercise Panel — below on mobile, right side on desktop */}
           {showExercisePanel && (
-            <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
+            <div className="w-full md:w-[380px] shrink-0 border-t md:border-t-0 md:border-l border-border/50 bg-card overflow-auto max-h-[45vh] md:max-h-none">
               <ExercisePanel
                 subjectId={subjectId!}
                 courseId={courseId}
