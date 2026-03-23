@@ -58,6 +58,86 @@ export type Database = {
           },
         ]
       }
+      affiliate_subscriptions: {
+        Row: {
+          affiliate_code: string
+          affiliate_id: string
+          commission_amount: number
+          id: string
+          is_paid: boolean
+          subscribed_at: string
+          subscriber_email: string | null
+          subscriber_user_id: string
+        }
+        Insert: {
+          affiliate_code: string
+          affiliate_id: string
+          commission_amount?: number
+          id?: string
+          is_paid?: boolean
+          subscribed_at?: string
+          subscriber_email?: string | null
+          subscriber_user_id: string
+        }
+        Update: {
+          affiliate_code?: string
+          affiliate_id?: string
+          commission_amount?: number
+          id?: string
+          is_paid?: boolean
+          subscribed_at?: string
+          subscriber_email?: string | null
+          subscriber_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_subscriptions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          code: string
+          commission_per_subscriber: number
+          created_at: string
+          discount_amount: number
+          id: string
+          influencer_email: string | null
+          influencer_name: string
+          is_active: boolean
+          total_commission_earned: number
+          total_subscribers: number
+        }
+        Insert: {
+          code: string
+          commission_per_subscriber?: number
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          influencer_email?: string | null
+          influencer_name: string
+          is_active?: boolean
+          total_commission_earned?: number
+          total_subscribers?: number
+        }
+        Update: {
+          code?: string
+          commission_per_subscriber?: number
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          influencer_email?: string | null
+          influencer_name?: string
+          is_active?: boolean
+          total_commission_earned?: number
+          total_subscribers?: number
+        }
+        Relationships: []
+      }
       annales: {
         Row: {
           analysis_json: Json | null

@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Megaphone,
   Settings,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
@@ -48,6 +49,7 @@ const allNavGroups: NavGroup[] = [
     adminHidden: false,
     items: [
       { title: "Annonces", path: "/announcements", icon: Megaphone, restricted: false, adminOnly: true },
+      { title: "Affiliés", path: "/affiliates", icon: Users, restricted: false, adminOnly: true },
     ],
   },
   {
