@@ -211,17 +211,12 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
             {fileType === "docx" && signedUrl && (
               <div
-                className="w-full overflow-x-auto"
-                style={{ WebkitOverflowScrolling: "touch" }}
-              >
-                <div
-                  ref={docxContainerRef}
-                  className="docx-secure-container"
-                  onContextMenu={(e) => e.preventDefault()}
-                  onDragStart={(e) => e.preventDefault()}
-                  style={{ userSelect: "none", WebkitUserSelect: "none", minWidth: "fit-content" }}
-                />
-              </div>
+                ref={docxContainerRef}
+                className="w-full docx-secure-container"
+                onContextMenu={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
+                style={{ userSelect: "none", WebkitUserSelect: "none", maxWidth: "100vw", overflow: "hidden" }}
+              />
             )}
 
             {fileType === "pdf" && pdfSrc && (
