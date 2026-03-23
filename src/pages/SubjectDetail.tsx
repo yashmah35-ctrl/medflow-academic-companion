@@ -346,11 +346,12 @@ export default function SubjectDetail() {
       <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,image/*" multiple className="hidden" onChange={handleCourseImport} />
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="icon"
+            className="shrink-0"
             onClick={() => {
               if (folderId) navigate(`/subject/${subjectId}`);
               else navigate("/");
@@ -358,19 +359,19 @@ export default function SubjectDetail() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colors.light} text-xl`}>
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${colors.light} text-xl shrink-0`}>
             {subject.icon}
           </div>
-          <div>
-            <h1 className="text-xl font-bold text-foreground">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">
               {currentFolder ? currentFolder.name : subject.name}
             </h1>
-            {currentFolder && <p className="text-sm text-muted-foreground">{subject.name}</p>}
+            {currentFolder && <p className="text-sm text-muted-foreground truncate">{subject.name}</p>}
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           {!folderId && canCreateFolder && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
