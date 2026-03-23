@@ -116,10 +116,24 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
   const showExercisePanel = !!subjectId;
 
-  // Block keyboard shortcuts + hide body scroll when open
+  // Block keyboard shortcuts + completely lock background page scroll
   useEffect(() => {
     if (!open) return;
-    document.body.style.overflow = "hidden";
+    
+    // Lock body and html scroll completely
+    const html = document.documentElement;
+    const body = document.body;
+    const mainContent = document.getElementById("main-content");
+    
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.position = "fixed";
+    html.style.inset = "0";
+    body.style.position = "fixed";
+    body.style.inset = "0";
+    body.style.width = "100%";
+    if (mainContent) mainContent.style.overflow = "hidden";
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S" || e.key === "p" || e.key === "P")) {
         e.preventDefault();
@@ -129,7 +143,14 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     window.addEventListener("keydown", handleKeyDown, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
-      document.body.style.overflow = "";
+      html.style.overflow = "";
+      html.style.position = "";
+      html.style.inset = "";
+      body.style.overflow = "";
+      body.style.position = "";
+      body.style.inset = "";
+      body.style.width = "";
+      if (mainContent) mainContent.style.overflow = "";
     };
   }, [open]);
 
