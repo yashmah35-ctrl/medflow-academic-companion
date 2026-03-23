@@ -75,7 +75,8 @@ export default function AdminAffiliates() {
       commission_per_subscriber: parseFloat(newCommission) || 0,
     });
     if (error) {
-      toast.error(error.message.includes("duplicate") ? "Ce code existe déjà" : "Erreur de création");
+      console.error("Affiliate creation error:", error);
+      toast.error(error.message.includes("duplicate") ? "Ce code existe déjà" : `Erreur: ${error.message}`);
     } else {
       toast.success(`Code ${newCode.toUpperCase()} créé !`);
       setCreateOpen(false);
