@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import logo from "@/assets/logo.png";
 import splashLogo from "@/assets/logo-splash.png";
 import AuthShield3D from "@/components/auth/AuthShield3D";
+import { syncUserToExternal } from "@/lib/externalUserSync";
 
 type AuthMode = "login" | "register";
 type RoleOption = "pass" | "lass" | "college_lycee" | "prepa_du_peuple";
@@ -94,6 +95,7 @@ export default function Auth() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isMounted && session) {
+        syncUserToExternal(session.user.id, session.user.email || '');
         navigate("/", { replace: true });
       }
     });
@@ -127,8 +129,11 @@ export default function Auth() {
         if (error) throw error;
         toast.success("Compte créé ! Vérifie tes emails pour confirmer ton inscription.");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        if (data.user) {
+          syncUserToExternal(data.user.id, data.user.email || email);
+        }
         navigate("/");
       }
     } catch (error: any) {
