@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Send, Trash2, Users, Megaphone } from "lucide-react";
+import { Send, Trash2, Users, Megaphone, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { syncAllUsersToExternal } from "@/lib/externalUserSync";
 
 const ROLE_OPTIONS = [
   { value: "all", label: "Tous les étudiants" },
