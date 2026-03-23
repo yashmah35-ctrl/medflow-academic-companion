@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
+import { Loader2, X, FileText } from "lucide-react";
 import { ExercisePanel } from "@/components/training/ExercisePanel";
 import { renderAsync } from "docx-preview";
 
@@ -20,12 +20,12 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
+  const docxDesktopRef = useRef<HTMLDivElement>(null);
 
   const fileType = useMemo(() => {
     const name = fileName || "";
     if (/\.pdf$/i.test(name)) return "pdf";
     if (/\.docx?$/i.test(name)) return "docx";
-    // Try from URL
     if (signedUrl) {
       try {
         const urlPath = new URL(signedUrl).pathname;
@@ -33,14 +33,13 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
         if (/\.docx?$/i.test(urlPath)) return "docx";
       } catch {}
     }
-    // Default to docx since user primarily uploads Word docs
     return "docx";
   }, [fileName, signedUrl]);
 
   // Fetch and render DOCX
   useEffect(() => {
     if (!open || !signedUrl || fileType !== "docx") return;
-    
+
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -51,27 +50,51 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
         if (!response.ok) throw new Error("Impossible de charger le document");
         const blob = await response.blob();
 
-        if (cancelled || !docxContainerRef.current) return;
+        if (cancelled) return;
 
-        // Clear previous content
-        docxContainerRef.current.innerHTML = "";
+        // Render into mobile container
+        if (docxContainerRef.current) {
+          docxContainerRef.current.innerHTML = "";
+          await renderAsync(blob, docxContainerRef.current, undefined, {
+            className: "docx-viewer",
+            inWrapper: true,
+            ignoreWidth: true,
+            ignoreHeight: true,
+            ignoreFonts: false,
+            breakPages: false,
+            ignoreLastRenderedPageBreak: true,
+            experimental: false,
+            trimXmlDeclaration: true,
+            useBase64URL: true,
+            renderHeaders: true,
+            renderFooters: true,
+            renderFootnotes: true,
+            renderEndnotes: true,
+          });
+        }
 
-        await renderAsync(blob, docxContainerRef.current, undefined, {
-          className: "docx-viewer",
-          inWrapper: true,
-          ignoreWidth: true,
-          ignoreHeight: true,
-          ignoreFonts: false,
-          breakPages: true,
-          ignoreLastRenderedPageBreak: true,
-          experimental: false,
-          trimXmlDeclaration: true,
-          useBase64URL: true,
-          renderHeaders: true,
-          renderFooters: true,
-          renderFootnotes: true,
-          renderEndnotes: true,
-        });
+        // Render into desktop container
+        if (docxDesktopRef.current) {
+          docxDesktopRef.current.innerHTML = "";
+          const response2 = await fetch(signedUrl);
+          const blob2 = await response2.blob();
+          await renderAsync(blob2, docxDesktopRef.current, undefined, {
+            className: "docx-viewer",
+            inWrapper: true,
+            ignoreWidth: false,
+            ignoreHeight: false,
+            ignoreFonts: false,
+            breakPages: true,
+            ignoreLastRenderedPageBreak: true,
+            experimental: false,
+            trimXmlDeclaration: true,
+            useBase64URL: true,
+            renderHeaders: true,
+            renderFooters: true,
+            renderFootnotes: true,
+            renderEndnotes: true,
+          });
+        }
 
         if (!cancelled) setLoading(false);
       } catch (err: any) {
@@ -86,20 +109,17 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     return () => { cancelled = true; };
   }, [open, signedUrl, fileType]);
 
-  // For PDF files, use sandbox to block toolbar
   const pdfSrc = useMemo(() => {
     if (!signedUrl || fileType !== "pdf") return null;
-    // Add #toolbar=0 to hide the native PDF toolbar
     return signedUrl + (signedUrl.includes("#") ? "&toolbar=0" : "#toolbar=0");
   }, [signedUrl, fileType]);
 
   const showExercisePanel = !!subjectId;
 
-  // Block keyboard shortcuts for downloading/printing
+  // Block keyboard shortcuts
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Block Ctrl+S, Ctrl+P, Ctrl+Shift+S
       if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S" || e.key === "p" || e.key === "P")) {
         e.preventDefault();
         e.stopPropagation();
@@ -109,13 +129,32 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [open]);
 
-    return (
+  const LoadingSpinner = () => (
+    <div className="flex flex-col items-center justify-center py-32 gap-4">
+      <div className="relative">
+        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        </div>
+      </div>
+      <p className="text-sm font-medium text-foreground">Chargement du document</p>
+    </div>
+  );
+
+  const ErrorDisplay = () => (
+    <div className="flex flex-col items-center justify-center py-32 gap-3">
+      <FileText className="h-12 w-12 text-muted-foreground" />
+      <p className="text-sm text-destructive font-medium">{error}</p>
+    </div>
+  );
+
+  return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setLoading(true); setError(null); } }}>
       <DialogContent
-        className="max-w-[95vw] w-[95vw] h-[92vh] p-0 gap-0 overflow-hidden border-border/50 bg-card shadow-2xl [&>button:last-child]:hidden"
+        className="max-w-[100vw] md:max-w-[95vw] w-[100vw] md:w-[95vw] h-[100dvh] md:h-[92vh] p-0 gap-0 overflow-hidden border-0 md:border md:border-border/50 bg-card shadow-2xl [&>button:last-child]:hidden rounded-none md:rounded-lg"
       >
-        {/* Premium header */}
-        <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border/50 bg-gradient-to-r from-card via-card to-muted/30">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-card via-card to-muted/30 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
               <FileText className="h-4.5 w-4.5" />
@@ -135,43 +174,70 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
           </Button>
         </div>
 
-        {/* Content area — vertical on mobile, horizontal on desktop */}
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden" style={{ height: "calc(92vh - 56px)" }}>
-          {/* Document area */}
+        {/* ===== MOBILE: single vertical scroll, doc full width then exercises below ===== */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden md:hidden">
           <div
-            className={`relative select-none bg-muted/20 ${showExercisePanel ? "md:flex-1 min-h-[50vh] md:min-h-0" : "w-full"} overflow-auto`}
+            className="relative select-none bg-muted/20 w-full"
             onContextMenu={(e) => e.preventDefault()}
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
-            {/* Loading spinner */}
-            {loading && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 gap-4">
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                  <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-                    <Loader2 className="h-7 w-7 animate-spin text-primary" />
-                  </div>
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-foreground">Chargement du document</p>
-                  <p className="text-xs text-muted-foreground mt-1">Veuillez patienter...</p>
-                </div>
-              </div>
-            )}
+            {loading && <LoadingSpinner />}
+            {error && <ErrorDisplay />}
 
-            {/* Error state */}
-            {error && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10 gap-3">
-                <FileText className="h-12 w-12 text-muted-foreground" />
-                <p className="text-sm text-destructive font-medium">{error}</p>
-                <p className="text-xs text-muted-foreground">Impossible d'afficher ce document</p>
-              </div>
-            )}
-
-            {/* DOCX Viewer */}
             {fileType === "docx" && signedUrl && (
               <div
                 ref={docxContainerRef}
+                className="w-full docx-secure-container"
+                onContextMenu={(e) => e.preventDefault()}
+                onDragStart={(e) => e.preventDefault()}
+                style={{ userSelect: "none", WebkitUserSelect: "none" }}
+              />
+            )}
+
+            {fileType === "pdf" && pdfSrc && (
+              <iframe
+                key={pdfSrc + "-mobile"}
+                src={pdfSrc}
+                className="w-full border-0"
+                style={{ height: "85dvh", pointerEvents: "auto" }}
+                onLoad={() => setLoading(false)}
+                title={title}
+              />
+            )}
+          </div>
+
+          {showExercisePanel && (
+            <div className="w-full border-t border-border/50 bg-card">
+              <ExercisePanel
+                subjectId={subjectId!}
+                courseId={courseId}
+                subjectName={subjectName || ""}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* ===== DESKTOP: horizontal split ===== */}
+        <div className="hidden md:flex flex-1 overflow-hidden" style={{ height: "calc(92vh - 56px)" }}>
+          <div
+            className={`relative select-none bg-muted/20 ${showExercisePanel ? "flex-1" : "w-full"} overflow-auto`}
+            onContextMenu={(e) => e.preventDefault()}
+            style={{ userSelect: "none", WebkitUserSelect: "none" }}
+          >
+            {loading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 gap-4">
+                <LoadingSpinner />
+              </div>
+            )}
+            {error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10">
+                <ErrorDisplay />
+              </div>
+            )}
+
+            {fileType === "docx" && signedUrl && (
+              <div
+                ref={docxDesktopRef}
                 className="w-full h-full overflow-auto docx-secure-container"
                 onContextMenu={(e) => e.preventDefault()}
                 onDragStart={(e) => e.preventDefault()}
@@ -179,10 +245,9 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
               />
             )}
 
-            {/* PDF Viewer */}
             {fileType === "pdf" && pdfSrc && (
               <iframe
-                key={pdfSrc}
+                key={pdfSrc + "-desktop"}
                 src={pdfSrc}
                 className="w-full h-full border-0"
                 onLoad={() => setLoading(false)}
@@ -192,9 +257,8 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {/* Exercise Panel — below on mobile, right side on desktop */}
           {showExercisePanel && (
-            <div className="w-full md:w-[380px] shrink-0 border-t md:border-t-0 md:border-l border-border/50 bg-card overflow-auto max-h-[45vh] md:max-h-none">
+            <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-auto">
               <ExercisePanel
                 subjectId={subjectId!}
                 courseId={courseId}
