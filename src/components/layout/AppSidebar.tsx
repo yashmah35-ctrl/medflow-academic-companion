@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Megaphone,
   Settings,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
