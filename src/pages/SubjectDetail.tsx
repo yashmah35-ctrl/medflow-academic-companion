@@ -456,8 +456,7 @@ export default function SubjectDetail() {
                 <h3 className="font-semibold text-foreground mb-2 mt-4">{folder.name}</h3>
               )}
               <div className="flex gap-3 text-xs text-muted-foreground mb-4">
-                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folder.course_count} Cours</span>
-                <span className="flex items-center gap-1"><Dumbbell className="h-3 w-3" /> {folder.exercise_count} Exercices</span>
+                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folderCourseCounts[folder.id] ?? 0} Cours</span>
               </div>
               {isOwner && (
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
