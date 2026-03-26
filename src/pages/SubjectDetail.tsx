@@ -172,10 +172,32 @@ export default function SubjectDetail() {
         .select("*")
         .eq("subject_id", subjectId)
         .order("created_at", { ascending: false });
-      if (data) setExercises(data as AdminExercise[]);
+      if (data) {
+        setExercises(data as AdminExercise[]);
+        // Fetch exercise scores
+        if (user) {
+          const exerciseIds = data.map((e: any) => e.id);
+          if (exerciseIds.length > 0) {
+            const { data: scores } = await supabase
+              .from("user_exercise_scores" as any)
+              .select("exercise_id, correct_count, total_count")
+              .eq("user_id", user.id)
+              .in("exercise_id", exerciseIds);
+            if (scores) {
+              const scoreMap: Record<string, { correct: number; total: number }> = {};
+              (scores as any[]).forEach((s: any) => {
+                if (!scoreMap[s.exercise_id]) scoreMap[s.exercise_id] = { correct: 0, total: 0 };
+                scoreMap[s.exercise_id].correct += s.correct_count;
+                scoreMap[s.exercise_id].total += s.total_count;
+              });
+              setExerciseScores(scoreMap);
+            }
+          }
+        }
+      }
     };
     fetchExercises();
-  }, [subjectId, folderId]);
+  }, [subjectId, folderId, user]);
 
   // Fetch courses inside folder
   useEffect(() => {
