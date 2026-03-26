@@ -2,9 +2,12 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText, BookOpen, Play } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, X, FileText, BookOpen, Play, Plus } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface ChapterReview {
   id: string;
@@ -26,11 +29,15 @@ interface SecurePdfViewerProps {
 
 export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const docxDesktopRef = useRef<HTMLDivElement>(null);
   const [reviews, setReviews] = useState<ChapterReview[]>([]);
+  const [newRevDialogOpen, setNewRevDialogOpen] = useState(false);
+  const [newRevTitle, setNewRevTitle] = useState("");
+  const [newRevFormat, setNewRevFormat] = useState<"QCM" | "QIM">("QCM");
 
   const fileType = useMemo(() => {
     const name = fileName || "";
