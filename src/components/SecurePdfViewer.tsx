@@ -1,8 +1,17 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText } from "lucide-react";
+import { Loader2, X, FileText, BookOpen, Play } from "lucide-react";
 import { renderAsync } from "docx-preview";
+import { supabase } from "@/integrations/supabase/client";
+
+interface ChapterReview {
+  id: string;
+  title: string;
+  format: string;
+  questions_json: any[] | null;
+}
 
 interface SecurePdfViewerProps {
   open: boolean;
@@ -16,10 +25,12 @@ interface SecurePdfViewerProps {
 }
 
 export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const docxDesktopRef = useRef<HTMLDivElement>(null);
+  const [reviews, setReviews] = useState<ChapterReview[]>([]);
 
   const fileType = useMemo(() => {
     const name = fileName || "";
@@ -34,6 +45,22 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     }
     return "docx";
   }, [fileName, signedUrl]);
+
+  // Fetch chapter reviews for this course
+  useEffect(() => {
+    if (!open || !courseId) { setReviews([]); return; }
+    const fetchReviews = async () => {
+      const { data } = await supabase
+        .from("chapter_reviews")
+        .select("id, title, format, questions_json")
+        .eq("course_id", courseId)
+        .order("created_at", { ascending: false });
+      if (data) setReviews(data as ChapterReview[]);
+    };
+    fetchReviews();
+  }, [open, courseId]);
+
+  const showRevisionPanel = !!courseId && reviews.length > 0;
 
   // Fetch and render DOCX
   useEffect(() => {
@@ -70,7 +97,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             renderFootnotes: true,
             renderEndnotes: true,
           });
-          // Strip all inline width/min-width from rendered elements
           const allEls = docxContainerRef.current.querySelectorAll("*");
           allEls.forEach((el) => {
             const htmlEl = el as HTMLElement;
@@ -120,13 +146,10 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     return signedUrl + (signedUrl.includes("#") ? "&toolbar=0" : "#toolbar=0");
   }, [signedUrl, fileType]);
 
-  const showExercisePanel = false;
-
   // Block keyboard shortcuts + completely lock background page scroll
   useEffect(() => {
     if (!open) return;
     
-    // Lock body and html scroll completely
     const html = document.documentElement;
     const body = document.body;
     const mainContent = document.getElementById("main-content");
@@ -179,6 +202,42 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     </div>
   );
 
+  const RevisionPanel = () => (
+    <div className="h-full flex flex-col">
+      <div className="px-4 py-3 border-b border-border/50 bg-accent/30">
+        <h3 className="font-bold text-foreground flex items-center gap-2 text-sm">
+          <BookOpen className="h-4 w-4 text-primary" /> Révision
+        </h3>
+      </div>
+      <div className="flex-1 overflow-auto divide-y divide-border">
+        {reviews.map((rev) => {
+          const qCount = Array.isArray(rev.questions_json) ? rev.questions_json.length : 0;
+          return (
+            <div key={rev.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-semibold text-foreground text-sm truncate">{rev.title}</h4>
+                  <p className="text-xs text-muted-foreground mt-0.5">{qCount} Q · {rev.format}</p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate(`/active-learning?reviewId=${rev.id}`);
+                  }}
+                >
+                  <Play className="h-3.5 w-3.5 mr-1" /> Démarrer
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setLoading(true); setError(null); } }}>
       <DialogContent
@@ -205,7 +264,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
           </Button>
         </div>
 
-        {/* ===== MOBILE: single vertical scroll, doc full width then exercises below ===== */}
+        {/* ===== MOBILE: vertical stack ===== */}
         <div className="flex-1 overflow-y-auto md:hidden" style={{ overflowX: "hidden" }}>
           <div
             className="relative select-none bg-muted/20 w-full"
@@ -237,12 +296,17 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
+          {showRevisionPanel && (
+            <div className="w-full border-t border-border/50 bg-card">
+              <RevisionPanel />
+            </div>
+          )}
         </div>
 
         {/* ===== DESKTOP: horizontal split ===== */}
         <div className="hidden md:flex flex-1 overflow-hidden" style={{ height: "calc(92vh - 56px)" }}>
           <div
-            className={`relative select-none bg-muted/20 ${showExercisePanel ? "flex-1" : "w-full"} overflow-auto`}
+            className={`relative select-none bg-muted/20 ${showRevisionPanel ? "flex-1" : "w-full"} overflow-auto`}
             onContextMenu={(e) => e.preventDefault()}
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
@@ -279,6 +343,11 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
+          {showRevisionPanel && (
+            <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
+              <RevisionPanel />
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
