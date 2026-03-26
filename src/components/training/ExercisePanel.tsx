@@ -432,7 +432,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
             </Button>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Chapter reviews section - only when viewing a course */}
       {courseId && (
