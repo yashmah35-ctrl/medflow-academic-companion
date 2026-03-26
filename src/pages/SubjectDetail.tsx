@@ -350,7 +350,7 @@ export default function SubjectDetail() {
 
       {/* ═══════════ FOLDER LIST VIEW (no folderId) ═══════════ */}
       {!folderId ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* ── Dossiers de cours (LEFT) ── */}
           <div className="rounded-2xl border border-border bg-card overflow-hidden h-fit">
             <div className={`px-5 py-3 border-b border-border ${colors.light}`}>
