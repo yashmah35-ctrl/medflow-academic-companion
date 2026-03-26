@@ -167,14 +167,38 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
             let borderClass = "border-border";
             let bgClass = "bg-card";
 
+            let feedbackText = "";
+            let feedbackType: "correct" | "wrong" | "missed" | "" = "";
+
             if (showResults) {
               if (isQIM) {
-                const isCorrectAnswer = userAnswer ? ((userAnswer === "vrai") === p.isCorrect) : false;
-                if (userAnswer && isCorrectAnswer) { borderClass = "border-green-500"; bgClass = "bg-green-500/10"; }
-                else if (userAnswer && !isCorrectAnswer) { borderClass = "border-destructive"; bgClass = "bg-destructive/10"; }
+                const userSaysTrue = userAnswer === "vrai";
+                const userSaysFaux = userAnswer === "faux";
+                const hasAnswered = userAnswer === "vrai" || userAnswer === "faux";
+                if (hasAnswered && (userSaysTrue === p.isCorrect)) {
+                  borderClass = "border-green-500"; bgClass = "bg-green-500/10";
+                  feedbackText = "✓ Bonne réponse"; feedbackType = "correct";
+                } else if (hasAnswered && (userSaysTrue !== p.isCorrect)) {
+                  borderClass = "border-destructive"; bgClass = "bg-destructive/10";
+                  feedbackText = p.isCorrect ? "✗ C'est Vrai, pas Faux" : "✗ C'est Faux, pas Vrai";
+                  feedbackType = "wrong";
+                } else {
+                  // Not answered
+                  borderClass = "border-amber-500"; bgClass = "bg-amber-500/10";
+                  feedbackText = "⚠ Non répondu"; feedbackType = "missed";
+                }
               } else {
-                if (p.isCorrect) { borderClass = "border-green-500"; bgClass = "bg-green-500/10"; }
-                else if (userAnswer === "selected") { borderClass = "border-destructive"; bgClass = "bg-destructive/10"; }
+                const isSelected = userAnswer === "selected";
+                if (p.isCorrect && isSelected) {
+                  borderClass = "border-green-500"; bgClass = "bg-green-500/10";
+                  feedbackText = "✓ Bonne réponse"; feedbackType = "correct";
+                } else if (p.isCorrect && !isSelected) {
+                  borderClass = "border-amber-500"; bgClass = "bg-amber-500/10";
+                  feedbackText = "⚠ Vous auriez dû cocher"; feedbackType = "missed";
+                } else if (!p.isCorrect && isSelected) {
+                  borderClass = "border-destructive"; bgClass = "bg-destructive/10";
+                  feedbackText = "✗ Vous avez coché à tort"; feedbackType = "wrong";
+                }
               }
             }
 
