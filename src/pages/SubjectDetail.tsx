@@ -584,6 +584,8 @@ export default function SubjectDetail() {
             <motion.div variants={container} initial="hidden" animate="show" className="divide-y divide-border">
               {exercises.map((ex) => {
                 const qCount = Array.isArray(ex.questions_json) ? ex.questions_json.length : 0;
+                const score = exerciseScores[ex.id];
+                const scorePct = score && score.total > 0 ? Math.round((score.correct / score.total) * 100) : null;
                 return (
                   <motion.div key={ex.id} variants={item} className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
@@ -594,6 +596,14 @@ export default function SubjectDetail() {
                             <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
                           )}
                           <span className="text-xs text-muted-foreground">{qCount} Q</span>
+                          {scorePct !== null && (
+                            <Badge 
+                              variant={scorePct >= 70 ? "default" : "secondary"} 
+                              className={`text-[10px] ${scorePct >= 70 ? "bg-green-500/15 text-green-600 border-green-500/30" : scorePct >= 40 ? "bg-amber-500/15 text-amber-600 border-amber-500/30" : "bg-destructive/15 text-destructive border-destructive/30"}`}
+                            >
+                              {scorePct}%
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <Button
