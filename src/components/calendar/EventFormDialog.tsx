@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, X } from "lucide-react";
 import { format } from "date-fns";
@@ -38,16 +38,22 @@ export interface EventFormData {
   recurrenceOccurrences: number | null;
 }
 
+interface UserFolder {
+  id: string;
+  name: string;
+}
+
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: EventFormData) => void;
   subjects: Subject[];
+  userFolders?: UserFolder[];
   initialDate?: Date;
   initialHour?: number;
 }
 
-export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initialDate, initialHour }: EventFormDialogProps) {
+export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFolders = [], initialDate, initialHour }: EventFormDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -175,7 +181,8 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initia
               <SelectTrigger><SelectValue placeholder="Sélectionner une matière..." /></SelectTrigger>
               <SelectContent>
                 {subjects.length > 0 && (
-                  <>
+                  <SelectGroup>
+                    <SelectLabel className="text-xs font-bold text-primary">📚 Matières de la Prépa du Peuple</SelectLabel>
                     {subjects.map(s => (
                       <SelectItem key={s.id} value={s.id}>
                         <span className="flex items-center gap-2">
@@ -184,7 +191,20 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initia
                         </span>
                       </SelectItem>
                     ))}
-                  </>
+                  </SelectGroup>
+                )}
+                {userFolders.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel className="text-xs font-bold text-orange-500 mt-2">📁 Matières utilisateur</SelectLabel>
+                    {userFolders.map(f => (
+                      <SelectItem key={`folder-${f.id}`} value={`folder-${f.id}`}>
+                        <span className="flex items-center gap-2">
+                          <span>📁</span>
+                          <span>{f.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 )}
               </SelectContent>
             </Select>
