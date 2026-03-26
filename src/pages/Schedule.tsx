@@ -36,6 +36,19 @@ export default function Schedule() {
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check admin role
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "prepa_du_peuple")
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   // Fetch subjects
   useEffect(() => {
