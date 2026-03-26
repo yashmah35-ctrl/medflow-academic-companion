@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X } from "lucide-react";
+import { Plus, X, ChevronDown, BookOpen } from "lucide-react";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 const PRESET_COLORS = [
   "#3B82F6", "#EF4444", "#10B981", "#F59E0B",
@@ -43,6 +44,11 @@ interface UserFolder {
   name: string;
 }
 
+interface FolderCourse {
+  id: string;
+  title: string;
+}
+
 interface EventFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -68,8 +74,9 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
   const [customJ, setCustomJ] = useState("");
   const [recurrenceN, setRecurrenceN] = useState<string>("");
   const [recurrenceOcc, setRecurrenceOcc] = useState<string>("");
+  const [folderCourses, setFolderCourses] = useState<FolderCourse[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
-  // Reset form with correct initial values when dialog opens
   useEffect(() => {
     if (open) {
       const now = initialDate || new Date();
@@ -88,14 +95,34 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
       setCustomJ("");
       setRecurrenceN("");
       setRecurrenceOcc("");
+      setFolderCourses([]);
+      setSelectedCourseId(null);
     }
   }, [open, initialDate, initialHour]);
+
+  // Fetch courses when a user folder is selected
+  useEffect(() => {
+    if (!subjectId || !subjectId.startsWith("folder-")) {
+      setFolderCourses([]);
+      setSelectedCourseId(null);
+      return;
+    }
+    const folderId = subjectId.replace("folder-", "");
+    supabase
+      .from("courses")
+      .select("id, title")
+      .eq("folder_id", folderId)
+      .then(({ data }) => {
+        setFolderCourses(data || []);
+      });
+  }, [subjectId]);
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setSubjectId(null); setCustomColor("");
     setTags([]); setNewTag(""); setSpacedDays([]); setCustomJ("");
     setRecurrenceN(""); setRecurrenceOcc("");
     setStartDate(""); setStartTime(""); setEndDate(""); setEndTime("");
+    setFolderCourses([]); setSelectedCourseId(null);
   };
 
   const handleSubmit = () => {
@@ -144,6 +171,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
             </div>
             <DialogTitle className="text-lg font-semibold">Nouvel événement</DialogTitle>
           </div>
+          <DialogDescription className="sr-only">Formulaire de création d'événement</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 pt-2">
@@ -171,31 +199,39 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
             </div>
           </div>
 
-          {/* Subject & Color */}
-          <p className="text-xs text-muted-foreground flex items-center gap-1">
-            💡 Choisissez soit une matière (avec sa couleur), soit une couleur personnalisée
-          </p>
-          <div className="space-y-1.5">
-            <Label className="font-semibold">Matière</Label>
-            <Select value={subjectId || ""} onValueChange={(v) => { setSubjectId(v || null); setCustomColor(""); }}>
-              <SelectTrigger><SelectValue placeholder="Sélectionner une matière..." /></SelectTrigger>
-              <SelectContent>
-                {subjects.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel className="text-xs font-bold text-primary">📚 Matières de la Prépa du Peuple</SelectLabel>
-                    {subjects.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        <span className="flex items-center gap-2">
-                          <span>{s.icon}</span>
-                          <span>{s.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-                {userFolders.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel className="text-xs font-bold text-orange-500 mt-2">📁 Matières utilisateur</SelectLabel>
+          {/* Subject selection - two groups */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="font-semibold text-primary flex items-center gap-2">
+                📚 Matières de la Prépa du Peuple
+              </Label>
+              <Select value={subjectId && !subjectId.startsWith("folder-") ? subjectId : ""} onValueChange={(v) => { setSubjectId(v || null); setCustomColor(""); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une matière..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <span className="flex items-center gap-2">
+                        <span>{s.icon}</span>
+                        <span>{s.name}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {userFolders.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="font-semibold text-orange-500 flex items-center gap-2">
+                  📁 Matières utilisateur
+                </Label>
+                <Select value={subjectId?.startsWith("folder-") ? subjectId : ""} onValueChange={(v) => { setSubjectId(v || null); setCustomColor(""); }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un dossier..." />
+                  </SelectTrigger>
+                  <SelectContent>
                     {userFolders.map(f => (
                       <SelectItem key={`folder-${f.id}`} value={`folder-${f.id}`}>
                         <span className="flex items-center gap-2">
@@ -204,17 +240,49 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
                         </span>
                       </SelectItem>
                     ))}
-                  </SelectGroup>
-                )}
-              </SelectContent>
-            </Select>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Show courses inside selected folder */}
+            {folderCourses.length > 0 && (
+              <div className="space-y-1.5 pl-2 border-l-2 border-orange-300">
+                <Label className="text-sm text-muted-foreground flex items-center gap-1">
+                  <BookOpen className="h-3.5 w-3.5" /> Cours dans ce dossier
+                </Label>
+                <div className="space-y-1 max-h-32 overflow-y-auto">
+                  {folderCourses.map(c => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCourseId(c.id === selectedCourseId ? null : c.id);
+                        if (!title.trim()) setTitle(c.title);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 ${
+                        selectedCourseId === c.id
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "hover:bg-muted text-foreground"
+                      }`}
+                    >
+                      <BookOpen className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{c.title}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Custom color */}
           <div className="space-y-1.5">
             <Label className="font-semibold">Couleur personnalisée</Label>
             <div className="flex flex-wrap gap-2 mt-1">
               {PRESET_COLORS.map(c => (
                 <button
                   key={c}
+                  type="button"
                   className={`h-8 w-8 rounded-full border-2 transition-all ${customColor === c ? "border-foreground scale-110 ring-2 ring-primary/30" : "border-transparent hover:scale-105"}`}
                   style={{ backgroundColor: c }}
                   onClick={() => { setCustomColor(c); setSubjectId(null); }}
@@ -248,6 +316,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
               {SPACED_REPETITION_DAYS.map(d => (
                 <button
                   key={d}
+                  type="button"
                   onClick={() => toggleSpacedDay(d)}
                   className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
                     spacedDays.includes(d) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-foreground hover:bg-muted"
@@ -277,7 +346,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
                 <Input placeholder="Ex: 5" value={recurrenceOcc} onChange={(e) => setRecurrenceOcc(e.target.value)} />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Ex.: Tous les 2 jours pendant 5 occurrences créera 4 événements supplémentaires à J+2, J+4, J+6, J+8.</p>
           </div>
 
           {/* Actions */}
