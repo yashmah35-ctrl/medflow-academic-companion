@@ -502,9 +502,56 @@ export default function SubjectDetail() {
           {/* ── Séries d'exercices (RIGHT) ── */}
           <div className="rounded-2xl border border-border bg-card overflow-hidden h-fit">
             <div className="px-5 py-3 border-b border-border bg-accent/30">
+            <div className="flex items-center gap-2">
               <h2 className="font-bold text-foreground flex items-center gap-2">
                 <Dumbbell className="h-5 w-5" /> Séries d'exercices
               </h2>
+              {isAdmin && (
+                <Dialog open={newExDialogOpen} onOpenChange={setNewExDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="ml-auto">
+                      <Plus className="h-4 w-4 mr-1" /> Nouvel exercice
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Nouvel exercice</DialogTitle>
+                      <DialogDescription>
+                        Créer un exercice pour {subject.name}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">Titre</label>
+                        <Input
+                          placeholder="Ex: 3ème Colle de Chimie"
+                          value={newExTitle}
+                          onChange={(e) => setNewExTitle(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handleCreateExercise()}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-1.5 block">Format</label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-border has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                            <input type="radio" name="format" value="QCM" checked={newExFormat === "QCM"} onChange={() => setNewExFormat("QCM")} className="accent-primary" />
+                            <span className="text-sm">QCM</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-border has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                            <input type="radio" name="format" value="QIM" checked={newExFormat === "QIM"} onChange={() => setNewExFormat("QIM")} className="accent-primary" />
+                            <span className="text-sm">QIM</span>
+                          </label>
+                        </div>
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setNewExDialogOpen(false)}>Annuler</Button>
+                        <Button onClick={handleCreateExercise}>Créer</Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
             </div>
 
             <motion.div variants={container} initial="hidden" animate="show" className="divide-y divide-border">
