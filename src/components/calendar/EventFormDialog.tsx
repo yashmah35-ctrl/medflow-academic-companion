@@ -285,7 +285,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
                   type="button"
                   className={`h-8 w-8 rounded-full border-2 transition-all ${customColor === c ? "border-foreground scale-110 ring-2 ring-primary/30" : "border-transparent hover:scale-105"}`}
                   style={{ backgroundColor: c }}
-                  onClick={() => { setCustomColor(c); setSubjectId(null); }}
+                  onClick={() => setCustomColor(prev => prev === c ? "" : c)}
                 />
               ))}
             </div>
