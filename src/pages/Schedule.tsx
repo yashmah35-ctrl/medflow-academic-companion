@@ -1,330 +1,193 @@
-import { motion } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { scheduleBlocks, days, subjectColorMap, subjects, type SubjectColor, type ScheduleBlock } from "@/data/mockData";
-import { Trash2, AlertCircle, CheckCircle2, Plus, Circle, CircleDot, CircleCheck } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, format, parseISO } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
+import { CalendarHeader, type CalendarView } from "@/components/calendar/CalendarHeader";
+import { MonthView, type CalendarEvent } from "@/components/calendar/MonthView";
+import { WeekView } from "@/components/calendar/WeekView";
+import { DayView } from "@/components/calendar/DayView";
+import { EventFormDialog, type EventFormData } from "@/components/calendar/EventFormDialog";
 
-const hours = Array.from({ length: 24 }, (_, i) => i);
-
-const typeColors: Record<string, string> = {
-  Découverte: "bg-info/10 text-info",
-  Révision: "bg-warning/10 text-warning",
-  Flashcards: "bg-primary/10 text-primary",
-  "Erreurs à revoir": "bg-destructive/10 text-destructive",
-};
-
-type CompletionStatus = "not_done" | "partial" | "done";
-
-const completionConfig: Record<CompletionStatus, { icon: typeof Circle; label: string; className: string }> = {
-  not_done: { icon: Circle, label: "Pas fait", className: "text-muted-foreground hover:text-destructive" },
-  partial: { icon: CircleDot, label: "Partiellement", className: "text-warning" },
-  done: { icon: CircleCheck, label: "Terminé", className: "text-success" },
-};
-
-const statusCycle: CompletionStatus[] = ["not_done", "partial", "done"];
-
-const blockTypes: ScheduleBlock["type"][] = ["Découverte", "Révision", "Flashcards", "Erreurs à revoir"];
+interface DbSubject {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+}
 
 export default function Schedule() {
   const { user } = useAuth();
-  const [blocks, setBlocks] = useState<ScheduleBlock[]>(() => {
-    try {
-      const saved = localStorage.getItem("schedule-blocks");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return scheduleBlocks;
-  });
-  const [draggedBlock, setDraggedBlock] = useState<string | null>(null);
-  const [completionMap, setCompletionMap] = useState<Record<string, CompletionStatus>>(() => {
-    try {
-      const saved = localStorage.getItem("schedule-completion");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return {};
-  });
+  const [view, setView] = useState<CalendarView>("month");
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [subjects, setSubjects] = useState<DbSubject[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogInitialDate, setDialogInitialDate] = useState<Date | undefined>();
+  const [dialogInitialHour, setDialogInitialHour] = useState<number | undefined>();
+  const [loading, setLoading] = useState(true);
 
-  // New block form state
-  const [newTitle, setNewTitle] = useState("");
-  const [newSubjectColor, setNewSubjectColor] = useState<SubjectColor>("chemistry");
-  const [newHours, setNewHours] = useState(1);
-  const [newMinutes, setNewMinutes] = useState(0);
-  const [newType, setNewType] = useState<ScheduleBlock["type"]>("Découverte");
-  const [newDay, setNewDay] = useState(0);
-  const [newHour, setNewHour] = useState(8);
-
+  // Fetch subjects
   useEffect(() => {
-    localStorage.setItem("schedule-blocks", JSON.stringify(blocks));
-  }, [blocks]);
-
-  // Compute progress status
-  const totalBlocks = blocks.length;
-  const doneCount = Object.values(completionMap).filter((s) => s === "done").length;
-  const partialCount = Object.values(completionMap).filter((s) => s === "partial").length;
-  const progressRatio = totalBlocks > 0 ? (doneCount + partialCount * 0.5) / totalBlocks : 0;
-  const behindSchedule = totalBlocks > 0 && progressRatio < 0.5;
-
-  const removeBlock = (id: string) => {
-    setBlocks((prev) => prev.filter((b) => b.id !== id));
-    setCompletionMap((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      localStorage.setItem("schedule-completion", JSON.stringify(next));
-      return next;
+    supabase.from("subjects").select("id, name, icon, color").then(({ data }) => {
+      if (data) setSubjects(data);
     });
+  }, []);
+
+  // Fetch events
+  const fetchEvents = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("schedule_blocks")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("deleted_by_user", false);
+
+    if (error) {
+      toast({ title: "Erreur", description: "Impossible de charger les événements", variant: "destructive" });
+    } else {
+      setEvents(
+        (data || []).map((b: any) => ({
+          id: b.id,
+          title: b.title,
+          description: b.description || "",
+          scheduled_date: b.scheduled_date,
+          start_hour: b.start_hour,
+          start_minutes: b.start_minutes || 0,
+          end_hour: b.end_hour,
+          end_minutes: b.end_minutes || 0,
+          duration_minutes: b.duration_minutes,
+          color: b.color || "#3B82F6",
+          tags: b.tags || [],
+          completed: b.completed,
+          type: b.type,
+        }))
+      );
+    }
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  // Navigation
+  const goNext = () => {
+    if (view === "month") setCurrentDate(prev => addMonths(prev, 1));
+    else if (view === "week") setCurrentDate(prev => addWeeks(prev, 1));
+    else setCurrentDate(prev => addDays(prev, 1));
+  };
+  const goPrev = () => {
+    if (view === "month") setCurrentDate(prev => subMonths(prev, 1));
+    else if (view === "week") setCurrentDate(prev => subWeeks(prev, 1));
+    else setCurrentDate(prev => subDays(prev, 1));
+  };
+  const goToday = () => setCurrentDate(new Date());
+
+  // Open dialog
+  const openAddEvent = (date?: Date, hour?: number) => {
+    setDialogInitialDate(date);
+    setDialogInitialHour(hour);
+    setDialogOpen(true);
   };
 
-  const cycleCompletion = (id: string) => {
-    setCompletionMap((prev) => {
-      const current = prev[id] || "not_done";
-      const idx = statusCycle.indexOf(current);
-      const next = statusCycle[(idx + 1) % statusCycle.length];
-      const updated = { ...prev, [id]: next };
-      localStorage.setItem("schedule-completion", JSON.stringify(updated));
-      return updated;
-    });
-  };
+  // Create event(s)
+  const handleCreateEvent = async (data: EventFormData) => {
+    if (!user) return;
 
-  const handleDragStart = (blockId: string) => setDraggedBlock(blockId);
+    const [startH, startM] = data.startTime.split(":").map(Number);
+    const [endH, endM] = data.endTime.split(":").map(Number);
+    const durationMin = (endH * 60 + endM) - (startH * 60 + startM);
 
-  const handleDrop = (dayIdx: number, hour: number) => {
-    if (!draggedBlock) return;
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === draggedBlock ? { ...b, day: dayIdx, hour } : b))
-    );
-    setDraggedBlock(null);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
-
-  const handleAddBlock = () => {
-    if (!newTitle.trim()) return;
-    const durationStr =
-      newHours > 0 && newMinutes > 0
-        ? `${newHours}h${String(newMinutes).padStart(2, "0")}`
-        : newHours > 0
-        ? `${newHours}h`
-        : `${newMinutes}min`;
-
-    const newBlock: ScheduleBlock = {
-      id: `manual-${Date.now()}`,
-      subjectColor: newSubjectColor,
-      title: newTitle.trim(),
-      duration: durationStr,
-      type: newType,
-      day: newDay,
-      hour: newHour,
+    const baseEvent = {
+      user_id: user.id,
+      title: data.title,
+      description: data.description || null,
+      start_hour: startH,
+      start_minutes: startM,
+      end_hour: endH,
+      end_minutes: endM,
+      duration_minutes: Math.max(durationMin, 15),
+      color: data.color,
+      tags: data.tags,
+      type: "Découverte" as string,
     };
-    setBlocks((prev) => [...prev, newBlock]);
-    setNewTitle("");
-    setNewHours(1);
-    setNewMinutes(0);
-    setNewType("Découverte");
-    setDialogOpen(false);
+
+    // Collect all dates: base + spaced repetition + recurrence
+    const dates: string[] = [data.startDate];
+    const baseDate = parseISO(data.startDate);
+
+    // Spaced repetition
+    for (const d of data.spacedRepetitionDays) {
+      dates.push(format(addDays(baseDate, d), "yyyy-MM-dd"));
+    }
+
+    // Recurrence
+    if (data.recurrenceEveryNDays && data.recurrenceOccurrences) {
+      for (let i = 1; i < data.recurrenceOccurrences; i++) {
+        dates.push(format(addDays(baseDate, data.recurrenceEveryNDays * i), "yyyy-MM-dd"));
+      }
+    }
+
+    const rows = dates.map(d => ({ ...baseEvent, scheduled_date: d }));
+
+    const { error } = await supabase.from("schedule_blocks").insert(rows);
+    if (error) {
+      toast({ title: "Erreur", description: "Impossible de créer l'événement", variant: "destructive" });
+    } else {
+      toast({ title: "Événement créé", description: `${rows.length} événement${rows.length > 1 ? "s" : ""} ajouté${rows.length > 1 ? "s" : ""}` });
+      setDialogOpen(false);
+      fetchEvents();
+    }
   };
 
-  const subjectOptions = subjects.map((s) => ({ name: s.name, color: s.color as SubjectColor, icon: s.icon }));
+  // Event click -> toggle completion
+  const handleEventClick = async (event: CalendarEvent) => {
+    const { error } = await supabase
+      .from("schedule_blocks")
+      .update({ completed: !event.completed })
+      .eq("id", event.id);
+    if (!error) fetchEvents();
+  };
+
+  // Day click -> switch to day view or open dialog
+  const handleDayClick = (date: Date) => {
+    setCurrentDate(date);
+    setView("day");
+  };
+
+  const handleSlotClick = (date: Date, hour: number) => openAddEvent(date, hour);
+  const handleDaySlotClick = (hour: number) => openAddEvent(currentDate, hour);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Emploi du Temps</h1>
-          <p className="text-muted-foreground mt-1">
-            Ton planning de révision intelligent basé sur la répétition espacée.
-          </p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" />
-              Ajouter un bloc
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Ajouter une session</DialogTitle>
-              <DialogDescription>Crée un bloc de révision personnalisé dans ton emploi du temps.</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 pt-2">
-              <div className="space-y-2">
-                <Label>Titre</Label>
-                <Input placeholder="Ex: Chimie Organique - Chap 3" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Matière</Label>
-                <Select value={newSubjectColor} onValueChange={(v) => setNewSubjectColor(v as SubjectColor)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {subjectOptions.map((s) => (
-                      <SelectItem key={s.color + s.name} value={s.color}>
-                        {s.icon} {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Heures</Label>
-                  <Input type="number" min={0} max={12} value={newHours} onChange={(e) => setNewHours(Number(e.target.value))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Minutes</Label>
-                  <Input type="number" min={0} max={59} step={5} value={newMinutes} onChange={(e) => setNewMinutes(Number(e.target.value))} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select value={newType} onValueChange={(v) => setNewType(v as ScheduleBlock["type"])}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {blockTypes.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Jour</Label>
-                  <Select value={String(newDay)} onValueChange={(v) => setNewDay(Number(v))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {days.slice(0, 7).map((d, i) => (
-                        <SelectItem key={i} value={String(i)}>{d}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Heure</Label>
-                  <Select value={String(newHour)} onValueChange={(v) => setNewHour(Number(v))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {hours.map((h) => (
-                        <SelectItem key={h} value={String(h)}>{String(h).padStart(2, "0")}:00</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button className="w-full" onClick={handleAddBlock} disabled={!newTitle.trim()}>
-                Ajouter au planning
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+    <div className="space-y-4">
+      <CalendarHeader
+        currentDate={currentDate}
+        view={view}
+        onViewChange={setView}
+        onPrev={goPrev}
+        onNext={goNext}
+        onToday={goToday}
+        onAddEvent={() => openAddEvent()}
+      />
 
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`flex items-center gap-3 rounded-xl border p-4 ${
-          behindSchedule ? "border-destructive/30 bg-destructive/5" : "border-success/30 bg-success/5"
-        }`}
-      >
-        {behindSchedule ? <AlertCircle className="h-5 w-5 text-destructive" /> : <CheckCircle2 className="h-5 w-5 text-success" />}
-        <div className="flex-1">
-          <p className="text-sm font-medium">
-            {behindSchedule
-              ? "Tu as du retard sur ton planning. Il est temps de s'y remettre !"
-              : "Tu es à jour ! Continue comme ça 💪"}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {doneCount} terminé{doneCount > 1 ? "s" : ""} · {partialCount} partiel{partialCount > 1 ? "s" : ""} · {totalBlocks - doneCount - partialCount} restant{totalBlocks - doneCount - partialCount > 1 ? "s" : ""} — Clique sur le ● pour marquer l'avancement
-          </p>
-        </div>
-      </motion.div>
+      {loading ? (
+        <div className="flex items-center justify-center h-64 text-muted-foreground">Chargement...</div>
+      ) : (
+        <>
+          {view === "month" && <MonthView currentDate={currentDate} events={events} onDayClick={handleDayClick} onEventClick={handleEventClick} />}
+          {view === "week" && <WeekView currentDate={currentDate} events={events} onSlotClick={handleSlotClick} onEventClick={handleEventClick} />}
+          {view === "day" && <DayView currentDate={currentDate} events={events} onSlotClick={handleDaySlotClick} onEventClick={handleEventClick} />}
+        </>
+      )}
 
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
-          <div className="grid grid-cols-8 gap-1 mb-2">
-            <div className="text-xs text-muted-foreground font-medium p-2">Heure</div>
-            {days.slice(0, 7).map((day, i) => (
-              <div key={i} className="text-xs text-muted-foreground font-medium p-2 text-center">{day}</div>
-            ))}
-          </div>
-
-          {hours.map((hour) => (
-            <div key={hour} className="grid grid-cols-8 gap-1 mb-1">
-              <div className="text-xs text-muted-foreground p-2 flex items-start">
-                {String(hour).padStart(2, "0")}:00
-              </div>
-              {Array.from({ length: 7 }, (_, dayIdx) => {
-                const block = blocks.find((b) => b.day === dayIdx && b.hour === hour);
-                if (!block) {
-                  return (
-                    <div
-                      key={dayIdx}
-                      className="min-h-[52px] rounded-lg border border-border/40 bg-muted/20"
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDrop(dayIdx, hour)}
-                    />
-                  );
-                }
-                const colors = subjectColorMap[block.subjectColor];
-                const status = completionMap[block.id] || "not_done";
-                const StatusIcon = completionConfig[status].icon;
-
-                return (
-                  <motion.div
-                    key={dayIdx}
-                    draggable
-                    onDragStart={() => handleDragStart(block.id)}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className={`min-h-[52px] rounded-lg ${colors.light} border border-border/30 p-2 flex flex-col justify-between group cursor-grab active:cursor-grabbing ${status === "done" ? "opacity-60" : ""}`}
-                    onDragOver={handleDragOver}
-                    onDrop={() => handleDrop(dayIdx, hour)}
-                  >
-                    <div>
-                      <p className={`text-xs font-medium text-foreground leading-tight line-clamp-2 ${status === "done" ? "line-through" : ""}`}>{block.title}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{block.duration}</p>
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <Badge className={`text-[9px] px-1.5 py-0 ${typeColors[block.type]}`} variant="secondary">{block.type}</Badge>
-                      <div className="flex gap-0.5 items-center">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className={`h-5 w-5 ${completionConfig[status].className}`}
-                          onClick={(e) => { e.stopPropagation(); cycleCompletion(block.id); }}
-                          title={completionConfig[status].label}
-                        >
-                          <StatusIcon className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={(e) => { e.stopPropagation(); removeBlock(block.id); }}
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
+      <EventFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleCreateEvent}
+        subjects={subjects}
+        initialDate={dialogInitialDate}
+        initialHour={dialogInitialHour}
+      />
     </div>
   );
 }
