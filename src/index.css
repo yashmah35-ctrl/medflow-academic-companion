@@ -6,84 +6,84 @@
 
 @layer base {
   :root {
-    --background: 220 30% 12%;
-    --foreground: 210 20% 95%;
+    --background: 220 20% 97%;
+    --foreground: 220 30% 15%;
 
-    --card: 220 30% 16%;
-    --card-foreground: 210 20% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 15%;
 
-    --popover: 220 30% 16%;
-    --popover-foreground: 210 20% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 15%;
 
-    --primary: 220 70% 55%;
+    --primary: 220 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 25% 22%;
-    --secondary-foreground: 210 20% 90%;
+    --secondary: 220 15% 92%;
+    --secondary-foreground: 220 25% 25%;
 
-    --muted: 220 25% 20%;
-    --muted-foreground: 215 15% 60%;
+    --muted: 220 15% 94%;
+    --muted-foreground: 215 15% 45%;
 
-    --accent: 220 40% 24%;
-    --accent-foreground: 210 30% 90%;
+    --accent: 220 15% 90%;
+    --accent-foreground: 220 25% 20%;
 
-    --destructive: 0 72% 55%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 25% 22%;
-    --input: 220 25% 22%;
-    --ring: 220 70% 55%;
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 220 70% 50%;
 
     --radius: 0.75rem;
 
     /* Subject colors */
-    --subject-chemistry: 340 75% 60%;
-    --subject-chemistry-light: 340 40% 22%;
-    --subject-cellbio: 45 85% 55%;
-    --subject-cellbio-light: 45 40% 20%;
-    --subject-biophysics: 175 65% 42%;
-    --subject-biophysics-light: 175 35% 20%;
-    --subject-anatomy: 25 65% 55%;
-    --subject-anatomy-light: 25 35% 20%;
-    --subject-histology: 270 55% 58%;
-    --subject-histology-light: 270 30% 22%;
-    --subject-physiology: 145 55% 42%;
-    --subject-physiology-light: 145 30% 20%;
-    --subject-pharmacology: 210 60% 55%;
-    --subject-pharmacology-light: 210 35% 22%;
-    --subject-embryology: 15 70% 60%;
-    --subject-embryology-light: 15 35% 20%;
-    --subject-biomolgen: 280 60% 55%;
-    --subject-biomolgen-light: 280 30% 22%;
-    --subject-shs: 260 45% 55%;
-    --subject-shs-light: 260 25% 22%;
-    --subject-biostatistique: 200 70% 50%;
-    --subject-biostatistique-light: 200 35% 20%;
-    --subject-medicament: 350 60% 65%;
-    --subject-medicament-light: 350 30% 22%;
-    --subject-santepublique: 0 55% 55%;
-    --subject-santepublique-light: 0 30% 20%;
-    --subject-microbiologie: 80 55% 45%;
-    --subject-microbiologie-light: 80 30% 20%;
-    --subject-specialite: 210 40% 60%;
-    --subject-specialite-light: 210 25% 22%;
+    --subject-chemistry: 340 75% 55%;
+    --subject-chemistry-light: 340 40% 94%;
+    --subject-cellbio: 45 85% 50%;
+    --subject-cellbio-light: 45 50% 94%;
+    --subject-biophysics: 175 65% 38%;
+    --subject-biophysics-light: 175 40% 94%;
+    --subject-anatomy: 25 65% 50%;
+    --subject-anatomy-light: 25 40% 94%;
+    --subject-histology: 270 55% 55%;
+    --subject-histology-light: 270 35% 94%;
+    --subject-physiology: 145 55% 38%;
+    --subject-physiology-light: 145 35% 94%;
+    --subject-pharmacology: 210 60% 50%;
+    --subject-pharmacology-light: 210 40% 94%;
+    --subject-embryology: 15 70% 55%;
+    --subject-embryology-light: 15 40% 94%;
+    --subject-biomolgen: 280 60% 50%;
+    --subject-biomolgen-light: 280 35% 94%;
+    --subject-shs: 260 45% 50%;
+    --subject-shs-light: 260 30% 94%;
+    --subject-biostatistique: 200 70% 45%;
+    --subject-biostatistique-light: 200 40% 94%;
+    --subject-medicament: 350 60% 58%;
+    --subject-medicament-light: 350 35% 94%;
+    --subject-santepublique: 0 55% 50%;
+    --subject-santepublique-light: 0 35% 94%;
+    --subject-microbiologie: 80 55% 40%;
+    --subject-microbiologie-light: 80 35% 94%;
+    --subject-specialite: 210 40% 55%;
+    --subject-specialite-light: 210 30% 94%;
 
     /* Sidebar */
-    --sidebar-background: 220 35% 10%;
+    --sidebar-background: 220 25% 18%;
     --sidebar-foreground: 210 20% 75%;
     --sidebar-primary: 220 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 40% 20%;
+    --sidebar-accent: 220 35% 25%;
     --sidebar-accent-foreground: 210 30% 90%;
-    --sidebar-border: 220 25% 18%;
+    --sidebar-border: 220 25% 24%;
     --sidebar-ring: 220 70% 55%;
 
     /* Custom */
-    --success: 145 55% 42%;
+    --success: 145 55% 38%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 55%;
+    --warning: 38 92% 50%;
     --warning-foreground: 38 92% 15%;
-    --info: 210 60% 55%;
+    --info: 210 60% 50%;
     --info-foreground: 0 0% 100%;
   }
 }
