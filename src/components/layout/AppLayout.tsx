@@ -15,7 +15,7 @@ export function AppLayout() {
         <AppSidebar />
       </div>
 
-      <div className="flex flex-1 flex-col md:ml-[240px] transition-all duration-300" id="main-content">
+      <div className="flex flex-1 flex-col md:ml-[68px] transition-all duration-300" id="main-content">
         <TopBar />
         <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
           <Outlet />
