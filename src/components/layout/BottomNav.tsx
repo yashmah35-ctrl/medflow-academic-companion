@@ -57,6 +57,7 @@ const studentTabs: Tab[] = [
 
 const adminTabs: Tab[] = [
   { title: "Matières", path: "/", icon: BookOpen },
+  { title: "Planning", path: "/schedule", icon: Calendar },
   { title: "Annonces", path: "/announcements", icon: Megaphone },
   { title: "Affiliés", path: "/affiliates", icon: Users },
   { title: "Réglages", path: "/settings", icon: Settings },
