@@ -91,6 +91,7 @@ export default function SubjectDetail() {
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [folderCourseCounts, setFolderCourseCounts] = useState<Record<string, number>>({});
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
+  const [exerciseScores, setExerciseScores] = useState<Record<string, { correct: number; total: number }>>({});
   const [newExDialogOpen, setNewExDialogOpen] = useState(false);
   const [newExTitle, setNewExTitle] = useState("");
   const [newExFormat, setNewExFormat] = useState<"QCM" | "QIM">("QCM");
