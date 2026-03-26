@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, X, FileText } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { ExercisePanel } from "@/components/training/ExercisePanel";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SecurePdfViewerProps {
   open: boolean;
