@@ -40,9 +40,10 @@ interface ExercisePanelProps {
   subjectId: string;
   courseId?: string;
   subjectName: string;
+  hideExercises?: boolean;
 }
 
-export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePanelProps) {
+export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises = false }: ExercisePanelProps) {
   const { user, isAdmin } = useAuth();
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
   const [reviews, setReviews] = useState<ChapterReview[]>([]);
@@ -363,7 +364,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
   return (
     <div className="h-full overflow-y-auto space-y-6 p-4">
       {/* Exercises section */}
-      <div>
+      {!hideExercises && <div>
         <div className="flex items-center gap-2 mb-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
             <Dumbbell className="h-4 w-4 text-destructive" />
@@ -431,7 +432,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePane
             </Button>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Chapter reviews section - only when viewing a course */}
       {courseId && (
