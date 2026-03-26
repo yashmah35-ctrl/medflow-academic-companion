@@ -48,7 +48,7 @@ function AppRoutes() {
         <Route path="/" element={<Index />} />
         <Route path="/subject/:subjectId" element={<SubjectDetail />} />
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />
-        <Route path="/schedule" element={<AdminBlockedRoute><Schedule /></AdminBlockedRoute>} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="/learning" element={<AdminBlockedRoute><ActiveLearning /></AdminBlockedRoute>} />
         <Route path="/errors" element={<AdminBlockedRoute><PremiumPaywall><ErrorNotebook /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/kholles" element={<AdminBlockedRoute><PremiumPaywall><Kholles /></PremiumPaywall></AdminBlockedRoute>} />
