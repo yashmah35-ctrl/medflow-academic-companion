@@ -252,6 +252,13 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
                       : userAnswer === "selected" ? <XCircle className="h-4 w-4 text-destructive" /> : null
                   )}
                 </button>
+                {showResults && feedbackText && (
+                  <div className={`ml-8 mt-0.5 px-3 py-1 text-[10px] font-medium ${
+                    feedbackType === "correct" ? "text-green-600" : feedbackType === "wrong" ? "text-destructive" : "text-amber-600"
+                  }`}>
+                    {feedbackText}
+                  </div>
+                )}
                 {showResults && p.explanation && (
                   <div className={`ml-8 mt-0.5 rounded-b-lg border border-t-0 px-3 py-1.5 text-[10px] ${p.isCorrect ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
                     <span className={`font-semibold ${p.isCorrect ? "text-green-600" : "text-destructive"}`}>{p.isCorrect ? "VRAI" : "FAUX"}</span>{" "}
