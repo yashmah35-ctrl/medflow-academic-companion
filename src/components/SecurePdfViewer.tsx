@@ -16,9 +16,11 @@ interface SecurePdfViewerProps {
   subjectId?: string;
   subjectName?: string;
   courseId?: string;
+  folderId?: string;
 }
 
-export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
+export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId, folderId }: SecurePdfViewerProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
