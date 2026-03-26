@@ -1,20 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2, X, FileText, BookOpen, Play, Plus } from "lucide-react";
+import { Loader2, X, FileText } from "lucide-react";
 import { renderAsync } from "docx-preview";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
-
-interface ChapterReview {
-  id: string;
-  title: string;
-  format: string;
-  questions_json: any[] | null;
-}
+import { ExercisePanel } from "@/components/training/ExercisePanel";
 
 interface SecurePdfViewerProps {
   open: boolean;
