@@ -350,52 +350,67 @@ export default function SubjectDetail() {
 
       {/* ═══════════ FOLDER LIST VIEW (no folderId) ═══════════ */}
       {!folderId ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* ── Dossiers de cours (LEFT) ── */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden h-fit">
-            <div className={`px-5 py-3 border-b border-border ${colors.light}`}>
-              <div className="flex items-center justify-between">
-                <h2 className="font-bold text-foreground flex items-center gap-2">
-                  <BookOpen className="h-5 w-5" /> Dossiers de cours
-                </h2>
-                {canCreateFolder && (
-                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <FolderPlus className="h-4 w-4 mr-1" /> Nouveau
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Créer un nouveau dossier {isAdmin ? "public" : "privé"}</DialogTitle>
-                        <DialogDescription className="sr-only">Formulaire de création de dossier</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4 pt-2">
-                        <Input
-                          placeholder="Nom du dossier"
-                          value={newFolderName}
-                          onChange={(e) => setNewFolderName(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && handleAddFolder()}
-                        />
-                        <Button onClick={handleAddFolder} className="w-full">Créer</Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
+        <div className="space-y-8">
+          {/* ── Dossiers de cours (Cards) ── */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
+                <BookOpen className="h-5 w-5" /> Dossiers de cours
+              </h2>
+              {canCreateFolder && (
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <FolderPlus className="h-4 w-4 mr-1" /> Nouveau
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Créer un nouveau dossier {isAdmin ? "public" : "privé"}</DialogTitle>
+                      <DialogDescription className="sr-only">Formulaire de création de dossier</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <Input
+                        placeholder="Nom du dossier"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAddFolder()}
+                      />
+                      <Button onClick={handleAddFolder} className="w-full">Créer</Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
 
-            <motion.div variants={container} initial="hidden" animate="show" className="divide-y divide-border">
+            <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {dbFolders.map((folder) => {
                 const isOwner = folder.created_by === user?.id;
+                const courseCount = folderCourseCounts[folder.id] ?? 0;
                 return (
                   <motion.div
                     key={folder.id}
                     variants={item}
-                    className="flex items-center gap-3 px-5 py-3.5 hover:bg-muted/50 transition-colors cursor-pointer group"
+                    className="group relative rounded-2xl border border-border bg-accent/20 overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
                     onClick={() => navigate(`/subject/${subjectId}/folder/${folder.id}`)}
                   >
-                    <div className="min-w-0 flex-1">
+                    {/* Card content */}
+                    <div className="p-5 pb-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] bg-background/80">
+                            Cours
+                          </Badge>
+                          {folder.is_public && (
+                            <Badge variant="secondary" className="text-[10px]">Public</Badge>
+                          )}
+                        </div>
+                        {/* Folder icon placeholder */}
+                        <div className={`h-14 w-14 rounded-lg ${colors.light} flex items-center justify-center text-2xl opacity-60`}>
+                          📄
+                        </div>
+                      </div>
+
                       {renamingFolder === folder.id ? (
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <Input
@@ -409,19 +424,29 @@ export default function SubjectDetail() {
                           <Button size="sm" variant="ghost" onClick={() => setRenamingFolder(null)}>✕</Button>
                         </div>
                       ) : (
-                        <>
-                          <h3 className="font-semibold text-foreground text-sm">{folder.name}</h3>
-                          <span className="text-xs text-muted-foreground">{folderCourseCounts[folder.id] ?? 0} Cours</span>
-                        </>
+                        <h3 className="font-bold text-foreground text-base mb-2 line-clamp-2">{folder.name}</h3>
                       )}
+
+                      <p className="text-xs text-muted-foreground mb-3">
+                        📂 {courseCount} Cours
+                      </p>
+
+                      {/* Progress bar placeholder */}
+                      <div className="mb-1">
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                          <span>Progression</span>
+                          <span>0%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted">
+                          <div className="h-full rounded-full bg-primary" style={{ width: "0%" }} />
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant={folder.is_public ? "secondary" : "outline"} className="text-[10px] hidden sm:inline-flex">
-                        {folder.is_public ? "Public" : "Privé"}
-                      </Badge>
+                    {/* Bottom action */}
+                    <div className="flex items-center justify-between px-5 pb-4">
                       {isOwner && (
-                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setRenamingFolder(folder.id); setRenameFolderValue(folder.name); }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
@@ -430,20 +455,23 @@ export default function SubjectDetail() {
                           </Button>
                         </div>
                       )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      {!isOwner && <div />}
+                      <Button size="sm" className="rounded-full px-5 bg-foreground text-background hover:bg-foreground/90">
+                        Démarrer
+                      </Button>
                     </div>
                   </motion.div>
                 );
               })}
-
-              {dbFolders.length === 0 && (
-                <div className="text-center py-10 text-muted-foreground">
-                  <FolderPlus className="h-10 w-10 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm font-medium">Aucun dossier</p>
-                  <p className="text-xs mt-1">Crée un dossier pour organiser tes cours.</p>
-                </div>
-              )}
             </motion.div>
+
+            {dbFolders.length === 0 && (
+              <div className="text-center py-10 text-muted-foreground">
+                <FolderPlus className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm font-medium">Aucun dossier</p>
+                <p className="text-xs mt-1">Crée un dossier pour organiser tes cours.</p>
+              </div>
+            )}
           </div>
 
           {/* ── Séries d'exercices (RIGHT) ── */}
