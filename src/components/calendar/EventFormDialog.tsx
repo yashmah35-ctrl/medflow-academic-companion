@@ -89,6 +89,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initia
     setTitle(""); setDescription(""); setSubjectId(null); setCustomColor("");
     setTags([]); setNewTag(""); setSpacedDays([]); setCustomJ("");
     setRecurrenceN(""); setRecurrenceOcc("");
+    setStartDate(""); setStartTime(""); setEndDate(""); setEndTime("");
   };
 
   const handleSubmit = () => {
