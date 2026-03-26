@@ -64,15 +64,26 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initia
   const [recurrenceOcc, setRecurrenceOcc] = useState<string>("");
 
   // Reset form with correct initial values when dialog opens
-  useState(() => {});
-  if (open && !startDate) {
-    const now = initialDate || new Date();
-    const hour = initialHour ?? now.getHours();
-    setStartDate(format(now, "yyyy-MM-dd"));
-    setStartTime(`${String(hour).padStart(2, "0")}:00`);
-    setEndDate(format(now, "yyyy-MM-dd"));
-    setEndTime(`${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`);
-  }
+  useEffect(() => {
+    if (open) {
+      const now = initialDate || new Date();
+      const hour = initialHour ?? now.getHours();
+      setTitle("");
+      setDescription("");
+      setStartDate(format(now, "yyyy-MM-dd"));
+      setStartTime(`${String(hour).padStart(2, "0")}:00`);
+      setEndDate(format(now, "yyyy-MM-dd"));
+      setEndTime(`${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`);
+      setSubjectId(null);
+      setCustomColor("");
+      setTags([]);
+      setNewTag("");
+      setSpacedDays([]);
+      setCustomJ("");
+      setRecurrenceN("");
+      setRecurrenceOcc("");
+    }
+  }, [open, initialDate, initialHour]);
 
   const resetForm = () => {
     setTitle(""); setDescription(""); setSubjectId(null); setCustomColor("");
