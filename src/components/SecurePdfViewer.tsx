@@ -28,6 +28,15 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
   const showRevisionPanel = !!courseId;
 
+  // Track course open for progression
+  useEffect(() => {
+    if (!open || !courseId || !folderId || !user) return;
+    supabase.from("user_course_progress").upsert(
+      { user_id: user.id, course_id: courseId, folder_id: folderId },
+      { onConflict: "user_id,course_id" }
+    ).then();
+  }, [open, courseId, folderId, user]);
+
   const fileType = useMemo(() => {
     const name = fileName || "";
     if (/\.pdf$/i.test(name)) return "pdf";
