@@ -96,6 +96,9 @@ export default function SubjectDetail() {
   const [newExFormat, setNewExFormat] = useState<"QCM" | "QIM">("QCM");
   const { isSubscribed } = useSubscription();
 
+  const folderIds = dbFolders.map(f => f.id);
+  const folderProgress = useFolderProgress(folderIds, folderCourseCounts);
+
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
   const canCreateFolder = !isCollegeOrLycee;
