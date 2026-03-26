@@ -128,7 +128,24 @@ export default function SubjectDetail() {
     fetchFolders();
   }, [subjectId]);
 
-  // Fetch DB courses for this folder
+  // Compute dynamic course counts per folder
+  useEffect(() => {
+    if (dbFolders.length === 0) return;
+    const fetchCounts = async () => {
+      const counts: Record<string, number> = {};
+      for (const folder of dbFolders) {
+        const { count } = await supabase
+          .from("courses")
+          .select("id", { count: "exact", head: true })
+          .eq("folder_id", folder.id);
+        counts[folder.id] = count || 0;
+      }
+      setFolderCourseCounts(counts);
+    };
+    fetchCounts();
+  }, [dbFolders]);
+
+
   useEffect(() => {
     if (!folderId) return;
     const fetchCourses = async () => {
