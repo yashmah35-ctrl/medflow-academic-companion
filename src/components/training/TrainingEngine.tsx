@@ -167,14 +167,38 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
             let borderClass = "border-border";
             let bgClass = "bg-card";
 
+            let feedbackText = "";
+            let feedbackType: "correct" | "wrong" | "missed" | "" = "";
+
             if (showResults) {
               if (isQIM) {
-                const isCorrectAnswer = userAnswer ? ((userAnswer === "vrai") === p.isCorrect) : false;
-                if (userAnswer && isCorrectAnswer) { borderClass = "border-green-500"; bgClass = "bg-green-500/10"; }
-                else if (userAnswer && !isCorrectAnswer) { borderClass = "border-destructive"; bgClass = "bg-destructive/10"; }
+                const userSaysTrue = userAnswer === "vrai";
+                const userSaysFaux = userAnswer === "faux";
+                const hasAnswered = userAnswer === "vrai" || userAnswer === "faux";
+                if (hasAnswered && (userSaysTrue === p.isCorrect)) {
+                  borderClass = "border-green-500"; bgClass = "bg-green-500/10";
+                  feedbackText = "✓ Bonne réponse"; feedbackType = "correct";
+                } else if (hasAnswered && (userSaysTrue !== p.isCorrect)) {
+                  borderClass = "border-destructive"; bgClass = "bg-destructive/10";
+                  feedbackText = p.isCorrect ? "✗ C'est Vrai, pas Faux" : "✗ C'est Faux, pas Vrai";
+                  feedbackType = "wrong";
+                } else {
+                  // Not answered
+                  borderClass = "border-amber-500"; bgClass = "bg-amber-500/10";
+                  feedbackText = "⚠ Non répondu"; feedbackType = "missed";
+                }
               } else {
-                if (p.isCorrect) { borderClass = "border-green-500"; bgClass = "bg-green-500/10"; }
-                else if (userAnswer === "selected") { borderClass = "border-destructive"; bgClass = "bg-destructive/10"; }
+                const isSelected = userAnswer === "selected";
+                if (p.isCorrect && isSelected) {
+                  borderClass = "border-green-500"; bgClass = "bg-green-500/10";
+                  feedbackText = "✓ Bonne réponse"; feedbackType = "correct";
+                } else if (p.isCorrect && !isSelected) {
+                  borderClass = "border-amber-500"; bgClass = "bg-amber-500/10";
+                  feedbackText = "⚠ Vous auriez dû cocher"; feedbackType = "missed";
+                } else if (!p.isCorrect && isSelected) {
+                  borderClass = "border-destructive"; bgClass = "bg-destructive/10";
+                  feedbackText = "✗ Vous avez coché à tort"; feedbackType = "wrong";
+                }
               }
             }
 
@@ -197,6 +221,13 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
                       </Badge>
                     )}
                   </div>
+                  {showResults && feedbackText && (
+                    <div className={`ml-8 mt-0.5 px-3 py-1 text-[10px] font-medium ${
+                      feedbackType === "correct" ? "text-green-600" : feedbackType === "wrong" ? "text-destructive" : "text-amber-600"
+                    }`}>
+                      {feedbackText}
+                    </div>
+                  )}
                   {showResults && p.explanation && (
                     <div className={`ml-8 mt-0.5 rounded-b-lg border border-t-0 px-3 py-1.5 text-[10px] ${p.isCorrect ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
                       <span className={`font-semibold ${p.isCorrect ? "text-green-600" : "text-destructive"}`}>{p.isCorrect ? "VRAI" : "FAUX"}</span>{" "}
@@ -221,6 +252,13 @@ export function TrainingEngine({ title, format, questions, onFinish, onBack }: T
                       : userAnswer === "selected" ? <XCircle className="h-4 w-4 text-destructive" /> : null
                   )}
                 </button>
+                {showResults && feedbackText && (
+                  <div className={`ml-8 mt-0.5 px-3 py-1 text-[10px] font-medium ${
+                    feedbackType === "correct" ? "text-green-600" : feedbackType === "wrong" ? "text-destructive" : "text-amber-600"
+                  }`}>
+                    {feedbackText}
+                  </div>
+                )}
                 {showResults && p.explanation && (
                   <div className={`ml-8 mt-0.5 rounded-b-lg border border-t-0 px-3 py-1.5 text-[10px] ${p.isCorrect ? "border-green-500/30 bg-green-500/5" : "border-destructive/30 bg-destructive/5"}`}>
                     <span className={`font-semibold ${p.isCorrect ? "text-green-600" : "text-destructive"}`}>{p.isCorrect ? "VRAI" : "FAUX"}</span>{" "}
