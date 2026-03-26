@@ -79,6 +79,7 @@ export default function SubjectDetail() {
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [folderCourseCounts, setFolderCourseCounts] = useState<Record<string, number>>({});
+  const { isSubscribed } = useSubscription();
 
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
