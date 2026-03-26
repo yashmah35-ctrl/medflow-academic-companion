@@ -8,6 +8,7 @@ import { MonthView, type CalendarEvent } from "@/components/calendar/MonthView";
 import { WeekView } from "@/components/calendar/WeekView";
 import { DayView } from "@/components/calendar/DayView";
 import { EventFormDialog, type EventFormData } from "@/components/calendar/EventFormDialog";
+import { EventDetailDialog } from "@/components/calendar/EventDetailDialog";
 
 interface DbSubject {
   id: string;
@@ -26,6 +27,8 @@ export default function Schedule() {
   const [dialogInitialDate, setDialogInitialDate] = useState<Date | undefined>();
   const [dialogInitialHour, setDialogInitialHour] = useState<number | undefined>();
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   // Fetch subjects
   useEffect(() => {
@@ -142,13 +145,24 @@ export default function Schedule() {
     }
   };
 
-  // Event click -> toggle completion
-  const handleEventClick = async (event: CalendarEvent) => {
+  // Event click -> show detail dialog
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setDetailOpen(true);
+  };
+
+  // Delete event
+  const handleDeleteEvent = async (event: CalendarEvent) => {
     const { error } = await supabase
       .from("schedule_blocks")
-      .update({ completed: !event.completed })
+      .update({ deleted_by_user: true })
       .eq("id", event.id);
-    if (!error) fetchEvents();
+    if (!error) {
+      toast({ title: "Événement supprimé" });
+      setDetailOpen(false);
+      setSelectedEvent(null);
+      fetchEvents();
+    }
   };
 
   // Day click -> switch to day view or open dialog
@@ -189,6 +203,18 @@ export default function Schedule() {
         subjects={subjects}
         initialDate={dialogInitialDate}
         initialHour={dialogInitialHour}
+      />
+
+      <EventDetailDialog
+        event={selectedEvent}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        onDelete={handleDeleteEvent}
+        onEdit={(ev) => {
+          setDetailOpen(false);
+          // TODO: edit mode
+          toast({ title: "Modification", description: "Fonctionnalité à venir" });
+        }}
       />
     </div>
   );
