@@ -130,9 +130,11 @@ export default function Schedule() {
 
     const rows = dates.map(d => ({ ...baseEvent, scheduled_date: d }));
 
+    console.log("[Schedule] Inserting rows:", rows);
     const { error } = await supabase.from("schedule_blocks").insert(rows);
     if (error) {
-      toast({ title: "Erreur", description: "Impossible de créer l'événement", variant: "destructive" });
+      console.error("[Schedule] Insert error:", error);
+      toast({ title: "Erreur", description: "Impossible de créer l'événement: " + error.message, variant: "destructive" });
     } else {
       toast({ title: "Événement créé", description: `${rows.length} événement${rows.length > 1 ? "s" : ""} ajouté${rows.length > 1 ? "s" : ""}` });
       setDialogOpen(false);
