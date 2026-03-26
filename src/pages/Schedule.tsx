@@ -17,12 +17,18 @@ interface DbSubject {
   color: string;
 }
 
+interface UserFolder {
+  id: string;
+  name: string;
+}
+
 export default function Schedule() {
   const { user } = useAuth();
   const [view, setView] = useState<CalendarView>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [subjects, setSubjects] = useState<DbSubject[]>([]);
+  const [userFolders, setUserFolders] = useState<UserFolder[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogInitialDate, setDialogInitialDate] = useState<Date | undefined>();
   const [dialogInitialHour, setDialogInitialHour] = useState<number | undefined>();
@@ -36,6 +42,18 @@ export default function Schedule() {
       if (data) setSubjects(data);
     });
   }, []);
+
+  // Fetch user folders
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("folders")
+      .select("id, name")
+      .eq("created_by", user.id)
+      .then(({ data }) => {
+        if (data) setUserFolders(data);
+      });
+  }, [user]);
 
   // Fetch events
   const fetchEvents = useCallback(async () => {
@@ -201,6 +219,7 @@ export default function Schedule() {
         onOpenChange={setDialogOpen}
         onSubmit={handleCreateEvent}
         subjects={subjects}
+        userFolders={userFolders}
         initialDate={dialogInitialDate}
         initialHour={dialogInitialHour}
       />
