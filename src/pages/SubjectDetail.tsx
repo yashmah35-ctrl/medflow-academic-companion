@@ -460,14 +460,14 @@ export default function SubjectDetail() {
                         📂 {courseCount} Cours
                       </p>
 
-                      {/* Progress bar placeholder */}
+                      {/* Progress bar */}
                       <div className="mb-1">
                         <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                           <span>Progression</span>
-                          <span>0%</span>
+                          <span>{folderProgress[folder.id] || 0}%</span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-primary" style={{ width: "0%" }} />
+                          <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${folderProgress[folder.id] || 0}%` }} />
                         </div>
                       </div>
                     </div>
