@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, FileText } from "lucide-react";
-import { ExercisePanel } from "@/components/training/ExercisePanel";
 import { renderAsync } from "docx-preview";
 
 interface SecurePdfViewerProps {
@@ -121,7 +120,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     return signedUrl + (signedUrl.includes("#") ? "&toolbar=0" : "#toolbar=0");
   }, [signedUrl, fileType]);
 
-  const showExercisePanel = !!subjectId;
+  const showExercisePanel = false;
 
   // Block keyboard shortcuts + completely lock background page scroll
   useEffect(() => {
@@ -238,15 +237,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {showExercisePanel && (
-            <div className="w-full border-t border-border/50 bg-card">
-              <ExercisePanel
-                subjectId={subjectId!}
-                courseId={courseId}
-                subjectName={subjectName || ""}
-              />
-            </div>
-          )}
         </div>
 
         {/* ===== DESKTOP: horizontal split ===== */}
@@ -289,15 +279,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {showExercisePanel && (
-            <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-auto">
-              <ExercisePanel
-                subjectId={subjectId!}
-                courseId={courseId}
-                subjectName={subjectName || ""}
-              />
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>
