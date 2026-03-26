@@ -17,69 +17,12 @@ interface SecurePdfViewerProps {
 }
 
 export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
-  const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const docxDesktopRef = useRef<HTMLDivElement>(null);
-  const [reviews, setReviews] = useState<ChapterReview[]>([]);
-  const [newRevDialogOpen, setNewRevDialogOpen] = useState(false);
-  const [newRevTitle, setNewRevTitle] = useState("");
-  const [newRevFormat, setNewRevFormat] = useState<"QCM" | "QIM">("QCM");
-
-  const fileType = useMemo(() => {
-    const name = fileName || "";
-    if (/\.pdf$/i.test(name)) return "pdf";
-    if (/\.docx?$/i.test(name)) return "docx";
-    if (signedUrl) {
-      try {
-        const urlPath = new URL(signedUrl).pathname;
-        if (/\.pdf$/i.test(urlPath)) return "pdf";
-        if (/\.docx?$/i.test(urlPath)) return "docx";
-      } catch {}
-    }
-    return "docx";
-  }, [fileName, signedUrl]);
-
-  // Fetch chapter reviews for this course
-  useEffect(() => {
-    if (!open || !courseId) { setReviews([]); return; }
-    const fetchReviews = async () => {
-      const { data } = await supabase
-        .from("chapter_reviews")
-        .select("id, title, format, questions_json")
-        .eq("course_id", courseId)
-        .order("created_at", { ascending: false });
-      if (data) setReviews(data as ChapterReview[]);
-    };
-    fetchReviews();
-  }, [open, courseId]);
 
   const showRevisionPanel = !!courseId;
-
-  const handleCreateRevision = async () => {
-    if (!newRevTitle.trim() || !user || !courseId || !subjectId) return;
-    const { data, error } = await supabase
-      .from("chapter_reviews")
-      .insert({
-        course_id: courseId,
-        subject_id: subjectId,
-        title: newRevTitle.trim(),
-        format: newRevFormat,
-        created_by: user.id,
-      })
-      .select()
-      .single();
-    if (error) { toast.error("Erreur lors de la création"); return; }
-    if (data) {
-      setReviews((prev) => [data as ChapterReview, ...prev]);
-      setNewRevTitle("");
-      setNewRevFormat("QCM");
-      setNewRevDialogOpen(false);
-      toast.success(`Révision "${data.title}" créée !`);
-    }
-  };
 
   // Fetch and render DOCX
   useEffect(() => {
