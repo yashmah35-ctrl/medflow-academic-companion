@@ -350,9 +350,9 @@ export default function SubjectDetail() {
 
       {/* ═══════════ FOLDER LIST VIEW (no folderId) ═══════════ */}
       {!folderId ? (
-        <div className="space-y-8">
-          {/* ── Dossiers de cours ── */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ── Dossiers de cours (LEFT) ── */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden h-fit">
             <div className={`px-5 py-3 border-b border-border ${colors.light}`}>
               <div className="flex items-center justify-between">
                 <h2 className="font-bold text-foreground flex items-center gap-2">
@@ -416,7 +416,6 @@ export default function SubjectDetail() {
                       )}
                     </div>
 
-                    {/* Badges & actions */}
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge variant={folder.is_public ? "secondary" : "outline"} className="text-[10px] hidden sm:inline-flex">
                         {folder.is_public ? "Public" : "Privé"}
@@ -447,8 +446,8 @@ export default function SubjectDetail() {
             </motion.div>
           </div>
 
-          {/* ── Séries d'exercices ── */}
-          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          {/* ── Séries d'exercices (RIGHT) ── */}
+          <div className="rounded-2xl border border-border bg-card overflow-hidden h-fit">
             <div className="px-5 py-3 border-b border-border bg-accent/30">
               <h2 className="font-bold text-foreground flex items-center gap-2">
                 <Dumbbell className="h-5 w-5" /> Séries d'exercices
@@ -463,7 +462,12 @@ export default function SubjectDetail() {
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
                         <h3 className="font-semibold text-foreground text-sm">{ex.title}</h3>
-                        <span className="text-xs text-muted-foreground">{qCount} Q</span>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {ex.source_label && (
+                            <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
+                          )}
+                          <span className="text-xs text-muted-foreground">{qCount} Q</span>
+                        </div>
                       </div>
                       <Button
                         size="sm"
@@ -475,7 +479,6 @@ export default function SubjectDetail() {
                       </Button>
                     </div>
 
-                    {/* Admin actions */}
                     {isAdmin && (
                       <div className="flex items-center gap-3 mt-2 text-xs">
                         <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/active-learning?exerciseId=${ex.id}&addQuestion=1`)}>
