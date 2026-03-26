@@ -735,40 +735,58 @@ export type Database = {
       }
       schedule_blocks: {
         Row: {
+          color: string | null
           completed: boolean
           course_id: string | null
           created_at: string
           deleted_by_user: boolean
+          description: string | null
           duration_minutes: number
+          end_hour: number | null
+          end_minutes: number | null
           id: string
           scheduled_date: string
           start_hour: number
+          start_minutes: number | null
+          tags: string[] | null
           title: string
           type: string
           user_id: string
         }
         Insert: {
+          color?: string | null
           completed?: boolean
           course_id?: string | null
           created_at?: string
           deleted_by_user?: boolean
+          description?: string | null
           duration_minutes?: number
+          end_hour?: number | null
+          end_minutes?: number | null
           id?: string
           scheduled_date: string
           start_hour?: number
+          start_minutes?: number | null
+          tags?: string[] | null
           title: string
           type?: string
           user_id: string
         }
         Update: {
+          color?: string | null
           completed?: boolean
           course_id?: string | null
           created_at?: string
           deleted_by_user?: boolean
+          description?: string | null
           duration_minutes?: number
+          end_hour?: number | null
+          end_minutes?: number | null
           id?: string
           scheduled_date?: string
           start_hour?: number
+          start_minutes?: number | null
+          tags?: string[] | null
           title?: string
           type?: string
           user_id?: string
