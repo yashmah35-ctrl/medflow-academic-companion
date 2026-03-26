@@ -237,15 +237,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {showExercisePanel && (
-            <div className="w-full border-t border-border/50 bg-card">
-              <ExercisePanel
-                subjectId={subjectId!}
-                courseId={courseId}
-                subjectName={subjectName || ""}
-              />
-            </div>
-          )}
         </div>
 
         {/* ===== DESKTOP: horizontal split ===== */}
