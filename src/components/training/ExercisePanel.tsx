@@ -338,6 +338,21 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
       });
     }
 
+    // Save exercise score for progression tracking
+    if (training.type === "exercise") {
+      const exercise = training.item as AdminExercise;
+      const questions = (exercise.questions_json || []) as Question[];
+      const correctCount = Math.round(result.score * questions.length);
+      const totalCount = questions.length;
+      
+      await supabase.from("user_exercise_scores" as any).insert({
+        user_id: user.id,
+        exercise_id: exercise.id,
+        correct_count: correctCount,
+        total_count: totalCount,
+      });
+    }
+
     // Only save errors to notebook for exercises, NOT for chapter reviews
     if (training.type === "exercise" && result.wrong.length > 0) {
       const exerciseItem = training.item as AdminExercise;

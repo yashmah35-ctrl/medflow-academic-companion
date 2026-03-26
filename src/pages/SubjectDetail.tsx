@@ -91,6 +91,7 @@ export default function SubjectDetail() {
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [folderCourseCounts, setFolderCourseCounts] = useState<Record<string, number>>({});
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
+  const [exerciseScores, setExerciseScores] = useState<Record<string, { correct: number; total: number }>>({});
   const [newExDialogOpen, setNewExDialogOpen] = useState(false);
   const [newExTitle, setNewExTitle] = useState("");
   const [newExFormat, setNewExFormat] = useState<"QCM" | "QIM">("QCM");
@@ -171,10 +172,32 @@ export default function SubjectDetail() {
         .select("*")
         .eq("subject_id", subjectId)
         .order("created_at", { ascending: false });
-      if (data) setExercises(data as AdminExercise[]);
+      if (data) {
+        setExercises(data as AdminExercise[]);
+        // Fetch exercise scores
+        if (user) {
+          const exerciseIds = data.map((e: any) => e.id);
+          if (exerciseIds.length > 0) {
+            const { data: scores } = await supabase
+              .from("user_exercise_scores" as any)
+              .select("exercise_id, correct_count, total_count")
+              .eq("user_id", user.id)
+              .in("exercise_id", exerciseIds);
+            if (scores) {
+              const scoreMap: Record<string, { correct: number; total: number }> = {};
+              (scores as any[]).forEach((s: any) => {
+                if (!scoreMap[s.exercise_id]) scoreMap[s.exercise_id] = { correct: 0, total: 0 };
+                scoreMap[s.exercise_id].correct += s.correct_count;
+                scoreMap[s.exercise_id].total += s.total_count;
+              });
+              setExerciseScores(scoreMap);
+            }
+          }
+        }
+      }
     };
     fetchExercises();
-  }, [subjectId, folderId]);
+  }, [subjectId, folderId, user]);
 
   // Fetch courses inside folder
   useEffect(() => {
@@ -561,6 +584,8 @@ export default function SubjectDetail() {
             <motion.div variants={container} initial="hidden" animate="show" className="divide-y divide-border">
               {exercises.map((ex) => {
                 const qCount = Array.isArray(ex.questions_json) ? ex.questions_json.length : 0;
+                const score = exerciseScores[ex.id];
+                const scorePct = score && score.total > 0 ? Math.round((score.correct / score.total) * 100) : null;
                 return (
                   <motion.div key={ex.id} variants={item} className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
@@ -571,6 +596,14 @@ export default function SubjectDetail() {
                             <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
                           )}
                           <span className="text-xs text-muted-foreground">{qCount} Q</span>
+                          {scorePct !== null && (
+                            <Badge 
+                              variant={scorePct >= 70 ? "default" : "secondary"} 
+                              className={`text-[10px] ${scorePct >= 70 ? "bg-green-500/15 text-green-600 border-green-500/30" : scorePct >= 40 ? "bg-amber-500/15 text-amber-600 border-amber-500/30" : "bg-destructive/15 text-destructive border-destructive/30"}`}
+                            >
+                              {scorePct}%
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <Button

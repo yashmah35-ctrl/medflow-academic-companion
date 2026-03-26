@@ -955,6 +955,33 @@ export type Database = {
         }
         Relationships: []
       }
+      user_exercise_scores: {
+        Row: {
+          completed_at: string
+          correct_count: number
+          exercise_id: string
+          id: string
+          total_count: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          correct_count?: number
+          exercise_id: string
+          id?: string
+          total_count?: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          correct_count?: number
+          exercise_id?: string
+          id?: string
+          total_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_revision_scores: {
         Row: {
           completed_at: string
