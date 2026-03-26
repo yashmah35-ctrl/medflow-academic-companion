@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,15 +48,12 @@ interface EventFormDialogProps {
 }
 
 export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initialDate, initialHour }: EventFormDialogProps) {
-  const now = initialDate || new Date();
-  const hour = initialHour ?? now.getHours();
-
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [startDate, setStartDate] = useState(format(now, "yyyy-MM-dd"));
-  const [startTime, setStartTime] = useState(`${String(hour).padStart(2, "0")}:00`);
-  const [endDate, setEndDate] = useState(format(now, "yyyy-MM-dd"));
-  const [endTime, setEndTime] = useState(`${String(hour + 1).padStart(2, "0")}:00`);
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [subjectId, setSubjectId] = useState<string | null>(null);
   const [customColor, setCustomColor] = useState<string>("");
   const [tags, setTags] = useState<string[]>([]);
@@ -66,10 +63,33 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initia
   const [recurrenceN, setRecurrenceN] = useState<string>("");
   const [recurrenceOcc, setRecurrenceOcc] = useState<string>("");
 
+  // Reset form with correct initial values when dialog opens
+  useEffect(() => {
+    if (open) {
+      const now = initialDate || new Date();
+      const hour = initialHour ?? now.getHours();
+      setTitle("");
+      setDescription("");
+      setStartDate(format(now, "yyyy-MM-dd"));
+      setStartTime(`${String(hour).padStart(2, "0")}:00`);
+      setEndDate(format(now, "yyyy-MM-dd"));
+      setEndTime(`${String(Math.min(hour + 1, 23)).padStart(2, "0")}:00`);
+      setSubjectId(null);
+      setCustomColor("");
+      setTags([]);
+      setNewTag("");
+      setSpacedDays([]);
+      setCustomJ("");
+      setRecurrenceN("");
+      setRecurrenceOcc("");
+    }
+  }, [open, initialDate, initialHour]);
+
   const resetForm = () => {
     setTitle(""); setDescription(""); setSubjectId(null); setCustomColor("");
     setTags([]); setNewTag(""); setSpacedDays([]); setCustomJ("");
     setRecurrenceN(""); setRecurrenceOcc("");
+    setStartDate(""); setStartTime(""); setEndDate(""); setEndTime("");
   };
 
   const handleSubmit = () => {
