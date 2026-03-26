@@ -8,6 +8,7 @@ import { MonthView, type CalendarEvent } from "@/components/calendar/MonthView";
 import { WeekView } from "@/components/calendar/WeekView";
 import { DayView } from "@/components/calendar/DayView";
 import { EventFormDialog, type EventFormData } from "@/components/calendar/EventFormDialog";
+import { AdminTaskFormDialog, type AdminTaskFormData } from "@/components/calendar/AdminTaskFormDialog";
 import { EventDetailDialog } from "@/components/calendar/EventDetailDialog";
 
 interface DbSubject {
