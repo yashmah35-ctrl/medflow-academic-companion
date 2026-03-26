@@ -1,20 +1,9 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Loader2, X, FileText, BookOpen, Play, Plus } from "lucide-react";
+import { Loader2, X, FileText } from "lucide-react";
 import { renderAsync } from "docx-preview";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
-
-interface ChapterReview {
-  id: string;
-  title: string;
-  format: string;
-  questions_json: any[] | null;
-}
+import { ExercisePanel } from "@/components/training/ExercisePanel";
 
 interface SecurePdfViewerProps {
   open: boolean;
@@ -28,16 +17,12 @@ interface SecurePdfViewerProps {
 }
 
 export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
-  const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const docxDesktopRef = useRef<HTMLDivElement>(null);
-  const [reviews, setReviews] = useState<ChapterReview[]>([]);
-  const [newRevDialogOpen, setNewRevDialogOpen] = useState(false);
-  const [newRevTitle, setNewRevTitle] = useState("");
-  const [newRevFormat, setNewRevFormat] = useState<"QCM" | "QIM">("QCM");
+
+  const showRevisionPanel = !!courseId;
 
   const fileType = useMemo(() => {
     const name = fileName || "";
@@ -52,45 +37,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     }
     return "docx";
   }, [fileName, signedUrl]);
-
-  // Fetch chapter reviews for this course
-  useEffect(() => {
-    if (!open || !courseId) { setReviews([]); return; }
-    const fetchReviews = async () => {
-      const { data } = await supabase
-        .from("chapter_reviews")
-        .select("id, title, format, questions_json")
-        .eq("course_id", courseId)
-        .order("created_at", { ascending: false });
-      if (data) setReviews(data as ChapterReview[]);
-    };
-    fetchReviews();
-  }, [open, courseId]);
-
-  const showRevisionPanel = !!courseId;
-
-  const handleCreateRevision = async () => {
-    if (!newRevTitle.trim() || !user || !courseId || !subjectId) return;
-    const { data, error } = await supabase
-      .from("chapter_reviews")
-      .insert({
-        course_id: courseId,
-        subject_id: subjectId,
-        title: newRevTitle.trim(),
-        format: newRevFormat,
-        created_by: user.id,
-      })
-      .select()
-      .single();
-    if (error) { toast.error("Erreur lors de la création"); return; }
-    if (data) {
-      setReviews((prev) => [data as ChapterReview, ...prev]);
-      setNewRevTitle("");
-      setNewRevFormat("QCM");
-      setNewRevDialogOpen(false);
-      toast.success(`Révision "${data.title}" créée !`);
-    }
-  };
 
   // Fetch and render DOCX
   useEffect(() => {
@@ -232,87 +178,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     </div>
   );
 
-  const RevisionPanel = () => (
-    <div className="h-full flex flex-col">
-      <div className="px-4 py-3 border-b border-border/50 bg-accent/30 flex items-center justify-between">
-        <h3 className="font-bold text-foreground flex items-center gap-2 text-sm">
-          <BookOpen className="h-4 w-4 text-primary" /> Révision
-        </h3>
-        {isAdmin && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs gap-1"
-            onClick={() => setNewRevDialogOpen(true)}
-          >
-            <Plus className="h-3.5 w-3.5" /> Nouvelle
-          </Button>
-        )}
-      </div>
-
-      {/* Create revision dialog */}
-      {newRevDialogOpen && (
-        <div className="p-4 border-b border-border/50 bg-muted/30 space-y-3">
-          <p className="text-sm font-semibold text-foreground">Nouvelle révision</p>
-          <div>
-            <label className="text-xs text-muted-foreground">Titre</label>
-            <Input
-              placeholder="Ex: Chapitre 1 - Les bases"
-              value={newRevTitle}
-              onChange={(e) => setNewRevTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateRevision()}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Format</label>
-            <div className="flex gap-2 mt-1">
-              <Button size="sm" variant={newRevFormat === "QCM" ? "default" : "outline"} onClick={() => setNewRevFormat("QCM")}>QCM</Button>
-              <Button size="sm" variant={newRevFormat === "QIM" ? "default" : "outline"} onClick={() => setNewRevFormat("QIM")}>QIM</Button>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => { setNewRevDialogOpen(false); setNewRevTitle(""); }}>Annuler</Button>
-            <Button size="sm" onClick={handleCreateRevision}>Créer</Button>
-          </div>
-        </div>
-      )}
-      <div className="flex-1 overflow-auto divide-y divide-border">
-        {reviews.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <BookOpen className="h-10 w-10 mb-2 opacity-30" />
-            <p className="text-sm font-medium">Aucune révision</p>
-            <p className="text-xs mt-1">Les révisions de ce chapitre apparaîtront ici.</p>
-          </div>
-        )}
-        {reviews.map((rev) => {
-          const qCount = Array.isArray(rev.questions_json) ? rev.questions_json.length : 0;
-          return (
-            <div key={rev.id} className="px-4 py-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-semibold text-foreground text-sm truncate">{rev.title}</h4>
-                  <p className="text-xs text-muted-foreground mt-0.5">{qCount} Q · {rev.format}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => {
-                    onOpenChange(false);
-                    navigate(`/active-learning?reviewId=${rev.id}`);
-                  }}
-                >
-                  <Play className="h-3.5 w-3.5 mr-1" /> Démarrer
-                </Button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setLoading(true); setError(null); } }}>
       <DialogContent
@@ -371,9 +236,9 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {showRevisionPanel && (
+          {showRevisionPanel && subjectId && subjectName && (
             <div className="w-full border-t border-border/50 bg-card">
-              <RevisionPanel />
+              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} />
             </div>
           )}
         </div>
@@ -418,9 +283,9 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {showRevisionPanel && (
+          {showRevisionPanel && subjectId && subjectName && (
             <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
-              <RevisionPanel />
+              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} />
             </div>
           )}
         </div>
