@@ -40,9 +40,10 @@ interface ExercisePanelProps {
   subjectId: string;
   courseId?: string;
   subjectName: string;
+  hideExercises?: boolean;
 }
 
-export function ExercisePanel({ subjectId, courseId, subjectName }: ExercisePanelProps) {
+export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises = false }: ExercisePanelProps) {
   const { user, isAdmin } = useAuth();
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
   const [reviews, setReviews] = useState<ChapterReview[]>([]);
