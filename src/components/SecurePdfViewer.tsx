@@ -69,6 +69,29 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
   const showRevisionPanel = !!courseId;
 
+  const handleCreateRevision = async () => {
+    if (!newRevTitle.trim() || !user || !courseId || !subjectId) return;
+    const { data, error } = await supabase
+      .from("chapter_reviews")
+      .insert({
+        course_id: courseId,
+        subject_id: subjectId,
+        title: newRevTitle.trim(),
+        format: newRevFormat,
+        created_by: user.id,
+      })
+      .select()
+      .single();
+    if (error) { toast.error("Erreur lors de la création"); return; }
+    if (data) {
+      setReviews((prev) => [data as ChapterReview, ...prev]);
+      setNewRevTitle("");
+      setNewRevFormat("QCM");
+      setNewRevDialogOpen(false);
+      toast.success(`Révision "${data.title}" créée !`);
+    }
+  };
+
   // Fetch and render DOCX
   useEffect(() => {
     if (!open || !signedUrl || fileType !== "docx") return;
