@@ -313,7 +313,7 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
           <div className="space-y-1.5">
             <Label className="font-semibold">Répétition espacée</Label>
             <div className="flex flex-wrap gap-2">
-              {SPACED_REPETITION_DAYS.map(d => (
+              {[...new Set([...SPACED_REPETITION_DAYS, ...spacedDays])].sort((a, b) => a - b).map(d => (
                 <button
                   key={d}
                   type="button"
@@ -331,21 +331,6 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, userFo
               <Button type="button" size="sm" onClick={addCustomJ} className="bg-primary">Ajouter</Button>
             </div>
             <p className="text-xs text-muted-foreground">Les répétitions sélectionnées créeront des événements supplémentaires à J+N jours à la même heure.</p>
-          </div>
-
-          {/* Recurrence */}
-          <div className="space-y-1.5">
-            <Label className="font-semibold">Récurrence</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <span className="text-xs text-muted-foreground">Tous les N jours</span>
-                <Input placeholder="N (jours)" value={recurrenceN} onChange={(e) => setRecurrenceN(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <span className="text-xs text-muted-foreground">Nombre d'occurrences</span>
-                <Input placeholder="Ex: 5" value={recurrenceOcc} onChange={(e) => setRecurrenceOcc(e.target.value)} />
-              </div>
-            </div>
           </div>
 
           {/* Actions */}
