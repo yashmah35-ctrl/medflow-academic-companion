@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
+import { useFolderProgress } from "@/hooks/useFolderProgress";
 
 const container = {
   hidden: { opacity: 0 },
