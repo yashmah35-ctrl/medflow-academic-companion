@@ -120,7 +120,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     return signedUrl + (signedUrl.includes("#") ? "&toolbar=0" : "#toolbar=0");
   }, [signedUrl, fileType]);
 
-  const showExercisePanel = !!subjectId;
+  const showExercisePanel = false;
 
   // Block keyboard shortcuts + completely lock background page scroll
   useEffect(() => {
