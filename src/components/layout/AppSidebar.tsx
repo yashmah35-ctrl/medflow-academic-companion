@@ -71,7 +71,7 @@ const allNavGroups: NavGroup[] = [
 ];
 
 export function AppSidebar() {
-  const collapsed = false;
+  const collapsed = true;
   const location = useLocation();
   const { role, isAdmin } = useAuth();
 
