@@ -234,11 +234,49 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
   const RevisionPanel = () => (
     <div className="h-full flex flex-col">
-      <div className="px-4 py-3 border-b border-border/50 bg-accent/30">
+      <div className="px-4 py-3 border-b border-border/50 bg-accent/30 flex items-center justify-between">
         <h3 className="font-bold text-foreground flex items-center gap-2 text-sm">
           <BookOpen className="h-4 w-4 text-primary" /> Révision
         </h3>
+        {isAdmin && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs gap-1"
+            onClick={() => setNewRevDialogOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" /> Nouvelle
+          </Button>
+        )}
       </div>
+
+      {/* Create revision dialog */}
+      {newRevDialogOpen && (
+        <div className="p-4 border-b border-border/50 bg-muted/30 space-y-3">
+          <p className="text-sm font-semibold text-foreground">Nouvelle révision</p>
+          <div>
+            <label className="text-xs text-muted-foreground">Titre</label>
+            <Input
+              placeholder="Ex: Chapitre 1 - Les bases"
+              value={newRevTitle}
+              onChange={(e) => setNewRevTitle(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateRevision()}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Format</label>
+            <div className="flex gap-2 mt-1">
+              <Button size="sm" variant={newRevFormat === "QCM" ? "default" : "outline"} onClick={() => setNewRevFormat("QCM")}>QCM</Button>
+              <Button size="sm" variant={newRevFormat === "QIM" ? "default" : "outline"} onClick={() => setNewRevFormat("QIM")}>QIM</Button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setNewRevDialogOpen(false); setNewRevTitle(""); }}>Annuler</Button>
+            <Button size="sm" onClick={handleCreateRevision}>Créer</Button>
+          </div>
+        </div>
+      )}
       <div className="flex-1 overflow-auto divide-y divide-border">
         {reviews.length === 0 && (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
