@@ -46,6 +46,7 @@ interface DBFolder {
   is_public: boolean;
 }
 
+
 interface DBCourse {
   id: string;
   title: string;
@@ -77,6 +78,7 @@ export default function SubjectDetail() {
   const [pdfCourseId, setPdfCourseId] = useState<string | undefined>(undefined);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+  const [folderCourseCounts, setFolderCourseCounts] = useState<Record<string, number>>({});
   const { isSubscribed } = useSubscription();
 
   const isMedicalStudent = role === "medical_student";
@@ -126,7 +128,24 @@ export default function SubjectDetail() {
     fetchFolders();
   }, [subjectId]);
 
-  // Fetch DB courses for this folder
+  // Compute dynamic course counts per folder
+  useEffect(() => {
+    if (dbFolders.length === 0) return;
+    const fetchCounts = async () => {
+      const counts: Record<string, number> = {};
+      for (const folder of dbFolders) {
+        const { count } = await supabase
+          .from("courses")
+          .select("id", { count: "exact", head: true })
+          .eq("folder_id", folder.id);
+        counts[folder.id] = count || 0;
+      }
+      setFolderCourseCounts(counts);
+    };
+    fetchCounts();
+  }, [dbFolders]);
+
+
   useEffect(() => {
     if (!folderId) return;
     const fetchCourses = async () => {
@@ -437,8 +456,7 @@ export default function SubjectDetail() {
                 <h3 className="font-semibold text-foreground mb-2 mt-4">{folder.name}</h3>
               )}
               <div className="flex gap-3 text-xs text-muted-foreground mb-4">
-                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folder.course_count} Cours</span>
-                <span className="flex items-center gap-1"><Dumbbell className="h-3 w-3" /> {folder.exercise_count} Exercices</span>
+                <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" /> {folderCourseCounts[folder.id] ?? 0} Cours</span>
               </div>
               {isOwner && (
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
