@@ -1,6 +1,6 @@
 import { format, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { CalendarEvent } from "./MonthView";
+import { resolveEventColor, type CalendarEvent } from "./MonthView";
 
 interface DayViewProps {
   currentDate: Date;
@@ -49,7 +49,7 @@ export function DayView({ currentDate, events, onSlotClick, onEventClick }: DayV
                     key={ev.id}
                     onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
                     className={`px-3 py-2 rounded-lg text-white font-medium cursor-pointer hover:opacity-80 transition-opacity ${ev.completed ? "opacity-50 line-through" : ""}`}
-                    style={{ backgroundColor: ev.color }}
+                    style={{ backgroundColor: resolveEventColor(ev.color) }}
                   >
                     <div className="text-sm">{ev.title}</div>
                     <div className="text-xs opacity-80">

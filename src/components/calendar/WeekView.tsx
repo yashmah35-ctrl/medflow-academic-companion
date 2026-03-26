@@ -1,6 +1,6 @@
 import { startOfWeek, addDays, format, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { CalendarEvent } from "./MonthView";
+import { resolveEventColor, type CalendarEvent } from "./MonthView";
 
 interface WeekViewProps {
   currentDate: Date;
@@ -60,7 +60,7 @@ export function WeekView({ currentDate, events, onSlotClick, onEventClick }: Wee
                       key={ev.id}
                       onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
                       className={`text-[11px] px-1.5 py-1 rounded text-white font-medium truncate cursor-pointer hover:opacity-80 ${ev.completed ? "opacity-50 line-through" : ""}`}
-                      style={{ backgroundColor: ev.color }}
+                      style={{ backgroundColor: resolveEventColor(ev.color) }}
                     >
                       {ev.title}
                     </div>
