@@ -364,7 +364,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
   return (
     <div className="h-full overflow-y-auto space-y-6 p-4">
       {/* Exercises section */}
-      <div>
+      {!hideExercises && <div>
         <div className="flex items-center gap-2 mb-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive/10">
             <Dumbbell className="h-4 w-4 text-destructive" />
