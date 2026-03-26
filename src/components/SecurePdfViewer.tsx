@@ -238,7 +238,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
           {showRevisionPanel && subjectId && subjectName && (
             <div className="w-full border-t border-border/50 bg-card">
-              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} />
+              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises />
             </div>
           )}
         </div>
