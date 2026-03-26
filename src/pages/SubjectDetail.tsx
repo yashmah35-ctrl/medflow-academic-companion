@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
+import { useFolderProgress } from "@/hooks/useFolderProgress";
 
 const container = {
   hidden: { opacity: 0 },
@@ -94,6 +95,9 @@ export default function SubjectDetail() {
   const [newExTitle, setNewExTitle] = useState("");
   const [newExFormat, setNewExFormat] = useState<"QCM" | "QIM">("QCM");
   const { isSubscribed } = useSubscription();
+
+  const folderIds = dbFolders.map(f => f.id);
+  const folderProgress = useFolderProgress(folderIds, folderCourseCounts);
 
   const isMedicalStudent = role === "medical_student";
   const isCollegeOrLycee = role === "college" || role === "lycee";
@@ -456,14 +460,14 @@ export default function SubjectDetail() {
                         📂 {courseCount} Cours
                       </p>
 
-                      {/* Progress bar placeholder */}
+                      {/* Progress bar */}
                       <div className="mb-1">
                         <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
                           <span>Progression</span>
-                          <span>0%</span>
+                          <span>{folderProgress[folder.id] || 0}%</span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-muted">
-                          <div className="h-full rounded-full bg-primary" style={{ width: "0%" }} />
+                          <div className="h-full rounded-full bg-primary transition-all duration-500" style={{ width: `${folderProgress[folder.id] || 0}%` }} />
                         </div>
                       </div>
                     </div>
@@ -714,6 +718,7 @@ export default function SubjectDetail() {
         subjectId={subjectId}
         subjectName={subject?.name}
         courseId={pdfCourseId}
+        folderId={folderId}
       />
       <PremiumModal open={premiumModalOpen} onOpenChange={setPremiumModalOpen} />
     </div>

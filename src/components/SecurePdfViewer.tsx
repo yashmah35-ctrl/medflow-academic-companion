@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Loader2, X, FileText } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { ExercisePanel } from "@/components/training/ExercisePanel";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SecurePdfViewerProps {
   open: boolean;
@@ -14,15 +16,26 @@ interface SecurePdfViewerProps {
   subjectId?: string;
   subjectName?: string;
   courseId?: string;
+  folderId?: string;
 }
 
-export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId }: SecurePdfViewerProps) {
+export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId, folderId }: SecurePdfViewerProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const docxDesktopRef = useRef<HTMLDivElement>(null);
 
   const showRevisionPanel = !!courseId;
+
+  // Track course open for progression
+  useEffect(() => {
+    if (!open || !courseId || !folderId || !user) return;
+    supabase.from("user_course_progress").upsert(
+      { user_id: user.id, course_id: courseId, folder_id: folderId },
+      { onConflict: "user_id,course_id" }
+    ).then();
+  }, [open, courseId, folderId, user]);
 
   const fileType = useMemo(() => {
     const name = fileName || "";
@@ -238,7 +251,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
           {showRevisionPanel && subjectId && subjectName && (
             <div className="w-full border-t border-border/50 bg-card">
-              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises />
+              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises folderId={folderId} />
             </div>
           )}
         </div>
@@ -285,7 +298,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
           {showRevisionPanel && subjectId && subjectName && (
             <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
-              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises />
+              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises folderId={folderId} />
             </div>
           )}
         </div>
