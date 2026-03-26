@@ -177,8 +177,23 @@ export default function Schedule() {
     }
   };
 
-  // Event click -> show detail dialog
+  // Event click -> show detail dialog (admin: toggle completion)
   const handleEventClick = (event: CalendarEvent) => {
+    if (isAdmin) {
+      // Toggle completed status directly
+      const newCompleted = !event.completed;
+      supabase
+        .from("schedule_blocks")
+        .update({ completed: newCompleted })
+        .eq("id", event.id)
+        .then(({ error }) => {
+          if (!error) {
+            toast({ title: newCompleted ? "✅ Tâche validée" : "Tâche non validée" });
+            fetchEvents();
+          }
+        });
+      return;
+    }
     setSelectedEvent(event);
     setDetailOpen(true);
   };
@@ -197,7 +212,37 @@ export default function Schedule() {
     }
   };
 
-  // Day click -> switch to day view or open dialog
+  // Admin task creation
+  const handleCreateAdminTask = async (data: AdminTaskFormData) => {
+    if (!user) return;
+    const [startH, startM] = data.startTime.split(":").map(Number);
+    const [endH, endM] = data.endTime.split(":").map(Number);
+    const durationMin = (endH * 60 + endM) - (startH * 60 + startM);
+
+    const { error } = await supabase.from("schedule_blocks").insert({
+      user_id: user.id,
+      title: data.title,
+      scheduled_date: data.startDate,
+      start_hour: startH,
+      start_minutes: startM,
+      end_hour: endH,
+      end_minutes: endM,
+      duration_minutes: Math.max(durationMin, 15),
+      color: data.color,
+      type: "Tâche",
+      completed: false,
+    });
+
+    if (error) {
+      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Tâche ajoutée" });
+      setDialogOpen(false);
+      fetchEvents();
+    }
+  };
+
+  // Day click -> switch to day view
   const handleDayClick = (date: Date) => {
     setCurrentDate(date);
     setView("day");
@@ -228,15 +273,25 @@ export default function Schedule() {
         </>
       )}
 
-      <EventFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSubmit={handleCreateEvent}
-        subjects={subjects}
-        userFolders={userFolders}
-        initialDate={dialogInitialDate}
-        initialHour={dialogInitialHour}
-      />
+      {isAdmin ? (
+        <AdminTaskFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSubmit={handleCreateAdminTask}
+          initialDate={dialogInitialDate}
+          initialHour={dialogInitialHour}
+        />
+      ) : (
+        <EventFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSubmit={handleCreateEvent}
+          subjects={subjects}
+          userFolders={userFolders}
+          initialDate={dialogInitialDate}
+          initialHour={dialogInitialHour}
+        />
+      )}
 
       <EventDetailDialog
         event={selectedEvent}
@@ -245,7 +300,6 @@ export default function Schedule() {
         onDelete={handleDeleteEvent}
         onEdit={(ev) => {
           setDetailOpen(false);
-          // TODO: edit mode
           toast({ title: "Modification", description: "Fonctionnalité à venir" });
         }}
       />
