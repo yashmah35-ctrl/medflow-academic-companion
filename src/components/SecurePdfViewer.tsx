@@ -60,7 +60,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
     fetchReviews();
   }, [open, courseId]);
 
-  const showRevisionPanel = !!courseId && reviews.length > 0;
+  const showRevisionPanel = !!courseId;
 
   // Fetch and render DOCX
   useEffect(() => {
