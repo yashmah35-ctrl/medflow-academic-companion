@@ -90,6 +90,9 @@ export default function SubjectDetail() {
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
   const [folderCourseCounts, setFolderCourseCounts] = useState<Record<string, number>>({});
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
+  const [newExDialogOpen, setNewExDialogOpen] = useState(false);
+  const [newExTitle, setNewExTitle] = useState("");
+  const [newExFormat, setNewExFormat] = useState<"QCM" | "QIM">("QCM");
   const { isSubscribed } = useSubscription();
 
   const isMedicalStudent = role === "medical_student";
