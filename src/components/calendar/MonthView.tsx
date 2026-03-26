@@ -1,6 +1,31 @@
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, format, isToday } from "date-fns";
 import { fr } from "date-fns/locale";
 
+// Map subject color keys to actual HSL values for inline styles
+const SUBJECT_COLOR_HEX: Record<string, string> = {
+  chemistry: "hsl(340, 75%, 55%)",
+  cellbio: "hsl(45, 85%, 50%)",
+  biophysics: "hsl(175, 65%, 38%)",
+  anatomy: "hsl(25, 65%, 50%)",
+  histology: "hsl(270, 55%, 55%)",
+  physiology: "hsl(145, 55%, 38%)",
+  pharmacology: "hsl(210, 60%, 50%)",
+  embryology: "hsl(15, 70%, 55%)",
+  biomolgen: "hsl(280, 60%, 50%)",
+  shs: "hsl(260, 45%, 50%)",
+  biostatistique: "hsl(200, 70%, 45%)",
+  medicament: "hsl(350, 60%, 58%)",
+  santepublique: "hsl(0, 55%, 50%)",
+  microbiologie: "hsl(80, 55%, 40%)",
+  specialite: "hsl(210, 40%, 55%)",
+};
+
+export function resolveEventColor(color: string): string {
+  if (SUBJECT_COLOR_HEX[color]) return SUBJECT_COLOR_HEX[color];
+  if (color.startsWith("#") || color.startsWith("hsl") || color.startsWith("rgb")) return color;
+  return "#3B82F6";
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -73,7 +98,7 @@ export function MonthView({ currentDate, events, onDayClick, onEventClick }: Mon
                     key={ev.id}
                     onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
                     className={`text-[10px] leading-tight px-1.5 py-0.5 rounded truncate text-white font-medium cursor-pointer hover:opacity-80 transition-opacity ${ev.completed ? "opacity-50 line-through" : ""}`}
-                    style={{ backgroundColor: ev.color }}
+                    style={{ backgroundColor: resolveEventColor(ev.color) }}
                   >
                     {String(ev.start_hour).padStart(2, "0")}:{String(ev.start_minutes).padStart(2, "0")} {ev.title}
                   </div>
