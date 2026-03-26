@@ -316,6 +316,28 @@ export default function SubjectDetail() {
     toast.success("Exercice supprimé !");
   };
 
+  const handleCreateExercise = async () => {
+    if (!newExTitle.trim() || !user || !subjectId) return;
+    const { data, error } = await supabase
+      .from("admin_exercises")
+      .insert({
+        subject_id: subjectId,
+        title: newExTitle.trim(),
+        format: newExFormat,
+        created_by: user.id,
+      })
+      .select()
+      .single();
+    if (error) { toast.error("Erreur lors de la création"); return; }
+    if (data) {
+      setExercises((prev) => [data as AdminExercise, ...prev]);
+      setNewExTitle("");
+      setNewExFormat("QCM");
+      setNewExDialogOpen(false);
+      toast.success(`Exercice "${data.title}" créé !`);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     try {
       return new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
