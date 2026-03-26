@@ -210,6 +210,13 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
         </h3>
       </div>
       <div className="flex-1 overflow-auto divide-y divide-border">
+        {reviews.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <BookOpen className="h-10 w-10 mb-2 opacity-30" />
+            <p className="text-sm font-medium">Aucune révision</p>
+            <p className="text-xs mt-1">Les révisions de ce chapitre apparaîtront ici.</p>
+          </div>
+        )}
         {reviews.map((rev) => {
           const qCount = Array.isArray(rev.questions_json) ? rev.questions_json.length : 0;
           return (
