@@ -169,30 +169,37 @@ export function EventFormDialog({ open, onOpenChange, onSubmit, subjects, initia
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             💡 Choisissez soit une matière (avec sa couleur), soit une couleur personnalisée
           </p>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="font-semibold">Matière</Label>
-              <Select value={subjectId || ""} onValueChange={(v) => { setSubjectId(v || null); setCustomColor(""); }}>
-                <SelectTrigger><SelectValue placeholder="Sélectionner une matière" /></SelectTrigger>
-                <SelectContent>
-                  {subjects.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.icon} {s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="font-semibold">Couleur personnalisée</Label>
-              <div className="flex flex-wrap gap-2 mt-1">
-                {PRESET_COLORS.map(c => (
-                  <button
-                    key={c}
-                    className={`h-7 w-7 rounded-full border-2 transition-all ${customColor === c ? "border-foreground scale-110" : "border-transparent"}`}
-                    style={{ backgroundColor: c }}
-                    onClick={() => { setCustomColor(c); setSubjectId(null); }}
-                  />
-                ))}
-              </div>
+          <div className="space-y-1.5">
+            <Label className="font-semibold">Matière</Label>
+            <Select value={subjectId || ""} onValueChange={(v) => { setSubjectId(v || null); setCustomColor(""); }}>
+              <SelectTrigger><SelectValue placeholder="Sélectionner une matière..." /></SelectTrigger>
+              <SelectContent>
+                {subjects.length > 0 && (
+                  <>
+                    {subjects.map(s => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <span className="flex items-center gap-2">
+                          <span>{s.icon}</span>
+                          <span>{s.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="font-semibold">Couleur personnalisée</Label>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {PRESET_COLORS.map(c => (
+                <button
+                  key={c}
+                  className={`h-8 w-8 rounded-full border-2 transition-all ${customColor === c ? "border-foreground scale-110 ring-2 ring-primary/30" : "border-transparent hover:scale-105"}`}
+                  style={{ backgroundColor: c }}
+                  onClick={() => { setCustomColor(c); setSubjectId(null); }}
+                />
+              ))}
             </div>
           </div>
 
