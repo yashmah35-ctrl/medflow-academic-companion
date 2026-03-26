@@ -320,6 +320,24 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
   const handleTrainingFinish = async (result: { score: number; total: number; wrong: Question[] }) => {
     if (!training || !user) return;
 
+    // Save revision score for progression tracking
+    if (training.type === "review" && folderId) {
+      const review = training.item as ChapterReview;
+      const questions = (review.questions_json || []) as Question[];
+      const totalQuestions = questions.reduce((sum, q) => sum + q.propositions.length, 0);
+      // Calculate correct answers based on score (score is already computed by TrainingEngine)
+      const correctCount = Math.round(result.score * questions.length);
+      const totalCount = questions.length;
+      
+      await supabase.from("user_revision_scores").insert({
+        user_id: user.id,
+        review_id: review.id,
+        folder_id: folderId,
+        correct_count: correctCount,
+        total_count: totalCount,
+      });
+    }
+
     // Only save errors to notebook for exercises, NOT for chapter reviews
     if (training.type === "exercise" && result.wrong.length > 0) {
       const exerciseItem = training.item as AdminExercise;
