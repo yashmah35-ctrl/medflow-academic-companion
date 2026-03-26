@@ -931,6 +931,60 @@ export type Database = {
           },
         ]
       }
+      user_course_progress: {
+        Row: {
+          course_id: string
+          folder_id: string
+          id: string
+          opened_at: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          folder_id: string
+          id?: string
+          opened_at?: string
+          user_id: string
+        }
+        Update: {
+          course_id?: string
+          folder_id?: string
+          id?: string
+          opened_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_revision_scores: {
+        Row: {
+          completed_at: string
+          correct_count: number
+          folder_id: string
+          id: string
+          review_id: string
+          total_count: number
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string
+          correct_count?: number
+          folder_id: string
+          id?: string
+          review_id: string
+          total_count?: number
+          user_id: string
+        }
+        Update: {
+          completed_at?: string
+          correct_count?: number
+          folder_id?: string
+          id?: string
+          review_id?: string
+          total_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
