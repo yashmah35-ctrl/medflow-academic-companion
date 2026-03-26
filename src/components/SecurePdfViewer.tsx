@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, FileText } from "lucide-react";
-import { ExercisePanel } from "@/components/training/ExercisePanel";
 import { renderAsync } from "docx-preview";
 
 interface SecurePdfViewerProps {
