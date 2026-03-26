@@ -251,7 +251,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
           {showRevisionPanel && subjectId && subjectName && (
             <div className="w-full border-t border-border/50 bg-card">
-              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises />
+              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises folderId={folderId} />
             </div>
           )}
         </div>
@@ -298,7 +298,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
           {showRevisionPanel && subjectId && subjectName && (
             <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
-              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises />
+              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises folderId={folderId} />
             </div>
           )}
         </div>
