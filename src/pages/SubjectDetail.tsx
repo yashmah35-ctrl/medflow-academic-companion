@@ -46,8 +46,6 @@ interface DBFolder {
   is_public: boolean;
 }
 
-// Dynamic course counts per folder
-const [folderCourseCounts, setFolderCourseCounts] = useState<Record<string, number>>({});
 
 interface DBCourse {
   id: string;
