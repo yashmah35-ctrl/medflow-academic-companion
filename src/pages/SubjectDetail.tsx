@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 import { useFolderProgress } from "@/hooks/useFolderProgress";
+import { AddQuestionModal, EditQuestionsModal, ImportQuestionsModal } from "@/components/training/ExerciseAdminModals";
 
 const container = {
   hidden: { opacity: 0 },
@@ -96,6 +97,9 @@ export default function SubjectDetail() {
   const [newExTitle, setNewExTitle] = useState("");
   const [newExFormat, setNewExFormat] = useState<"QCM" | "QIM">("QCM");
   const { isSubscribed } = useSubscription();
+  const [addQuestionExercise, setAddQuestionExercise] = useState<AdminExercise | null>(null);
+  const [editQuestionsExercise, setEditQuestionsExercise] = useState<AdminExercise | null>(null);
+  const [importExercise, setImportExercise] = useState<AdminExercise | null>(null);
 
   const folderIds = dbFolders.map(f => f.id);
   const folderProgress = useFolderProgress(folderIds, folderCourseCounts);
@@ -164,41 +168,41 @@ export default function SubjectDetail() {
   }, [dbFolders]);
 
   // Fetch exercises for this subject
-  useEffect(() => {
+  const fetchExercisesForSubject = async () => {
     if (!subjectId || folderId) return;
-    const fetchExercises = async () => {
-      const { data } = await supabase
-        .from("admin_exercises")
-        .select("*")
-        .eq("subject_id", subjectId)
-        .order("created_at", { ascending: false });
-      if (data) {
-        setExercises(data as AdminExercise[]);
-        // Fetch exercise scores
-        if (user) {
-          const exerciseIds = data.map((e: any) => e.id);
-          if (exerciseIds.length > 0) {
-            const { data: scores } = await supabase
-              .from("user_exercise_scores" as any)
-              .select("exercise_id, correct_count, total_count")
-              .eq("user_id", user.id)
-              .in("exercise_id", exerciseIds);
-            if (scores) {
-              const scoreMap: Record<string, { correct: number; total: number }> = {};
-              (scores as any[]).forEach((s: any) => {
-                if (!scoreMap[s.exercise_id]) scoreMap[s.exercise_id] = { correct: 0, total: 0 };
-                const safeTotal = Math.max(0, Number(s.total_count) || 0);
-                const safeCorrect = Math.max(0, Math.min(Number(s.correct_count) || 0, safeTotal));
-                scoreMap[s.exercise_id].correct += safeCorrect;
-                scoreMap[s.exercise_id].total += safeTotal;
-              });
-              setExerciseScores(scoreMap);
-            }
+    const { data } = await supabase
+      .from("admin_exercises")
+      .select("*")
+      .eq("subject_id", subjectId)
+      .order("created_at", { ascending: false });
+    if (data) {
+      setExercises(data as AdminExercise[]);
+      if (user) {
+        const exerciseIds = data.map((e: any) => e.id);
+        if (exerciseIds.length > 0) {
+          const { data: scores } = await supabase
+            .from("user_exercise_scores" as any)
+            .select("exercise_id, correct_count, total_count")
+            .eq("user_id", user.id)
+            .in("exercise_id", exerciseIds);
+          if (scores) {
+            const scoreMap: Record<string, { correct: number; total: number }> = {};
+            (scores as any[]).forEach((s: any) => {
+              if (!scoreMap[s.exercise_id]) scoreMap[s.exercise_id] = { correct: 0, total: 0 };
+              const safeTotal = Math.max(0, Number(s.total_count) || 0);
+              const safeCorrect = Math.max(0, Math.min(Number(s.correct_count) || 0, safeTotal));
+              scoreMap[s.exercise_id].correct += safeCorrect;
+              scoreMap[s.exercise_id].total += safeTotal;
+            });
+            setExerciseScores(scoreMap);
           }
         }
       }
-    };
-    fetchExercises();
+    }
+  };
+
+  useEffect(() => {
+    fetchExercisesForSubject();
   }, [subjectId, folderId, user]);
 
   // Fetch courses inside folder
@@ -640,13 +644,13 @@ export default function SubjectDetail() {
 
                     {isAdmin && (
                       <div className="flex items-center gap-3 mt-2 text-xs">
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&addQuestion=1`)}>
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setAddQuestionExercise(ex)}>
                           <Plus className="h-3.5 w-3.5" /> Question
                         </button>
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&import=1`)}>
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setImportExercise(ex)}>
                           <Upload className="h-3.5 w-3.5" /> Import
                         </button>
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&edit=1`)}>
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setEditQuestionsExercise(ex)}>
                           <Pencil className="h-3.5 w-3.5" /> Modifier
                         </button>
                         <button className="flex items-center gap-1 text-destructive hover:text-destructive/80 transition-colors" onClick={() => handleDeleteExercise(ex.id)}>
@@ -776,6 +780,26 @@ export default function SubjectDetail() {
         folderId={folderId}
       />
       <PremiumModal open={premiumModalOpen} onOpenChange={setPremiumModalOpen} />
+
+      {/* Admin exercise modals */}
+      <AddQuestionModal
+        open={!!addQuestionExercise}
+        onOpenChange={(o) => { if (!o) setAddQuestionExercise(null); }}
+        exercise={addQuestionExercise}
+        onSaved={() => { setAddQuestionExercise(null); fetchExercisesForSubject(); }}
+      />
+      <EditQuestionsModal
+        open={!!editQuestionsExercise}
+        onOpenChange={(o) => { if (!o) setEditQuestionsExercise(null); }}
+        exercise={editQuestionsExercise}
+        onSaved={fetchExercisesForSubject}
+      />
+      <ImportQuestionsModal
+        open={!!importExercise}
+        onOpenChange={(o) => { if (!o) setImportExercise(null); }}
+        exercise={importExercise}
+        onSaved={() => { setImportExercise(null); fetchExercisesForSubject(); }}
+      />
     </div>
   );
 }
