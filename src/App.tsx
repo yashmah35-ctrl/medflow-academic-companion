@@ -49,7 +49,7 @@ function AppRoutes() {
         <Route path="/subject/:subjectId" element={<SubjectDetail />} />
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />
         <Route path="/schedule" element={<Schedule />} />
-        <Route path="/learning" element={<AdminBlockedRoute><ActiveLearning /></AdminBlockedRoute>} />
+        <Route path="/learning" element={<ActiveLearning />} />
         <Route path="/errors" element={<AdminBlockedRoute><PremiumPaywall><ErrorNotebook /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/kholles" element={<AdminBlockedRoute><PremiumPaywall><Kholles /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/exams" element={<AdminBlockedRoute><PremiumPaywall><ExamsBlancs /></PremiumPaywall></AdminBlockedRoute>} />
