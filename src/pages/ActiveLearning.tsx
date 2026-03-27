@@ -100,7 +100,7 @@ export default function ActiveLearning() {
     if (!selectedExercise || !user) return;
 
     const questions = selectedExercise.questions_json || [];
-    const correctCount = Math.round(result.score * questions.length);
+    const correctCount = Math.round(result.score);
     const totalCount = questions.length;
 
     await supabase.from("user_exercise_scores").insert({
