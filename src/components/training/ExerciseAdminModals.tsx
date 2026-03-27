@@ -197,26 +197,28 @@ export function EditQuestionsModal({
                     <Label>Propositions</Label>
                     <div className="mt-2 space-y-2">
                       {editProps.map((p, pidx) => (
-                        <div key={p.id} className="flex items-center gap-2">
-                          {isQIM ? (
-                            <div className="flex gap-1">
-                              <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs"
-                                onClick={() => { const u = [...editProps]; u[pidx] = { ...u[pidx], isCorrect: true }; setEditProps(u); }}>V</Button>
-                              <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs"
-                                onClick={() => { const u = [...editProps]; u[pidx] = { ...u[pidx], isCorrect: false }; setEditProps(u); }}>F</Button>
-                            </div>
-                          ) : (
-                            <input type="checkbox" checked={p.isCorrect}
-                              onChange={() => { const u = [...editProps]; u[pidx] = { ...u[pidx], isCorrect: !u[pidx].isCorrect }; setEditProps(u); }}
-                              className="h-4 w-4 rounded border-border accent-primary" />
-                          )}
-                          <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
-                          <Input value={p.text} onChange={e => { const u = [...editProps]; u[pidx] = { ...u[pidx], text: e.target.value }; setEditProps(u); }}
-                            className="flex-1 h-8 text-sm" />
-                        </div>
-                        <div className="ml-12">
-                          <Input value={p.explanation || ""} onChange={e => { const u = [...editProps]; u[pidx] = { ...u[pidx], explanation: e.target.value || undefined }; setEditProps(u); }}
-                            placeholder={`Explication ${p.id} (optionnel)`} className="h-7 text-xs text-muted-foreground" />
+                        <div key={p.id} className="space-y-1">
+                          <div className="flex items-center gap-2">
+                           {isQIM ? (
+                             <div className="flex gap-1">
+                               <Button type="button" size="sm" variant={p.isCorrect ? "default" : "outline"} className="h-7 px-2 text-xs"
+                                 onClick={() => { const u = [...editProps]; u[pidx] = { ...u[pidx], isCorrect: true }; setEditProps(u); }}>V</Button>
+                               <Button type="button" size="sm" variant={!p.isCorrect ? "destructive" : "outline"} className="h-7 px-2 text-xs"
+                                 onClick={() => { const u = [...editProps]; u[pidx] = { ...u[pidx], isCorrect: false }; setEditProps(u); }}>F</Button>
+                             </div>
+                           ) : (
+                             <input type="checkbox" checked={p.isCorrect}
+                               onChange={() => { const u = [...editProps]; u[pidx] = { ...u[pidx], isCorrect: !u[pidx].isCorrect }; setEditProps(u); }}
+                               className="h-4 w-4 rounded border-border accent-primary" />
+                           )}
+                           <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
+                           <Input value={p.text} onChange={e => { const u = [...editProps]; u[pidx] = { ...u[pidx], text: e.target.value }; setEditProps(u); }}
+                             className="flex-1 h-8 text-sm" />
+                          </div>
+                          <div className="ml-12">
+                            <Input value={p.explanation || ""} onChange={e => { const u = [...editProps]; u[pidx] = { ...u[pidx], explanation: e.target.value || undefined }; setEditProps(u); }}
+                              placeholder={`Explication ${p.id} (optionnel)`} className="h-7 text-xs text-muted-foreground" />
+                          </div>
                         </div>
                       ))}
                     </div>
