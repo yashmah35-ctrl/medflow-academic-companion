@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { renderAsync } from "docx-preview";
 import { resolveCourseUrl } from "@/lib/externalStorage";
@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
+import { TrainingEngine, type Question } from "@/components/training/TrainingEngine";
+import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { Layers, PenLine, Upload, Image, Type, Eye, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -28,9 +30,19 @@ interface CourseOption {
   file_url?: string | null;
 }
 
+interface ExerciseOption {
+  id: string;
+  title: string;
+  format: "QCM" | "QIM";
+  subject_id: string;
+  questions_json: Question[] | null;
+}
+
 export default function ActiveLearning() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const exerciseId = searchParams.get("exerciseId");
   const [mode, setMode] = useState<Mode>("select");
   const [restitutionText, setRestitutionText] = useState("");
   const [selectedSubjectKey, setSelectedSubjectKey] = useState("");
@@ -43,6 +55,7 @@ export default function ActiveLearning() {
   const [prepaSubjects, setPrepaSubjects] = useState<SubjectOption[]>([]);
   
   const [courses, setCourses] = useState<CourseOption[]>([]);
+  const [selectedExercise, setSelectedExercise] = useState<ExerciseOption | null>(null);
 
   // Parse selected subject key "source:id"
   const selectedSubject = useMemo(() => {
@@ -57,6 +70,76 @@ export default function ActiveLearning() {
       if (data) setPrepaSubjects(data.map(s => ({ ...s, source: "prepa" as SubjectSource })));
     });
   }, []);
+
+  useEffect(() => {
+    if (!exerciseId) {
+      setSelectedExercise(null);
+      return;
+    }
+
+    const fetchExercise = async () => {
+      const { data } = await supabase
+        .from("admin_exercises")
+        .select("id, title, format, subject_id, questions_json")
+        .eq("id", exerciseId)
+        .maybeSingle();
+
+      if (data) {
+        setSelectedExercise({
+          ...data,
+          format: data.format as "QCM" | "QIM",
+          questions_json: (data.questions_json as Question[] | null) ?? [],
+        });
+      }
+    };
+
+    fetchExercise();
+  }, [exerciseId]);
+
+  const handleExerciseFinish = async (result: { score: number; total: number; wrong: Question[] }) => {
+    if (!selectedExercise || !user) return;
+
+    const questions = selectedExercise.questions_json || [];
+    const correctCount = Math.round(result.score * questions.length);
+    const totalCount = questions.length;
+
+    await supabase.from("user_exercise_scores").insert({
+      user_id: user.id,
+      exercise_id: selectedExercise.id,
+      correct_count: correctCount,
+      total_count: totalCount,
+    });
+
+    if (result.wrong.length > 0) {
+      const errors = result.wrong.map((q) => ({
+        user_id: user.id,
+        question: q.question,
+        wrong_answer: "Réponse incorrecte",
+        correct_answer: q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(", "),
+        subject_name: selectedSubjectKey || "Exercice",
+        error_type: "comprehension",
+        source: "exercice",
+        propositions_json: q.propositions as unknown as any,
+      }));
+
+      await saveErrorsWithDedup(errors);
+    }
+  };
+
+  if (selectedExercise) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" onClick={() => navigate(-1)}>← Retour</Button>
+        <TrainingEngine
+          title={selectedExercise.title}
+          format={selectedExercise.format}
+          questions={selectedExercise.questions_json || []}
+          onFinish={handleExerciseFinish}
+          onBack={() => navigate(-1)}
+        />
+      </div>
+    );
+  }
 
 
   // Fetch courses when subject changes
