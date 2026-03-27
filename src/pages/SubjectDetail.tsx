@@ -596,12 +596,16 @@ export default function SubjectDetail() {
                             <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
                           )}
                           <span className="text-xs text-muted-foreground">{qCount} Q</span>
-                          {scorePct !== null && (
+                          {scorePct !== null ? (
                             <Badge 
-                              variant={scorePct >= 70 ? "default" : "secondary"} 
-                              className={`text-[10px] ${scorePct >= 70 ? "bg-green-500/15 text-green-600 border-green-500/30" : scorePct >= 40 ? "bg-amber-500/15 text-amber-600 border-amber-500/30" : "bg-destructive/15 text-destructive border-destructive/30"}`}
+                              variant={scorePct >= 70 ? "default" : scorePct >= 40 ? "secondary" : "destructive"}
+                              className="text-[10px]"
                             >
-                              {scorePct}%
+                              {scorePct}% cumulé
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                              Aucune tentative
                             </Badge>
                           )}
                         </div>
@@ -610,7 +614,7 @@ export default function SubjectDetail() {
                         size="sm"
                         variant="outline"
                         className="shrink-0"
-                        onClick={() => navigate(`/active-learning?exerciseId=${ex.id}`)}
+                        onClick={() => navigate(`/learning?exerciseId=${ex.id}`)}
                       >
                         <Play className="h-3.5 w-3.5 mr-1" /> Démarrer
                       </Button>
