@@ -187,8 +187,10 @@ export default function SubjectDetail() {
               const scoreMap: Record<string, { correct: number; total: number }> = {};
               (scores as any[]).forEach((s: any) => {
                 if (!scoreMap[s.exercise_id]) scoreMap[s.exercise_id] = { correct: 0, total: 0 };
-                scoreMap[s.exercise_id].correct += s.correct_count;
-                scoreMap[s.exercise_id].total += s.total_count;
+                const safeTotal = Math.max(0, Number(s.total_count) || 0);
+                const safeCorrect = Math.max(0, Math.min(Number(s.correct_count) || 0, safeTotal));
+                scoreMap[s.exercise_id].correct += safeCorrect;
+                scoreMap[s.exercise_id].total += safeTotal;
               });
               setExerciseScores(scoreMap);
             }
@@ -585,7 +587,9 @@ export default function SubjectDetail() {
               {exercises.map((ex) => {
                 const qCount = Array.isArray(ex.questions_json) ? ex.questions_json.length : 0;
                 const score = exerciseScores[ex.id];
-                const scorePct = score && score.total > 0 ? Math.round((score.correct / score.total) * 100) : null;
+                const scorePct = score && score.total > 0
+                  ? Math.max(0, Math.min(100, Math.round((score.correct / score.total) * 100)))
+                  : null;
                 return (
                   <motion.div key={ex.id} variants={item} className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
