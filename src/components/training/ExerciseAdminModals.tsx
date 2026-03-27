@@ -93,6 +93,10 @@ export function AddQuestionModal({
                     <Input value={p.text} onChange={e => { const u = [...propositions]; u[idx] = { ...u[idx], text: e.target.value }; setPropositions(u); }}
                       placeholder={`Proposition ${p.id}`} className="flex-1 h-8 text-sm" />
                   </div>
+                  <div className="ml-12">
+                    <Input value={p.explanation || ""} onChange={e => { const u = [...propositions]; u[idx] = { ...u[idx], explanation: e.target.value || undefined }; setPropositions(u); }}
+                      placeholder={`Explication ${p.id} (optionnel)`} className="h-7 text-xs text-muted-foreground" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -209,6 +213,10 @@ export function EditQuestionsModal({
                           <span className="text-sm font-medium text-muted-foreground w-6">{p.id}.</span>
                           <Input value={p.text} onChange={e => { const u = [...editProps]; u[pidx] = { ...u[pidx], text: e.target.value }; setEditProps(u); }}
                             className="flex-1 h-8 text-sm" />
+                        </div>
+                        <div className="ml-12">
+                          <Input value={p.explanation || ""} onChange={e => { const u = [...editProps]; u[pidx] = { ...u[pidx], explanation: e.target.value || undefined }; setEditProps(u); }}
+                            placeholder={`Explication ${p.id} (optionnel)`} className="h-7 text-xs text-muted-foreground" />
                         </div>
                       ))}
                     </div>
