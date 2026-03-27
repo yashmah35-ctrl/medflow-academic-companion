@@ -600,17 +600,31 @@ export default function SubjectDetail() {
                             <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
                           )}
                           <span className="text-xs text-muted-foreground">{qCount} Q</span>
-                {scorePct !== null ? (
-                            <Badge 
-                              variant={scorePct >= 70 ? "default" : scorePct >= 40 ? "secondary" : "destructive"}
-                              className="text-[10px]"
-                            >
-                              {scorePct}% cumulé
-                            </Badge>
+                        </div>
+                        <div className="mt-1.5 w-full">
+                          {scorePct !== null ? (
+                            <div className="space-y-0.5">
+                              <div className="flex justify-between text-[10px] text-muted-foreground">
+                                <span>Progression</span>
+                                <span>{scorePct}%</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-muted">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    scorePct >= 70 ? "bg-primary" : scorePct >= 40 ? "bg-amber-500" : "bg-destructive"
+                                  }`}
+                                  style={{ width: `${scorePct}%` }}
+                                />
+                              </div>
+                            </div>
                           ) : (
-                            <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                              0% cumulé
-                            </Badge>
+                            <div className="space-y-0.5">
+                              <div className="flex justify-between text-[10px] text-muted-foreground">
+                                <span>Progression</span>
+                                <span>Non commencé</span>
+                              </div>
+                              <div className="h-1.5 w-full rounded-full bg-muted" />
+                            </div>
                           )}
                         </div>
                       </div>
