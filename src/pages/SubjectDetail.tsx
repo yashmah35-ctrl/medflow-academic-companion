@@ -168,41 +168,41 @@ export default function SubjectDetail() {
   }, [dbFolders]);
 
   // Fetch exercises for this subject
-  useEffect(() => {
+  const fetchExercisesForSubject = async () => {
     if (!subjectId || folderId) return;
-    const fetchExercises = async () => {
-      const { data } = await supabase
-        .from("admin_exercises")
-        .select("*")
-        .eq("subject_id", subjectId)
-        .order("created_at", { ascending: false });
-      if (data) {
-        setExercises(data as AdminExercise[]);
-        // Fetch exercise scores
-        if (user) {
-          const exerciseIds = data.map((e: any) => e.id);
-          if (exerciseIds.length > 0) {
-            const { data: scores } = await supabase
-              .from("user_exercise_scores" as any)
-              .select("exercise_id, correct_count, total_count")
-              .eq("user_id", user.id)
-              .in("exercise_id", exerciseIds);
-            if (scores) {
-              const scoreMap: Record<string, { correct: number; total: number }> = {};
-              (scores as any[]).forEach((s: any) => {
-                if (!scoreMap[s.exercise_id]) scoreMap[s.exercise_id] = { correct: 0, total: 0 };
-                const safeTotal = Math.max(0, Number(s.total_count) || 0);
-                const safeCorrect = Math.max(0, Math.min(Number(s.correct_count) || 0, safeTotal));
-                scoreMap[s.exercise_id].correct += safeCorrect;
-                scoreMap[s.exercise_id].total += safeTotal;
-              });
-              setExerciseScores(scoreMap);
-            }
+    const { data } = await supabase
+      .from("admin_exercises")
+      .select("*")
+      .eq("subject_id", subjectId)
+      .order("created_at", { ascending: false });
+    if (data) {
+      setExercises(data as AdminExercise[]);
+      if (user) {
+        const exerciseIds = data.map((e: any) => e.id);
+        if (exerciseIds.length > 0) {
+          const { data: scores } = await supabase
+            .from("user_exercise_scores" as any)
+            .select("exercise_id, correct_count, total_count")
+            .eq("user_id", user.id)
+            .in("exercise_id", exerciseIds);
+          if (scores) {
+            const scoreMap: Record<string, { correct: number; total: number }> = {};
+            (scores as any[]).forEach((s: any) => {
+              if (!scoreMap[s.exercise_id]) scoreMap[s.exercise_id] = { correct: 0, total: 0 };
+              const safeTotal = Math.max(0, Number(s.total_count) || 0);
+              const safeCorrect = Math.max(0, Math.min(Number(s.correct_count) || 0, safeTotal));
+              scoreMap[s.exercise_id].correct += safeCorrect;
+              scoreMap[s.exercise_id].total += safeTotal;
+            });
+            setExerciseScores(scoreMap);
           }
         }
       }
-    };
-    fetchExercises();
+    }
+  };
+
+  useEffect(() => {
+    fetchExercisesForSubject();
   }, [subjectId, folderId, user]);
 
   // Fetch courses inside folder
