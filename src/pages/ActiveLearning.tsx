@@ -88,7 +88,7 @@ export default function ActiveLearning() {
         setSelectedExercise({
           ...data,
           format: data.format as "QCM" | "QIM",
-          questions_json: (data.questions_json as Question[] | null) ?? [],
+          questions_json: ((data.questions_json as unknown) as Question[] | null) ?? [],
         });
       }
     };
@@ -125,22 +125,6 @@ export default function ActiveLearning() {
       await saveErrorsWithDedup(errors);
     }
   };
-
-  if (selectedExercise) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" onClick={() => navigate(-1)}>← Retour</Button>
-        <TrainingEngine
-          title={selectedExercise.title}
-          format={selectedExercise.format}
-          questions={selectedExercise.questions_json || []}
-          onFinish={handleExerciseFinish}
-          onBack={() => navigate(-1)}
-        />
-      </div>
-    );
-  }
-
 
   // Fetch courses when subject changes
   useEffect(() => {
@@ -212,6 +196,21 @@ export default function ActiveLearning() {
       }, 100);
     }
   };
+
+  if (selectedExercise) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" onClick={() => navigate(-1)}>← Retour</Button>
+        <TrainingEngine
+          title={selectedExercise.title}
+          format={selectedExercise.format}
+          questions={selectedExercise.questions_json || []}
+          onFinish={handleExerciseFinish}
+          onBack={() => navigate(-1)}
+        />
+      </div>
+    );
+  }
 
   if (mode === "select") {
     return (
