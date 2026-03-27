@@ -640,13 +640,13 @@ export default function SubjectDetail() {
 
                     {isAdmin && (
                       <div className="flex items-center gap-3 mt-2 text-xs">
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&addQuestion=1`)}>}>
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&addQuestion=1`)}>
                           <Plus className="h-3.5 w-3.5" /> Question
                         </button>
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&import=1`)}>}>
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&import=1`)}>
                           <Upload className="h-3.5 w-3.5" /> Import
                         </button>
-                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&edit=1`)}>}>
+                        <button className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors" onClick={() => navigate(`/learning?exerciseId=${ex.id}&edit=1`)}>
                           <Pencil className="h-3.5 w-3.5" /> Modifier
                         </button>
                         <button className="flex items-center gap-1 text-destructive hover:text-destructive/80 transition-colors" onClick={() => handleDeleteExercise(ex.id)}>
