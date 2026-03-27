@@ -600,7 +600,7 @@ export default function SubjectDetail() {
                             <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
                           )}
                           <span className="text-xs text-muted-foreground">{qCount} Q</span>
-                          {scorePct !== null ? (
+                {scorePct !== null ? (
                             <Badge 
                               variant={scorePct >= 70 ? "default" : scorePct >= 40 ? "secondary" : "destructive"}
                               className="text-[10px]"
@@ -609,7 +609,7 @@ export default function SubjectDetail() {
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                              Aucune tentative
+                              0% cumulé
                             </Badge>
                           )}
                         </div>
