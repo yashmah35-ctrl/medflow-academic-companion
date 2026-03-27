@@ -326,7 +326,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
       const questions = (review.questions_json || []) as Question[];
       const totalQuestions = questions.reduce((sum, q) => sum + q.propositions.length, 0);
       // Calculate correct answers based on score (score is already computed by TrainingEngine)
-      const correctCount = Math.round(result.score * questions.length);
+      const correctCount = Math.round(result.score);
       const totalCount = questions.length;
       
       await supabase.from("user_revision_scores").insert({
@@ -342,7 +342,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
     if (training.type === "exercise") {
       const exercise = training.item as AdminExercise;
       const questions = (exercise.questions_json || []) as Question[];
-      const correctCount = Math.round(result.score * questions.length);
+      const correctCount = Math.round(result.score);
       const totalCount = questions.length;
       
       await supabase.from("user_exercise_scores" as any).insert({
