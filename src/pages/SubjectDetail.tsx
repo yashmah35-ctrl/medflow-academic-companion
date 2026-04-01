@@ -694,38 +694,62 @@ export default function SubjectDetail() {
             </motion.div>
           )}
 
-          {dbCourses
-            .sort((a, b) => (a.source === "fac" ? -1 : 1))
-            .map((course) => (
-              <motion.div key={course.id} variants={item} className="rounded-xl border border-border bg-card p-4 hover:shadow-sm transition-all">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-xs shrink-0 mt-0.5">
-                      {course.source === "fac" ? "Cours de la Fac" : "Cours de la Prépa du Peuple"}
-                    </Badge>
-                    {course.source === "bonus" && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-1" />}
-                    <div className="min-w-0 flex-1">
-                      {renamingCourse === course.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRenameCourse(course.id)} className="h-7 text-sm" autoFocus />
-                          <Button size="sm" variant="ghost" onClick={() => handleRenameCourse(course.id)}>OK</Button>
-                          <Button size="sm" variant="ghost" onClick={() => setRenamingCourse(null)}>✕</Button>
-                        </div>
-                      ) : (
-                        <h4 className="font-medium text-foreground truncate">{course.title}</h4>
-                      )}
-                      <div className="flex gap-3 text-xs text-muted-foreground mt-0.5">
-                        <span>{formatDate(course.created_at)}</span>
-                        <span>•</span>
-                        <span>{course.reading_time || "—"}</span>
+          <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {dbCourses
+              .sort((a, b) => (a.source === "fac" ? -1 : 1))
+              .map((course) => (
+                <motion.div
+                  key={course.id}
+                  variants={item}
+                  className="group relative rounded-2xl border border-border bg-accent/20 overflow-hidden hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="p-5 pb-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-[10px]">
+                          {course.source === "fac" ? "Cours de la Fac" : "Prépa du Peuple"}
+                        </Badge>
+                        {course.source === "bonus" && !isSubscribed && !isAdmin && (
+                          <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                            <Crown className="h-3 w-3 mr-0.5" /> Premium
+                          </Badge>
+                        )}
+                      </div>
+                      <div className={`h-14 w-14 rounded-lg ${colors.light} flex items-center justify-center text-2xl opacity-60 shrink-0`}>
+                        📄
                       </div>
                     </div>
+
+                    {renamingCourse === course.id ? (
+                      <div className="flex items-center gap-2">
+                        <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRenameCourse(course.id)} className="h-7 text-sm" autoFocus />
+                        <Button size="sm" variant="ghost" onClick={() => handleRenameCourse(course.id)}>OK</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setRenamingCourse(null)}>✕</Button>
+                      </div>
+                    ) : (
+                      <h3 className="font-bold text-foreground text-base mb-2 line-clamp-2">{course.title}</h3>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(course.created_at)} • {course.reading_time || "—"}
+                    </p>
                   </div>
-                  <div className="flex gap-1 shrink-0 self-end sm:self-center">
+
+                  <div className="flex items-center justify-between px-5 pb-4">
+                    {isCurrentFolderOwner ? (
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setRenamingCourse(course.id); setRenameValue(course.title); }}>
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteCourse(course)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : <div />}
                     {course.file_url && (
                       <Button
                         size="sm"
-                        variant="outline"
+                        className="rounded-full px-5 bg-foreground text-background hover:bg-foreground/90"
                         onClick={async () => {
                           if (course.source === "bonus" && !isSubscribed && !isAdmin) { setPremiumModalOpen(true); return; }
                           const publicUrl = await resolveCourseUrl(course.file_url!);
@@ -736,27 +760,13 @@ export default function SubjectDetail() {
                           setPdfViewerOpen(true);
                         }}
                       >
-                        {course.source === "bonus" && !isSubscribed && !isAdmin ? (
-                          <><Crown className="h-4 w-4 mr-1 text-amber-500" /> Premium</>
-                        ) : (
-                          <><Eye className="h-4 w-4 mr-1" /> Consulter</>
-                        )}
+                        <Eye className="h-4 w-4 mr-1" /> Consulter
                       </Button>
                     )}
-                    {isCurrentFolderOwner && (
-                      <>
-                        <Button size="sm" variant="ghost" onClick={() => { setRenamingCourse(course.id); setRenameValue(course.title); }}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => handleDeleteCourse(course)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
+          </motion.div>
 
           {dbCourses.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
