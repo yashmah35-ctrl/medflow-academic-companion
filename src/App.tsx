@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { SubscriptionProvider } from "@/hooks/useSubscription";
+import { PomodoroProvider } from "@/hooks/usePomodoro";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
 import Index from "./pages/Index";
 import Cours from "./pages/Cours";
@@ -81,9 +82,11 @@ const App = () => (
       <TooltipProvider>
         <AuthProvider>
           <SubscriptionProvider>
-            <Toaster />
-            <Sonner />
-            <AppRoutes />
+            <PomodoroProvider>
+              <Toaster />
+              <Sonner />
+              <AppRoutes />
+            </PomodoroProvider>
           </SubscriptionProvider>
         </AuthProvider>
       </TooltipProvider>
