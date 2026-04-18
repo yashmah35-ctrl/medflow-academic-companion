@@ -7,6 +7,8 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { PomodoroProvider } from "@/hooks/usePomodoro";
+import { CreditsProvider } from "@/hooks/useCredits";
+import { PurchaseCreditsModal } from "@/components/credits/PurchaseCreditsModal";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
 import Index from "./pages/Index";
 import Cours from "./pages/Cours";
@@ -82,11 +84,14 @@ const App = () => (
       <TooltipProvider>
         <AuthProvider>
           <SubscriptionProvider>
-            <PomodoroProvider>
-              <Toaster />
-              <Sonner />
-              <AppRoutes />
-            </PomodoroProvider>
+            <CreditsProvider>
+              <PomodoroProvider>
+                <Toaster />
+                <Sonner />
+                <PurchaseCreditsModal />
+                <AppRoutes />
+              </PomodoroProvider>
+            </CreditsProvider>
           </SubscriptionProvider>
         </AuthProvider>
       </TooltipProvider>

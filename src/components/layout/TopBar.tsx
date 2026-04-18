@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
 import { useAnnouncements } from "@/hooks/useAnnouncements";
+import { CreditsBadge } from "@/components/credits/CreditsBadge";
 import { useNavigate } from "react-router-dom";
 
 export function TopBar() {
@@ -42,6 +43,7 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-3">
+        {!isAdmin && <CreditsBadge />}
         {!isAdmin && (
         <Popover>
           <PopoverTrigger asChild>

@@ -40,14 +40,14 @@ serve(async (req) => {
       apiVersion: "2023-10-16",
     });
 
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
     if (customers.data.length === 0) {
-      // Update local subscription status
-      const adminClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-      );
       await adminClient.from("subscriptions").upsert({
         user_id: user.id,
         status: "inactive",
@@ -67,21 +67,27 @@ serve(async (req) => {
 
     const isActive = subscriptions.data.length > 0;
     const sub = subscriptions.data[0];
-
-    const adminClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const periodStartIso = sub ? new Date(sub.current_period_start * 1000).toISOString() : null;
 
     await adminClient.from("subscriptions").upsert({
       user_id: user.id,
       stripe_customer_id: customers.data[0].id,
       stripe_subscription_id: sub?.id || null,
       status: isActive ? "active" : "inactive",
-      current_period_start: sub ? new Date(sub.current_period_start * 1000).toISOString() : null,
+      current_period_start: periodStartIso,
       current_period_end: sub ? new Date(sub.current_period_end * 1000).toISOString() : null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id" });
+
+    // Reset crédits à 4000 si abonnement actif et nouvelle période
+    if (isActive && periodStartIso) {
+      const { data: newBalance, error: rpcError } = await adminClient.rpc("reset_subscription_credits", {
+        _user_id: user.id,
+        _period_start: periodStartIso,
+      });
+      if (rpcError) console.error("reset_subscription_credits error:", rpcError);
+      else console.log(`[check-subscription] credits reset for ${user.id}: balance=${newBalance}`);
+    }
 
     return new Response(JSON.stringify({
       subscribed: isActive,
