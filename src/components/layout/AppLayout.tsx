@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { TopBar } from "./TopBar";
 import { BottomNav } from "./BottomNav";
+import { FloatingPomodoro } from "@/components/pomodoro/FloatingPomodoro";
 import { useRouteMemory, useRestoreRoute } from "@/hooks/useRouteMemory";
 
 export function AppLayout() {
@@ -24,6 +25,9 @@ export function AppLayout() {
 
       {/* Bottom nav: visible on mobile only */}
       <BottomNav />
+
+      {/* Floating Pomodoro mini-widget */}
+      <FloatingPomodoro />
     </div>
   );
 }
