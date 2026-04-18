@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { SubscriptionProvider } from "@/hooks/useSubscription";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
 import Index from "./pages/Index";
+import Cours from "./pages/Cours";
 import SubjectDetail from "./pages/SubjectDetail";
 import Schedule from "./pages/Schedule";
 import ActiveLearning from "./pages/ActiveLearning";
@@ -50,6 +51,7 @@ function AppRoutes() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route path="/" element={<Index />} />
+        <Route path="/cours" element={<Cours />} />
         <Route path="/subject/:subjectId" element={<SubjectDetail />} />
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />
         <Route path="/schedule" element={<Schedule />} />
