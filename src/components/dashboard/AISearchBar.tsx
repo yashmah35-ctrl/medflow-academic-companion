@@ -159,6 +159,7 @@ export function AISearchBar() {
     setMessages([]);
     setInput("");
     setOpen(false);
+    setConversationId(null);
   };
 
   return (
@@ -196,17 +197,23 @@ export function AISearchBar() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 mt-3 pl-2">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s.label}
-                onClick={() => handleSuggestion(s.prompt)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background hover:bg-accent/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <s.icon className="h-3.5 w-3.5" />
-                {s.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pl-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => handleSuggestion(s.prompt)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background hover:bg-accent/40 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <s.icon className="h-3.5 w-3.5" />
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Zap className="h-3 w-3 fill-primary text-primary" />
+              {CHAT_CREDIT_COST} crédits / message · solde : <strong className="text-foreground">{balance}</strong>
+            </span>
           </div>
         </div>
       </div>
