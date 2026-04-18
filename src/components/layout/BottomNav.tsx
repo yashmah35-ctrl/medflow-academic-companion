@@ -38,19 +38,14 @@ const studentTabs: Tab[] = [
   { title: "Modules", path: "/modules", icon: Puzzle },
   { title: "Planning", path: "/schedule", icon: Calendar },
   {
-    title: "Perf.",
+    title: "Plus",
     icon: BarChart3,
     subItems: [
       { title: "Cahier d'erreurs", path: "/errors", icon: BookX },
       { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
       { title: "Annales", path: "/annales", icon: Archive, restricted: true },
-    ],
-  },
-  {
-    title: "Comm.",
-    icon: Users,
-    subItems: [
       { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
+      { title: "Réglages", path: "/settings", icon: Settings },
     ],
   },
 ];

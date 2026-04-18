@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
-  BarChart3,
   Trophy,
   BookOpen,
   Puzzle,
