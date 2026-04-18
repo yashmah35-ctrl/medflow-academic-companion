@@ -199,9 +199,18 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const setMuted = useCallback((m: boolean | ((m: boolean) => boolean)) => {
+    setMutedState((prev) => {
+      const next = typeof m === "function" ? m(prev) : m;
+      mutedRef.current = next;
+      localStorage.setItem(MUTED_KEY, next ? "1" : "0");
+      return next;
+    });
+  }, []);
+
   return (
     <PomodoroContext.Provider
-      value={{ preset, secondsLeft, isRunning, sessionsCompleted, goal, toggle, reset, switchPreset, setGoal }}
+      value={{ preset, secondsLeft, isRunning, sessionsCompleted, goal, muted, toggle, reset, switchPreset, setGoal, setMuted }}
     >
       {children}
     </PomodoroContext.Provider>
