@@ -251,8 +251,20 @@ const Index = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Dashboard Hero */}
+    <div className="space-y-8">
+      {/* New Hero — Hello + AI search */}
+      <HelloHero firstName={firstName} streakDays={stats?.streak_days ?? 0} />
+      <AISearchBar />
+
+      {/* 4 stat cards */}
+      <StatCards
+        streakDays={stats?.streak_days ?? 0}
+        xp={stats?.xp ?? 0}
+        qcmSuccessRate={qcmSuccessRate}
+        rank={rank}
+      />
+
+      {/* Existing Objectif / Série blocks (kept as secondary widgets) */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
