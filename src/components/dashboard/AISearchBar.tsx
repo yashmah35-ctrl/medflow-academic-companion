@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Mic, Send, Sparkles, Lightbulb, BookOpen, Loader2, X, User as UserIcon } from "lucide-react";
+import { Mic, Send, Sparkles, Lightbulb, BookOpen, Loader2, X, User as UserIcon, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCredits, CHAT_CREDIT_COST } from "@/hooks/useCredits";
+import { supabase } from "@/integrations/supabase/client";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
