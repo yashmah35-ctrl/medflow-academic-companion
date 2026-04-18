@@ -58,6 +58,47 @@ export type Database = {
           },
         ]
       }
+      affiliate_payouts: {
+        Row: {
+          affiliate_id: string
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          paid_at: string
+          paid_by: string
+          payment_method: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by: string
+          payment_method?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string
+          payment_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_payouts_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       affiliate_subscriptions: {
         Row: {
           affiliate_code: string
@@ -65,9 +106,12 @@ export type Database = {
           commission_amount: number
           id: string
           is_paid: boolean
+          status: string
+          stripe_payment_intent_id: string | null
           subscribed_at: string
           subscriber_email: string | null
           subscriber_user_id: string
+          validated_at: string | null
         }
         Insert: {
           affiliate_code: string
@@ -75,9 +119,12 @@ export type Database = {
           commission_amount?: number
           id?: string
           is_paid?: boolean
+          status?: string
+          stripe_payment_intent_id?: string | null
           subscribed_at?: string
           subscriber_email?: string | null
           subscriber_user_id: string
+          validated_at?: string | null
         }
         Update: {
           affiliate_code?: string
@@ -85,9 +132,12 @@ export type Database = {
           commission_amount?: number
           id?: string
           is_paid?: boolean
+          status?: string
+          stripe_payment_intent_id?: string | null
           subscribed_at?: string
           subscriber_email?: string | null
           subscriber_user_id?: string
+          validated_at?: string | null
         }
         Relationships: [
           {
@@ -101,6 +151,8 @@ export type Database = {
       }
       affiliates: {
         Row: {
+          affiliate_type: string
+          available_balance: number
           code: string
           commission_per_subscriber: number
           created_at: string
@@ -109,10 +161,15 @@ export type Database = {
           influencer_email: string | null
           influencer_name: string
           is_active: boolean
+          pending_balance: number
           total_commission_earned: number
+          total_paid_out: number
           total_subscribers: number
+          user_id: string | null
         }
         Insert: {
+          affiliate_type?: string
+          available_balance?: number
           code: string
           commission_per_subscriber?: number
           created_at?: string
@@ -121,10 +178,15 @@ export type Database = {
           influencer_email?: string | null
           influencer_name: string
           is_active?: boolean
+          pending_balance?: number
           total_commission_earned?: number
+          total_paid_out?: number
           total_subscribers?: number
+          user_id?: string | null
         }
         Update: {
+          affiliate_type?: string
+          available_balance?: number
           code?: string
           commission_per_subscriber?: number
           created_at?: string
@@ -133,8 +195,11 @@ export type Database = {
           influencer_email?: string | null
           influencer_name?: string
           is_active?: boolean
+          pending_balance?: number
           total_commission_earned?: number
+          total_paid_out?: number
           total_subscribers?: number
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -827,34 +892,46 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
+          bic: string | null
           created_at: string
           ent_login_encrypted: string | null
           ent_password_encrypted: string | null
           full_name: string | null
+          iban_encrypted: string | null
           id: string
           university: string | null
           updated_at: string
           user_id: string
+          username: string | null
         }
         Insert: {
+          avatar_url?: string | null
+          bic?: string | null
           created_at?: string
           ent_login_encrypted?: string | null
           ent_password_encrypted?: string | null
           full_name?: string | null
+          iban_encrypted?: string | null
           id?: string
           university?: string | null
           updated_at?: string
           user_id: string
+          username?: string | null
         }
         Update: {
+          avatar_url?: string | null
+          bic?: string | null
           created_at?: string
           ent_login_encrypted?: string | null
           ent_password_encrypted?: string | null
           full_name?: string | null
+          iban_encrypted?: string | null
           id?: string
           university?: string | null
           updated_at?: string
           user_id?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -1237,13 +1314,19 @@ export type Database = {
         }
         Returns: number
       }
+      ensure_user_affiliate: { Args: { _user_id: string }; Returns: string }
       ensure_user_credits: { Args: { _user_id: string }; Returns: undefined }
+      generate_affiliate_code: { Args: { _prefix: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      record_affiliate_payout: {
+        Args: { _affiliate_id: string; _amount: number; _notes?: string }
+        Returns: string
       }
       refund_credits: {
         Args: { _amount: number; _reason: string; _user_id: string }
@@ -1252,6 +1335,13 @@ export type Database = {
       reset_subscription_credits: {
         Args: { _period_start: string; _user_id: string }
         Returns: number
+      }
+      validate_affiliate_commission: {
+        Args: {
+          _stripe_payment_intent_id?: string
+          _subscriber_user_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
