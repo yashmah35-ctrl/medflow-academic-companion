@@ -1,4 +1,6 @@
-// Edge function: stream Claude (Anthropic) responses for the dashboard AI search bar.
+// Edge function: stream Claude (Anthropic) responses + déduit 25 crédits atomiquement.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -14,6 +16,8 @@ Quand tu expliques un concept médical/scientifique :
 - Reste concis mais complet
 Si on te demande de générer un QCM, propose 5 propositions (A, B, C, D, E) avec la correction et une justification courte par item.`;
 
+const CREDIT_COST = 25;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -28,13 +32,91 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { messages } = await req.json();
+    // Auth
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentification requise" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    if (userError || !userData.user) {
+      return new Response(JSON.stringify({ error: "Utilisateur non authentifié" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const user = userData.user;
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    const { messages, conversationId } = await req.json();
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(
         JSON.stringify({ error: "Le champ 'messages' est requis" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Déduction atomique des crédits
+    const { data: newBalance, error: consumeErr } = await adminClient.rpc("consume_credits", {
+      _user_id: user.id,
+      _amount: CREDIT_COST,
+      _reason: "ai_chat",
+      _metadata: { messages_count: messages.length },
+    });
+    if (consumeErr) {
+      console.error("consume_credits error:", consumeErr);
+      return new Response(JSON.stringify({ error: "Erreur crédits" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (newBalance === -1) {
+      return new Response(JSON.stringify({ error: "insufficient_credits", code: "INSUFFICIENT_CREDITS" }), {
+        status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Crée/récupère la conversation
+    let convId = conversationId;
+    if (!convId) {
+      const firstUserMsg = messages.find((m: any) => m.role === "user")?.content ?? "Conversation";
+      const { data: conv, error: convErr } = await adminClient
+        .from("ai_conversations")
+        .insert({ user_id: user.id, title: String(firstUserMsg).slice(0, 80) })
+        .select("id")
+        .single();
+      if (convErr) console.error("conv create error:", convErr);
+      else convId = conv.id;
+    }
+
+    // Log message utilisateur (le dernier)
+    const lastUserMsg = messages[messages.length - 1];
+    if (convId && lastUserMsg?.role === "user") {
+      await adminClient.from("ai_messages").insert({
+        conversation_id: convId,
+        user_id: user.id,
+        role: "user",
+        content: String(lastUserMsg.content ?? ""),
+        credits_spent: CREDIT_COST,
+      });
+    }
+
+    const refundIfFailed = async () => {
+      try {
+        await adminClient.rpc("refund_credits", {
+          _user_id: user.id,
+          _amount: CREDIT_COST,
+          _reason: "ai_chat_refund",
+        });
+      } catch (e) { console.error("refund failed:", e); }
+    };
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -58,19 +140,25 @@ Deno.serve(async (req) => {
     if (!response.ok || !response.body) {
       const errText = await response.text();
       console.error("Anthropic error:", response.status, errText);
+      await refundIfFailed();
       return new Response(
         JSON.stringify({ error: `Anthropic API erreur (${response.status})` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Re-stream in OpenAI-compatible SSE format so the client can use the standard parser.
+    let assistantText = "";
     const stream = new ReadableStream({
       async start(controller) {
         const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         const encoder = new TextEncoder();
         let buffer = "";
+
+        // Envoie d'abord les métadonnées (conv id + new balance)
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ meta: { conversation_id: convId, balance: newBalance } })}\n\n`
+        ));
 
         try {
           while (true) {
@@ -92,22 +180,29 @@ Deno.serve(async (req) => {
                   evt.type === "content_block_delta" &&
                   evt.delta?.type === "text_delta"
                 ) {
-                  const out = {
-                    choices: [{ delta: { content: evt.delta.text } }],
-                  };
-                  controller.enqueue(
-                    encoder.encode(`data: ${JSON.stringify(out)}\n\n`)
-                  );
+                  assistantText += evt.delta.text;
+                  const out = { choices: [{ delta: { content: evt.delta.text } }] };
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(out)}\n\n`));
                 } else if (evt.type === "message_stop") {
                   controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
                 }
-              } catch {
-                // ignore malformed event
-              }
+              } catch { /* ignore */ }
             }
+          }
+
+          // Log réponse assistant
+          if (convId && assistantText) {
+            await adminClient.from("ai_messages").insert({
+              conversation_id: convId,
+              user_id: user.id,
+              role: "assistant",
+              content: assistantText,
+              credits_spent: 0,
+            });
           }
         } catch (e) {
           console.error("Stream error:", e);
+          if (!assistantText) await refundIfFailed();
         } finally {
           controller.close();
         }
