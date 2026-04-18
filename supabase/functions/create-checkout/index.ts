@@ -29,6 +29,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const returnUrl = body?.returnUrl || req.headers.get("origin") || "https://medflow.app";
     const affiliateCode = body?.affiliateCode || null;
+    const requestedPriceId: string | null = body?.priceId || null;
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
       apiVersion: "2023-10-16",
@@ -62,9 +63,18 @@ serve(async (req) => {
       });
     }
 
-    const priceId = Deno.env.get("STRIPE_PRICE_ID");
+    // Whitelist Stripe price IDs to prevent tampering
+    const ALLOWED_PRICE_IDS = new Set([
+      "price_1SLzcZ19EBNXe60DHGaEX9hC", // mensuel 10€
+      "price_1TNgUs19EBNXe60DgdZksSXK", // trimestriel 28€
+      "price_1TNgVk19EBNXe60DBTCTyV4m", // annuel 99€
+    ]);
+    const fallbackPrice = Deno.env.get("STRIPE_PRICE_ID");
+    const priceId = requestedPriceId && ALLOWED_PRICE_IDS.has(requestedPriceId)
+      ? requestedPriceId
+      : fallbackPrice;
     if (!priceId) {
-      throw new Error("STRIPE_PRICE_ID is not configured");
+      throw new Error("Price ID is not configured");
     }
 
     // Handle affiliate code discount
