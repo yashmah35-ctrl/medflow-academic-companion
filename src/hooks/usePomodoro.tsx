@@ -141,18 +141,22 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Tick
+  const endedRef = useRef(false);
   useEffect(() => {
     if (!isRunning) {
       if (intervalRef.current) window.clearInterval(intervalRef.current);
       return;
     }
+    endedRef.current = false;
     intervalRef.current = window.setInterval(() => {
       const end = endsAtRef.current;
-      if (!end) return;
+      if (!end || endedRef.current) return;
       const remaining = Math.max(0, Math.ceil((end - Date.now()) / 1000));
       setSecondsLeft(remaining);
       if (remaining <= 0) {
+        endedRef.current = true;
         const finishedPreset = preset;
+        if (intervalRef.current) window.clearInterval(intervalRef.current);
         endsAtRef.current = null;
         setIsRunning(false);
         setSecondsLeft(finishedPreset * 60);
