@@ -49,7 +49,7 @@ const allNavGroups: NavGroup[] = [
   {
     label: "Apprentissage",
     items: [
-      { title: "Cours", path: "/", icon: BookOpen },
+      { title: "Cours", path: "/cours", icon: BookOpen },
       { title: "Apprentissage", path: "/learning", icon: Brain, adminHidden: true },
       { title: "Modules Interactifs", path: "/modules", icon: Puzzle },
       { title: "Khôlles", path: "/kholles", icon: GraduationCap, restricted: true, adminHidden: true },
