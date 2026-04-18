@@ -20,8 +20,10 @@ export function AISearchBar() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { balance, setBalance, setPurchaseModalOpen, refresh } = useCredits();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -40,6 +42,13 @@ export function AISearchBar() {
   const send = async (textOverride?: string) => {
     const text = (textOverride ?? input).trim();
     if (!text || isLoading) return;
+
+    // Vérification crédits avant envoi
+    if (balance < CHAT_CREDIT_COST) {
+      toast.error(`Crédits insuffisants (${balance}/${CHAT_CREDIT_COST}). Achetez des crédits pour continuer.`);
+      setPurchaseModalOpen(true);
+      return;
+    }
 
     const userMsg: Msg = { role: "user", content: text };
     const newMessages = [...messages, userMsg];
@@ -63,25 +72,39 @@ export function AISearchBar() {
     };
 
     try {
+      // Récupère le token user authentifié
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+        setIsLoading(false);
+        return;
+      }
+
       const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-courses`;
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages, conversationId }),
       });
 
       if (!resp.ok || !resp.body) {
         if (resp.status === 429) {
           toast.error("Trop de requêtes, réessayez dans un instant.");
         } else if (resp.status === 402) {
-          toast.error("Crédits IA épuisés. Contactez l'admin.");
+          toast.error("Crédits insuffisants. Achetez des crédits pour continuer.");
+          setPurchaseModalOpen(true);
+          refresh();
         } else {
           const errData = await resp.json().catch(() => ({}));
           toast.error(errData.error || "Erreur de l'IA");
         }
+        // Retire le message utilisateur en cas d'échec pré-stream
+        setMessages((prev) => prev.slice(0, -1));
         setIsLoading(false);
         return;
       }
@@ -106,6 +129,11 @@ export function AISearchBar() {
           if (json === "[DONE]") { streamDone = true; break; }
           try {
             const parsed = JSON.parse(json);
+            if (parsed.meta) {
+              if (parsed.meta.conversation_id) setConversationId(parsed.meta.conversation_id);
+              if (typeof parsed.meta.balance === "number") setBalance(parsed.meta.balance);
+              continue;
+            }
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) upsertAssistant(content);
           } catch {
