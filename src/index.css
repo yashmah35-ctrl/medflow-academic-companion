@@ -15,7 +15,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 30% 15%;
 
-    --primary: 220 70% 50%;
+    /* Turquoise primary (matches new dashboard design) */
+    --primary: 174 72% 38%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 15% 92%;
@@ -32,7 +33,7 @@
 
     --border: 220 15% 88%;
     --input: 220 15% 88%;
-    --ring: 220 70% 50%;
+    --ring: 174 72% 38%;
 
     --radius: 0.75rem;
 
@@ -68,15 +69,15 @@
     --subject-specialite: 210 40% 55%;
     --subject-specialite-light: 210 30% 94%;
 
-    /* Sidebar */
-    --sidebar-background: 220 25% 18%;
-    --sidebar-foreground: 210 20% 75%;
-    --sidebar-primary: 220 70% 55%;
+    /* Sidebar — light theme to match new design */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 35%;
+    --sidebar-primary: 174 72% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 35% 25%;
-    --sidebar-accent-foreground: 210 30% 90%;
-    --sidebar-border: 220 25% 24%;
-    --sidebar-ring: 220 70% 55%;
+    --sidebar-accent: 220 15% 95%;
+    --sidebar-accent-foreground: 220 30% 15%;
+    --sidebar-border: 220 15% 90%;
+    --sidebar-ring: 174 72% 38%;
 
     /* Custom */
     --success: 145 55% 38%;

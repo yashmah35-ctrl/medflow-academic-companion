@@ -22,6 +22,10 @@ import ResetPassword from "./pages/ResetPassword";
 import AdminAnnouncements from "./pages/AdminAnnouncements";
 import AdminAffiliates from "./pages/AdminAffiliates";
 import Settings from "./pages/Settings";
+import Pomodoro from "./pages/Pomodoro";
+import Leaderboard from "./pages/Leaderboard";
+import Statistics from "./pages/Statistics";
+import Battles from "./pages/Battles";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -59,6 +63,10 @@ function AppRoutes() {
         <Route path="/settings" element={<AdminBlockedRoute><Settings /></AdminBlockedRoute>} />
         <Route path="/announcements" element={<AdminAnnouncements />} />
         <Route path="/affiliates" element={<AdminAffiliates />} />
+        <Route path="/pomodoro" element={<AdminBlockedRoute><Pomodoro /></AdminBlockedRoute>} />
+        <Route path="/classement" element={<AdminBlockedRoute><Leaderboard /></AdminBlockedRoute>} />
+        <Route path="/statistiques" element={<AdminBlockedRoute><Statistics /></AdminBlockedRoute>} />
+        <Route path="/battles" element={<AdminBlockedRoute><Battles /></AdminBlockedRoute>} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

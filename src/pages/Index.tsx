@@ -30,6 +30,9 @@ import { supabase } from "@/integrations/supabase/client";
 import PersonalCoursesSection from "@/components/dashboard/PersonalCoursesSection";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
+import { HelloHero } from "@/components/dashboard/HelloHero";
+import { AISearchBar } from "@/components/dashboard/AISearchBar";
+import { StatCards } from "@/components/dashboard/StatCards";
 
 interface DBSubject {
   id: string;
@@ -77,8 +80,14 @@ const Index = () => {
   const [renamingSubject, setRenamingSubject] = useState<string | null>(null);
   const [renameSubjectValue, setRenameSubjectValue] = useState("");
   const [premiumModalOpen, setPremiumModalOpen] = useState(false);
+  const [qcmSuccessRate, setQcmSuccessRate] = useState(0);
 
   const isPremiumLocked = !isSubscribed && !isAdmin;
+
+  const firstName =
+    (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ||
+    user?.email?.split("@")[0] ||
+    "Étudiant";
 
   const handleMinutesUpdate = useCallback((mins: number) => {
     setStudyMinutes(mins);
@@ -108,6 +117,28 @@ const Index = () => {
     };
     fetchSubjects();
   }, []);
+
+  // Compute QCM success rate from exercise + revision scores
+  useEffect(() => {
+    if (!user) return;
+    const fetchQcmRate = async () => {
+      const [{ data: ex }, { data: rev }] = await Promise.all([
+        supabase.from("user_exercise_scores").select("correct_count, total_count").eq("user_id", user.id),
+        supabase.from("user_revision_scores").select("correct_count, total_count").eq("user_id", user.id),
+      ]);
+      const all = [...(ex ?? []), ...(rev ?? [])];
+      const totals = all.reduce(
+        (acc, r) => {
+          acc.correct += r.correct_count ?? 0;
+          acc.total += r.total_count ?? 0;
+          return acc;
+        },
+        { correct: 0, total: 0 }
+      );
+      setQcmSuccessRate(totals.total > 0 ? Math.round((totals.correct / totals.total) * 100) : 0);
+    };
+    fetchQcmRate();
+  }, [user]);
 
   const handleRenameSubject = async (subjectId: string) => {
     if (!renameSubjectValue.trim()) return;
@@ -220,8 +251,20 @@ const Index = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Dashboard Hero */}
+    <div className="space-y-8">
+      {/* New Hero — Hello + AI search */}
+      <HelloHero firstName={firstName} streakDays={stats?.streak_days ?? 0} />
+      <AISearchBar />
+
+      {/* 4 stat cards */}
+      <StatCards
+        streakDays={stats?.streak_days ?? 0}
+        xp={stats?.xp ?? 0}
+        qcmSuccessRate={qcmSuccessRate}
+        rank={rank}
+      />
+
+      {/* Existing Objectif / Série blocks (kept as secondary widgets) */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
