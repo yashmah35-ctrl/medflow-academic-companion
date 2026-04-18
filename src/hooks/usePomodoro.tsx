@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from "react";
 import { toast } from "sonner";
+import { useUserStats } from "./useUserStats";
 
 export type PomodoroPreset = 25 | 5 | 15;
 
