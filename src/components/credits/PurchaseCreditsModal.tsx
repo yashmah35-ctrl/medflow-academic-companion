@@ -5,12 +5,20 @@ import { useCredits } from "@/hooks/useCredits";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
-const PACKS = [
-  { id: "pack_50",   credits: 50,   price: "0,50 €",  popular: false },
-  { id: "pack_100",  credits: 100,  price: "1,00 €",  popular: true },
-  { id: "pack_150",  credits: 150,  price: "1,50 €",  popular: false },
-  { id: "pack_4000", credits: 4000, price: "40,00 €", popular: false, best: true },
-] as const;
+type Pack = {
+  id: "pack_50" | "pack_100" | "pack_150" | "pack_4000";
+  credits: number;
+  price: string;
+  popular?: boolean;
+  best?: boolean;
+};
+
+const PACKS: Pack[] = [
+  { id: "pack_50",   credits: 50,   price: "0,50 €" },
+  { id: "pack_100",  credits: 100,  price: "1,00 €", popular: true },
+  { id: "pack_150",  credits: 150,  price: "1,50 €" },
+  { id: "pack_4000", credits: 4000, price: "40,00 €", best: true },
+];
 
 export function PurchaseCreditsModal() {
   const { purchaseModalOpen, setPurchaseModalOpen, balance, buyPack } = useCredits();
