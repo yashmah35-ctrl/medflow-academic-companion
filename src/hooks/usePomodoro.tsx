@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from "react";
 import { toast } from "sonner";
+import { useUserStats } from "./useUserStats";
 
 export type PomodoroPreset = 25 | 5 | 15;
 
@@ -75,6 +76,7 @@ const PomodoroContext = createContext<PomodoroContextValue | null>(null);
 
 export function PomodoroProvider({ children }: { children: ReactNode }) {
   const initial = loadState();
+  const { addXP } = useUserStats();
   const [preset, setPreset] = useState<PomodoroPreset>(initial.preset);
   const [isRunning, setIsRunning] = useState(initial.isRunning && !!initial.endsAt && initial.endsAt > Date.now());
   const [secondsLeft, setSecondsLeft] = useState(() => {
@@ -88,6 +90,8 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const [goal, setGoalState] = useState(8);
   const endsAtRef = useRef<number | null>(initial.endsAt);
   const intervalRef = useRef<number | null>(null);
+  const addXPRef = useRef(addXP);
+  useEffect(() => { addXPRef.current = addXP; }, [addXP]);
 
   // Load sessions/goal on mount
   useEffect(() => {
@@ -121,7 +125,16 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(TODAY_KEY(), String(next));
         return next;
       });
-      toast.success("Session de concentration terminée ! 🎉");
+      // Award 5 XP per concentration session
+      addXPRef.current?.(5)?.then?.((res) => {
+        if (res?.xpGained) {
+          toast.success(`Session terminée ! 🔥 +${res.xpGained} XP`);
+        } else {
+          toast.success("Session de concentration terminée ! 🔥 +5 XP");
+        }
+      }).catch(() => {
+        toast.success("Session de concentration terminée ! 🔥 +5 XP");
+      });
     } else {
       toast.info("Pause terminée. Prêt à repartir ! 💪");
     }

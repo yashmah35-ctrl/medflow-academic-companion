@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Timer, Minus, Plus } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, Minus, Plus, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -130,11 +130,53 @@ export default function Pomodoro() {
               <div
                 key={i}
                 className={cn(
-                  "h-10 w-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all",
-                  done ? "bg-primary text-primary-foreground shadow-sm" : "bg-muted text-muted-foreground"
+                  "relative h-10 w-10 rounded-xl flex items-center justify-center text-sm font-semibold transition-all overflow-visible",
+                  done
+                    ? "bg-gradient-to-br from-orange-500 to-red-600 text-white shadow-md shadow-red-500/40"
+                    : "bg-muted text-muted-foreground"
                 )}
               >
-                {i + 1}
+                {done && (
+                  <>
+                    {/* Flame 1 */}
+                    <motion.div
+                      className="absolute -top-2 left-1/2 -translate-x-1/2 pointer-events-none"
+                      animate={{
+                        y: [0, -3, 0],
+                        scale: [1, 1.15, 1],
+                        opacity: [0.85, 1, 0.85],
+                      }}
+                      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <Flame className="h-3.5 w-3.5 text-yellow-400 fill-orange-500 drop-shadow-[0_0_4px_rgba(251,146,60,0.8)]" strokeWidth={2.5} />
+                    </motion.div>
+                    {/* Flame 2 (offset) */}
+                    <motion.div
+                      className="absolute -top-1 left-1 pointer-events-none"
+                      animate={{
+                        y: [0, -2, 0],
+                        scale: [0.8, 1, 0.8],
+                        opacity: [0.6, 0.9, 0.6],
+                      }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                    >
+                      <Flame className="h-2.5 w-2.5 text-yellow-300 fill-orange-400" strokeWidth={2.5} />
+                    </motion.div>
+                    {/* Flame 3 (offset) */}
+                    <motion.div
+                      className="absolute -top-1 right-1 pointer-events-none"
+                      animate={{
+                        y: [0, -2.5, 0],
+                        scale: [0.7, 0.95, 0.7],
+                        opacity: [0.5, 0.85, 0.5],
+                      }}
+                      transition={{ duration: 1.3, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+                    >
+                      <Flame className="h-2.5 w-2.5 text-yellow-300 fill-orange-400" strokeWidth={2.5} />
+                    </motion.div>
+                  </>
+                )}
+                <span className="relative z-10">{i + 1}</span>
               </div>
             );
           })}
@@ -143,6 +185,9 @@ export default function Pomodoro() {
         <p className="text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{sessionsCompleted}</span> session
           {sessionsCompleted > 1 ? "s" : ""} complétée{sessionsCompleted > 1 ? "s" : ""} sur {goal} objectif
+          {sessionsCompleted > 0 && (
+            <span className="ml-2 text-red-600 font-semibold">· +{sessionsCompleted * 5} XP 🔥</span>
+          )}
         </p>
       </div>
     </div>
