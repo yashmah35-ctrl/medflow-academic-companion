@@ -119,25 +119,20 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
 
   const handleSessionEnd = useCallback((finishedPreset: PomodoroPreset) => {
     if (!mutedRef.current) playEndChime();
-    if (finishedPreset === 25) {
-      setSessionsCompleted((prev) => {
-        const next = prev + 1;
-        localStorage.setItem(TODAY_KEY(), String(next));
-        return next;
+    // Toute session terminée (25, 5 ou 15 min) compte : case rouge + 5 XP
+    setSessionsCompleted((prev) => {
+      const next = prev + 1;
+      localStorage.setItem(TODAY_KEY(), String(next));
+      return next;
+    });
+    Promise.resolve(addXPRef.current?.(5))
+      .then((res: any) => {
+        const gained = res?.xpGained ?? 5;
+        toast.success(`Session terminée ! 🔥 +${gained} XP`);
+      })
+      .catch(() => {
+        toast.success("Session terminée ! 🔥 +5 XP");
       });
-      // Award 5 XP per concentration session
-      addXPRef.current?.(5)?.then?.((res) => {
-        if (res?.xpGained) {
-          toast.success(`Session terminée ! 🔥 +${res.xpGained} XP`);
-        } else {
-          toast.success("Session de concentration terminée ! 🔥 +5 XP");
-        }
-      }).catch(() => {
-        toast.success("Session de concentration terminée ! 🔥 +5 XP");
-      });
-    } else {
-      toast.info("Pause terminée. Prêt à repartir ! 💪");
-    }
   }, []);
 
   // Tick
