@@ -1,4 +1,4 @@
-import { Play, Pause, RotateCcw, Timer, Minus, Plus } from "lucide-react";
+import { Play, Pause, RotateCcw, Timer, Minus, Plus, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
