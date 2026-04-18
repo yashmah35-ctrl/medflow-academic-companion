@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
-  BarChart3,
   Trophy,
   BookOpen,
   Puzzle,
@@ -16,6 +15,7 @@ import {
   Archive,
   Brain,
   Crown,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth, canAccessExamsKhollesAnnales } from "@/hooks/useAuth";
@@ -42,7 +42,6 @@ const allNavGroups: NavGroup[] = [
     label: null,
     items: [
       { title: "Dashboard", path: "/", icon: LayoutGrid },
-      { title: "Statistiques", path: "/statistiques", icon: BarChart3, isNew: true, adminHidden: true },
       { title: "Classement", path: "/classement", icon: Trophy, isNew: true, adminHidden: true },
     ],
   },
@@ -64,6 +63,12 @@ const allNavGroups: NavGroup[] = [
       { title: "Cahier d'erreurs", path: "/errors", icon: BookX, adminHidden: true },
       { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true, adminHidden: true },
       { title: "Annales", path: "/annales", icon: Archive, restricted: true, adminHidden: true },
+    ],
+  },
+  {
+    label: "Compte",
+    items: [
+      { title: "Réglages", path: "/settings", icon: Settings },
     ],
   },
   {

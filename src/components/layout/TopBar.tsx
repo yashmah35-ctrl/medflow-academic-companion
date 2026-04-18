@@ -96,8 +96,11 @@ export function TopBar() {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings?tab=profile")}>
               <User className="mr-2 h-4 w-4" /> Mon profil
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/settings?tab=billing")}>
+              <Bell className="mr-2 h-4 w-4" /> Abonnement & crédits
             </DropdownMenuItem>
             <DropdownMenuItem className="text-destructive" onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" /> Déconnexion

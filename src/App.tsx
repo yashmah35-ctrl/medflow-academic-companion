@@ -28,7 +28,6 @@ import AdminAffiliates from "./pages/AdminAffiliates";
 import Settings from "./pages/Settings";
 import Pomodoro from "./pages/Pomodoro";
 import Leaderboard from "./pages/Leaderboard";
-import Statistics from "./pages/Statistics";
 import Battles from "./pages/Battles";
 import NotFound from "./pages/NotFound";
 
@@ -65,13 +64,13 @@ function AppRoutes() {
         <Route path="/annales" element={<AdminBlockedRoute><PremiumPaywall><Annales /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/modules" element={<InteractiveModules />} />
         <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
-        <Route path="/settings" element={<AdminBlockedRoute><Settings /></AdminBlockedRoute>} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/announcements" element={<AdminAnnouncements />} />
         <Route path="/affiliates" element={<AdminAffiliates />} />
         <Route path="/pomodoro" element={<AdminBlockedRoute><Pomodoro /></AdminBlockedRoute>} />
         <Route path="/classement" element={<AdminBlockedRoute><Leaderboard /></AdminBlockedRoute>} />
-        <Route path="/statistiques" element={<AdminBlockedRoute><Statistics /></AdminBlockedRoute>} />
         <Route path="/battles" element={<AdminBlockedRoute><Battles /></AdminBlockedRoute>} />
+        <Route path="/statistiques" element={<Navigate to="/settings" replace />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>
