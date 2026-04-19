@@ -18,10 +18,8 @@ export function LegalModal({ open, onOpenChange, title, subtitle, children }: Le
           <DialogTitle className="text-2xl font-bold text-[#1a1a1a]">{title}</DialogTitle>
           {subtitle && <DialogDescription className="text-sm text-gray-500">{subtitle}</DialogDescription>}
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh] px-6 py-4">
-          <div className="prose prose-sm max-w-none prose-headings:text-[#1a1a1a] prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-[#1a1a1a]">
-            {children}
-          </div>
+        <ScrollArea className="max-h-[70vh] px-8 py-6">
+          {children}
         </ScrollArea>
       </DialogContent>
     </Dialog>
