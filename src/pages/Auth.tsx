@@ -299,24 +299,24 @@ export default function Auth() {
 
   /* ============ MAIN AUTH PAGE ============ */
   return (
-    <div className="min-h-screen bg-[#0a0a0f] relative overflow-hidden">
+    <div className="min-h-screen bg-white relative overflow-hidden">
       {/* Cursor trail */}
       <CursorTrail />
 
-      {/* Morphing blobs */}
+      {/* Soft pastel blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
-          className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-blue-600/20 blur-[120px]"
+          className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full bg-blue-300/30 blur-[120px]"
           animate={{ x: [0, 100, 0], y: [0, 80, 0], scale: [1, 1.2, 1] }}
           transition={{ duration: 18, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full bg-purple-600/20 blur-[120px]"
+          className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full bg-purple-300/30 blur-[120px]"
           animate={{ x: [0, -120, 0], y: [0, -100, 0], scale: [1, 1.3, 1] }}
           transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute top-1/2 left-1/2 w-[400px] h-[400px] rounded-full bg-cyan-500/10 blur-[100px]"
+          className="absolute top-1/2 left-1/2 w-[400px] h-[400px] rounded-full bg-cyan-200/30 blur-[100px]"
           animate={{ x: [-200, 200, -200], y: [-100, 100, -100], scale: [1, 1.4, 1] }}
           transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -327,7 +327,7 @@ export default function Auth() {
         {Array.from({ length: 20 }).map((_, i) => (
           <motion.div
             key={i}
-            className="absolute w-1 h-1 rounded-full bg-white/40"
+            className="absolute w-1 h-1 rounded-full bg-blue-400/50"
             style={{ left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%` }}
             animate={{ y: [0, -30, 0], opacity: [0.2, 0.8, 0.2] }}
             transition={{ duration: 4 + Math.random() * 4, repeat: Infinity, delay: Math.random() * 5 }}
@@ -350,47 +350,47 @@ export default function Auth() {
 
           {/* Typing title */}
           <div className="text-center mb-8" translate="no">
-            <h1 className="text-4xl font-bold text-white tracking-tight" translate="no">
+            <h1 className="text-4xl font-bold text-slate-900 tracking-tight" translate="no">
               {title1.displayed}
-              {!title1.done && <span className="inline-block w-1 h-8 ml-1 bg-blue-500 animate-pulse align-middle" />}
+              {!title1.done && <span className="inline-block w-1 h-8 ml-1 bg-blue-600 animate-pulse align-middle" />}
             </h1>
             {title1.done && (
-              <h2 className="text-2xl font-semibold mt-2 bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent" translate="no">
+              <h2 className="text-2xl font-semibold mt-2 bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent" translate="no">
                 {title2.displayed}
-                {!title2.done && <span className="inline-block w-1 h-6 ml-1 bg-purple-400 animate-pulse align-middle" />}
+                {!title2.done && <span className="inline-block w-1 h-6 ml-1 bg-purple-500 animate-pulse align-middle" />}
               </h2>
             )}
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mb-8">
-            <div className="text-center p-3 rounded-xl bg-white/[0.03] border border-white/10">
-              <div className="text-xl font-bold text-white">
+            <div className="text-center p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+              <div className="text-xl font-bold text-slate-900">
                 <AnimatedCounter target={stats.users} delay={500} />
               </div>
-              <div className="text-[10px] text-white/50 uppercase tracking-wider mt-1">Étudiants</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Étudiants</div>
             </div>
-            <div className="text-center p-3 rounded-xl bg-white/[0.03] border border-white/10">
-              <div className="text-xl font-bold text-white">
+            <div className="text-center p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+              <div className="text-xl font-bold text-slate-900">
                 <AnimatedCounter target={stats.questions} delay={700} />
               </div>
-              <div className="text-[10px] text-white/50 uppercase tracking-wider mt-1">Questions</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Questions</div>
             </div>
-            <div className="text-center p-3 rounded-xl bg-white/[0.03] border border-white/10">
-              <div className="text-xl font-bold text-white">
+            <div className="text-center p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
+              <div className="text-xl font-bold text-slate-900">
                 <AnimatedCounter target={85} suffix="%" delay={900} />
               </div>
-              <div className="text-[10px] text-white/50 uppercase tracking-wider mt-1">Réussite</div>
+              <div className="text-[10px] text-slate-500 uppercase tracking-wider mt-1">Réussite</div>
             </div>
           </div>
 
           {/* Toggle */}
-          <div className="flex p-1 rounded-full bg-white/[0.03] border border-white/10 mb-5">
+          <div className="flex p-1 rounded-full bg-slate-100 border border-slate-200 mb-5">
             <button
               type="button"
               onClick={() => setMode("login")}
               className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-500 ${
-                mode === "login" ? "bg-[#2563eb] text-white shadow-lg shadow-blue-500/30" : "text-white/40 hover:text-white/70"
+                mode === "login" ? "bg-[#2563eb] text-white shadow-lg shadow-blue-500/30" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               Connexion
@@ -399,7 +399,7 @@ export default function Auth() {
               type="button"
               onClick={() => setMode("register")}
               className={`flex-1 py-2.5 rounded-full text-sm font-medium transition-all duration-500 ${
-                mode === "register" ? "bg-[#2563eb] text-white shadow-lg shadow-blue-500/30" : "text-white/40 hover:text-white/70"
+                mode === "register" ? "bg-[#2563eb] text-white shadow-lg shadow-blue-500/30" : "text-slate-500 hover:text-slate-800"
               }`}
             >
               Inscription
@@ -413,7 +413,7 @@ export default function Auth() {
               animate={{ rotate: 360 }}
               transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
             />
-            <form onSubmit={handleSubmit} className="relative bg-[#0a0a0f] rounded-2xl p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="relative bg-white rounded-2xl p-6 space-y-4 shadow-xl">
               {mode === "register" && (
                 <>
                   <div className="space-y-1.5">
