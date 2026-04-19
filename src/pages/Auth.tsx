@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Chrome } from "lucide-react";
+import { Mail, Lock, User, ArrowRight, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AuthShield3D from "@/components/auth/AuthShield3D";
@@ -179,7 +179,7 @@ function ScrambledTitle() {
     }));
   }, []);
   return (
-    <div className="flex justify-center items-center h-16 relative">
+    <div className="flex justify-center items-center h-16 relative" translate="no">
       {letters.map((letter, i) => (
         <motion.span
           key={letter.id}
@@ -270,18 +270,6 @@ export default function Auth() {
     }
   };
 
-  const handleGoogle = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${window.location.origin}/dashboard` },
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      toast.error(error.message || "Connexion Google indisponible");
-    }
-  };
-
   /* ============ SPLASH SCREEN (20s) ============ */
   if (showSplash) {
     return (
@@ -361,13 +349,13 @@ export default function Auth() {
           </div>
 
           {/* Typing title */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white tracking-tight">
+          <div className="text-center mb-8" translate="no">
+            <h1 className="text-4xl font-bold text-white tracking-tight" translate="no">
               {title1.displayed}
               {!title1.done && <span className="inline-block w-1 h-8 ml-1 bg-blue-500 animate-pulse align-middle" />}
             </h1>
             {title1.done && (
-              <h2 className="text-2xl font-semibold mt-2 bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              <h2 className="text-2xl font-semibold mt-2 bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent" translate="no">
                 {title2.displayed}
                 {!title2.done && <span className="inline-block w-1 h-6 ml-1 bg-purple-400 animate-pulse align-middle" />}
               </h2>
@@ -394,23 +382,6 @@ export default function Auth() {
               </div>
               <div className="text-[10px] text-white/50 uppercase tracking-wider mt-1">Réussite</div>
             </div>
-          </div>
-
-          {/* Google */}
-          <button
-            type="button"
-            onClick={handleGoogle}
-            className="w-full mb-5 py-3 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 text-white text-sm font-medium flex items-center justify-center gap-3 transition-all"
-          >
-            <Chrome className="w-4 h-4" />
-            Continuer avec Google
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-xs text-white/40 uppercase tracking-wider">ou</span>
-            <div className="flex-1 h-px bg-white/10" />
           </div>
 
           {/* Toggle */}
