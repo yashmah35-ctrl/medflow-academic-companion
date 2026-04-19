@@ -417,22 +417,22 @@ export default function Auth() {
               {mode === "register" && (
                 <>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-white/60">Nom complet</label>
+                    <label className="text-xs font-medium text-slate-600">Nom complet</label>
                     <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="text"
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Jean Dupont"
                         required
-                        className="w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-sm text-white placeholder-white/15 focus:outline-none focus:border-[#2563eb]/40 transition-all"
+                        className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563eb]/60 focus:bg-white transition-all"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-xs font-medium text-white/60">Je suis en...</label>
+                    <label className="text-xs font-medium text-slate-600">Je suis en...</label>
                     <div className="grid grid-cols-3 gap-2">
                       {roleOptions.map((opt) => (
                         <button
@@ -441,13 +441,13 @@ export default function Auth() {
                           onClick={() => setRole(opt.value)}
                           className={`rounded-xl border p-2.5 text-center text-xs transition-all ${
                             role === opt.value
-                              ? "border-[#2563eb] bg-[#2563eb]/15 text-white shadow-lg shadow-blue-500/20"
-                              : "border-white/10 bg-white/[0.03] text-white/50 hover:border-white/20"
+                              ? "border-[#2563eb] bg-[#2563eb]/10 text-slate-900 shadow-md shadow-blue-500/20"
+                              : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white"
                           }`}
                         >
                           <span className="text-base block mb-0.5">{opt.emoji}</span>
                           <span className="font-semibold block text-[11px]">{opt.label}</span>
-                          <span className="text-[9px] block mt-0.5 text-white/40">{opt.desc}</span>
+                          <span className="text-[9px] block mt-0.5 text-slate-500">{opt.desc}</span>
                         </button>
                       ))}
                     </div>
@@ -456,36 +456,36 @@ export default function Auth() {
               )}
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/60">Email</label>
+                <label className="text-xs font-medium text-slate-600">Email</label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="jean@exemple.fr"
                     required
-                    className="w-full pl-11 pr-4 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-sm text-white placeholder-white/15 focus:outline-none focus:border-[#2563eb]/40 transition-all"
+                    className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563eb]/60 focus:bg-white transition-all"
                   />
                 </div>
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-white/60">Mot de passe</label>
+                <label className="text-xs font-medium text-slate-600">Mot de passe</label>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    className="w-full pl-11 pr-12 py-3.5 bg-white/[0.03] border border-white/10 rounded-xl text-sm text-white placeholder-white/15 focus:outline-none focus:border-[#2563eb]/40 transition-all"
+                    className="w-full pl-11 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#2563eb]/60 focus:bg-white transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 hover:text-white/50 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -496,7 +496,7 @@ export default function Auth() {
                 <div className="text-right">
                   <button
                     type="button"
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-xs text-blue-600 hover:text-blue-700 transition-colors"
                     onClick={async () => {
                       if (!email) {
                         toast.error("Entre ton email d'abord");
@@ -529,7 +529,7 @@ export default function Auth() {
             </form>
           </div>
 
-          <p className="text-center text-xs text-white/30 mt-6">
+          <p className="text-center text-xs text-slate-500 mt-6">
             © 2026 La Prépa du Peuple — Tous droits réservés
           </p>
         </motion.div>
