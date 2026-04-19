@@ -16,6 +16,16 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { LegalModal } from "@/components/legal/LegalModal";
+import { CGUContent, PlaceholderContent } from "@/components/legal/CGUContent";
+
+type LegalKey = "cgu" | "privacy" | "mentions" | "cookies";
+const LEGAL_META: Record<LegalKey, { label: string; subtitle?: string }> = {
+  cgu: { label: "Conditions d'utilisation", subtitle: "Dernière mise à jour : 4 juin 2025" },
+  privacy: { label: "Politique de confidentialité" },
+  mentions: { label: "Mentions légales" },
+  cookies: { label: "Cookies" },
+};
 
 const features = [
   {
@@ -148,6 +158,7 @@ function AnimatedNumber({
 
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
+  const [legalOpen, setLegalOpen] = useState<LegalKey | null>(null);
   const [usersCount, setUsersCount] = useState<number | null>(null);
   const [questionsCount, setQuestionsCount] = useState<number | null>(null);
   const [coursesCount, setCoursesCount] = useState<number | null>(null);
@@ -537,10 +548,17 @@ export default function Landing() {
             <div>
               <h4 className="font-bold mb-4">Légal</h4>
               <ul className="space-y-2 text-sm text-white/60">
-                <li>Conditions d'utilisation</li>
-                <li>Politique de confidentialité</li>
-                <li>Mentions légales</li>
-                <li>Cookies</li>
+                {(Object.keys(LEGAL_META) as LegalKey[]).map((key) => (
+                  <li key={key}>
+                    <button
+                      type="button"
+                      onClick={() => setLegalOpen(key)}
+                      className="text-left hover:text-white transition-colors"
+                    >
+                      {LEGAL_META[key].label}
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -569,6 +587,19 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      <LegalModal
+        open={legalOpen !== null}
+        onOpenChange={(o) => !o && setLegalOpen(null)}
+        title={legalOpen ? LEGAL_META[legalOpen].label : ""}
+        subtitle={legalOpen ? LEGAL_META[legalOpen].subtitle : undefined}
+      >
+        {legalOpen === "cgu" ? (
+          <CGUContent />
+        ) : legalOpen ? (
+          <PlaceholderContent title={LEGAL_META[legalOpen].label} />
+        ) : null}
+      </LegalModal>
     </div>
   );
 }
