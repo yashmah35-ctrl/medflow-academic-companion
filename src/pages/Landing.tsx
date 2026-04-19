@@ -25,7 +25,6 @@ const LEGAL_META: Record<LegalKey, { label: string; subtitle?: string }> = {
   cgu: { label: "Conditions d'utilisation", subtitle: "Dernière mise à jour : 4 juin 2025" },
   privacy: { label: "Politique de confidentialité", subtitle: "Dernière mise à jour : 19 avril 2026" },
 };
-};
 
 const features = [
   {
