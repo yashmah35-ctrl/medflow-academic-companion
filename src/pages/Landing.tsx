@@ -20,12 +20,10 @@ import { LegalModal } from "@/components/legal/LegalModal";
 import { CGUContent, PlaceholderContent } from "@/components/legal/CGUContent";
 import { PrivacyContent } from "@/components/legal/PrivacyContent";
 
-type LegalKey = "cgu" | "privacy" | "mentions" | "cookies";
+type LegalKey = "cgu" | "privacy";
 const LEGAL_META: Record<LegalKey, { label: string; subtitle?: string }> = {
   cgu: { label: "Conditions d'utilisation", subtitle: "Dernière mise à jour : 4 juin 2025" },
   privacy: { label: "Politique de confidentialité", subtitle: "Dernière mise à jour : 19 avril 2026" },
-  mentions: { label: "Mentions légales" },
-  cookies: { label: "Cookies" },
 };
 
 const features = [
@@ -568,7 +566,7 @@ export default function Landing() {
               <ul className="space-y-3 text-sm text-white/60">
                 <li className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  hello.tonagentia@gmail.com
+                  medflow.laprepadupeuple@gmail.com
                 </li>
                 <li className="flex items-center gap-2">
                   <Phone className="h-4 w-4" />
@@ -599,8 +597,6 @@ export default function Landing() {
           <CGUContent />
         ) : legalOpen === "privacy" ? (
           <PrivacyContent />
-        ) : legalOpen ? (
-          <PlaceholderContent title={LEGAL_META[legalOpen].label} />
         ) : null}
       </LegalModal>
     </div>
