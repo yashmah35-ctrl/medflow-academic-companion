@@ -270,18 +270,6 @@ export default function Auth() {
     }
   };
 
-  const handleGoogle = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${window.location.origin}/dashboard` },
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      toast.error(error.message || "Connexion Google indisponible");
-    }
-  };
-
   /* ============ SPLASH SCREEN (20s) ============ */
   if (showSplash) {
     return (
