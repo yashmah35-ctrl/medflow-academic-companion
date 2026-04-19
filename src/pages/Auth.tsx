@@ -349,13 +349,13 @@ export default function Auth() {
           </div>
 
           {/* Typing title */}
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-white tracking-tight">
+          <div className="text-center mb-8" translate="no">
+            <h1 className="text-4xl font-bold text-white tracking-tight" translate="no">
               {title1.displayed}
               {!title1.done && <span className="inline-block w-1 h-8 ml-1 bg-blue-500 animate-pulse align-middle" />}
             </h1>
             {title1.done && (
-              <h2 className="text-2xl font-semibold mt-2 bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
+              <h2 className="text-2xl font-semibold mt-2 bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent" translate="no">
                 {title2.displayed}
                 {!title2.done && <span className="inline-block w-1 h-6 ml-1 bg-purple-400 animate-pulse align-middle" />}
               </h2>
