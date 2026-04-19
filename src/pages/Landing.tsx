@@ -18,11 +18,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { LegalModal } from "@/components/legal/LegalModal";
 import { CGUContent, PlaceholderContent } from "@/components/legal/CGUContent";
+import { PrivacyContent } from "@/components/legal/PrivacyContent";
 
 type LegalKey = "cgu" | "privacy" | "mentions" | "cookies";
 const LEGAL_META: Record<LegalKey, { label: string; subtitle?: string }> = {
   cgu: { label: "Conditions d'utilisation", subtitle: "Dernière mise à jour : 4 juin 2025" },
-  privacy: { label: "Politique de confidentialité" },
+  privacy: { label: "Politique de confidentialité", subtitle: "Dernière mise à jour : 19 avril 2026" },
   mentions: { label: "Mentions légales" },
   cookies: { label: "Cookies" },
 };
@@ -596,6 +597,8 @@ export default function Landing() {
       >
         {legalOpen === "cgu" ? (
           <CGUContent />
+        ) : legalOpen === "privacy" ? (
+          <PrivacyContent />
         ) : legalOpen ? (
           <PlaceholderContent title={LEGAL_META[legalOpen].label} />
         ) : null}
