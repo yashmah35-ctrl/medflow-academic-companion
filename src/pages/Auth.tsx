@@ -99,13 +99,13 @@ export default function Auth() {
         syncUserToExternal(session.user.id, session.user.email || '')
           .then(ok => console.log('[Auth] External sync result:', ok))
           .catch(err => console.error('[Auth] External sync error:', err));
-        navigate("/", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (isMounted && session) {
-        navigate("/", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     });
 
@@ -139,7 +139,7 @@ export default function Auth() {
             .then(ok => console.log('[Auth] Login sync result:', ok))
             .catch(err => console.error('[Auth] Login sync error:', err));
         }
-        navigate("/");
+        navigate("/dashboard");
       }
     } catch (error: any) {
       toast.error(error.message || "Une erreur est survenue");

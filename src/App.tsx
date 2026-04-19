@@ -11,6 +11,7 @@ import { CreditsProvider } from "@/hooks/useCredits";
 import { PurchaseCreditsModal } from "@/components/credits/PurchaseCreditsModal";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
 import Index from "./pages/Index";
+import Landing from "./pages/Landing";
 import Cours from "./pages/Cours";
 import SubjectDetail from "./pages/SubjectDetail";
 import Schedule from "./pages/Schedule";
@@ -42,17 +43,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AdminBlockedRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin } = useAuth();
-  if (isAdmin) return <Navigate to="/" replace />;
+  if (isAdmin) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Auth />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-        <Route path="/" element={<Index />} />
+        <Route path="/dashboard" element={<Index />} />
         <Route path="/cours" element={<Cours />} />
         <Route path="/subject/:subjectId" element={<SubjectDetail />} />
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />

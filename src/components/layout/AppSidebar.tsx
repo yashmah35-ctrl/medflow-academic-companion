@@ -41,7 +41,7 @@ const allNavGroups: NavGroup[] = [
   {
     label: null,
     items: [
-      { title: "Dashboard", path: "/", icon: LayoutGrid },
+      { title: "Dashboard", path: "/dashboard", icon: LayoutGrid },
       { title: "Classement", path: "/classement", icon: Trophy, isNew: true, adminHidden: true },
     ],
   },
@@ -137,8 +137,8 @@ export function AppSidebar() {
             <div className="space-y-0.5">
               {group.items.map((navItem) => {
                 const isActive =
-                  navItem.path === "/"
-                    ? location.pathname === "/"
+                  navItem.path === "/dashboard"
+                    ? location.pathname === "/dashboard"
                     : location.pathname === navItem.path ||
                       location.pathname.startsWith(navItem.path + "/");
 

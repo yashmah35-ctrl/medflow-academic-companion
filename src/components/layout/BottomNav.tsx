@@ -33,7 +33,7 @@ interface Tab {
 }
 
 const studentTabs: Tab[] = [
-  { title: "Matières", path: "/", icon: BookOpen },
+  { title: "Matières", path: "/dashboard", icon: BookOpen },
   { title: "Cours", path: "/learning", icon: Brain },
   { title: "Modules", path: "/modules", icon: Puzzle },
   { title: "Planning", path: "/schedule", icon: Calendar },
@@ -51,7 +51,7 @@ const studentTabs: Tab[] = [
 ];
 
 const adminTabs: Tab[] = [
-  { title: "Matières", path: "/", icon: BookOpen },
+  { title: "Matières", path: "/dashboard", icon: BookOpen },
   { title: "Planning", path: "/schedule", icon: Calendar },
   { title: "Annonces", path: "/announcements", icon: Megaphone },
   { title: "Affiliés", path: "/affiliates", icon: Users },
@@ -66,11 +66,11 @@ export function BottomNav() {
 
   const isTabActive = (tab: Tab) => {
     if (tab.path) {
-      return tab.path === "/" ? location.pathname === "/" : location.pathname.startsWith(tab.path);
+      return tab.path === "/dashboard" ? location.pathname === "/dashboard" : location.pathname.startsWith(tab.path);
     }
     if (tab.subItems) {
       return tab.subItems.some((si) =>
-        si.path === "/" ? location.pathname === "/" : location.pathname.startsWith(si.path)
+        si.path === "/dashboard" ? location.pathname === "/dashboard" : location.pathname.startsWith(si.path)
       );
     }
     return false;

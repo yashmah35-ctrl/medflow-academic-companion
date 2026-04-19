@@ -240,7 +240,7 @@ export default function SubjectDetail() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <p>Chargement...</p>
-        <Button variant="ghost" onClick={() => navigate("/")} className="mt-2">Retour</Button>
+        <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mt-2">Retour</Button>
       </div>
     );
   }
@@ -390,7 +390,7 @@ export default function SubjectDetail() {
           className="shrink-0"
           onClick={() => {
             if (folderId) navigate(`/subject/${subjectId}`);
-            else navigate("/");
+            else navigate("/dashboard");
           }}
         >
           <ArrowLeft className="h-5 w-5" />
