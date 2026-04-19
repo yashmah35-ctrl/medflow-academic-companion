@@ -158,6 +158,7 @@ function AnimatedNumber({
 
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
+  const [legalOpen, setLegalOpen] = useState<LegalKey | null>(null);
   const [usersCount, setUsersCount] = useState<number | null>(null);
   const [questionsCount, setQuestionsCount] = useState<number | null>(null);
   const [coursesCount, setCoursesCount] = useState<number | null>(null);
