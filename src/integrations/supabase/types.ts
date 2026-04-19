@@ -1317,6 +1317,7 @@ export type Database = {
       ensure_user_affiliate: { Args: { _user_id: string }; Returns: string }
       ensure_user_credits: { Args: { _user_id: string }; Returns: undefined }
       generate_affiliate_code: { Args: { _prefix: string }; Returns: string }
+      get_public_landing_stats: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
