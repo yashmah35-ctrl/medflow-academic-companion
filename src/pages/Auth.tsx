@@ -396,23 +396,6 @@ export default function Auth() {
             </div>
           </div>
 
-          {/* Google */}
-          <button
-            type="button"
-            onClick={handleGoogle}
-            className="w-full mb-5 py-3 rounded-xl bg-white/[0.05] border border-white/10 hover:bg-white/[0.08] hover:border-white/20 text-white text-sm font-medium flex items-center justify-center gap-3 transition-all"
-          >
-            <Chrome className="w-4 h-4" />
-            Continuer avec Google
-          </button>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-xs text-white/40 uppercase tracking-wider">ou</span>
-            <div className="flex-1 h-px bg-white/10" />
-          </div>
-
           {/* Toggle */}
           <div className="flex p-1 rounded-full bg-white/[0.03] border border-white/10 mb-5">
             <button
