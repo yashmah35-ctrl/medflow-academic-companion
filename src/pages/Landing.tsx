@@ -80,18 +80,77 @@ const testimonials = [
   },
 ];
 
-function formatCount(n: number): string {
-  if (n >= 1000) {
-    const k = n / 1000;
-    return `${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}K+`;
-  }
-  return `${n}`;
+function formatNumberFr(n: number): string {
+  return new Intl.NumberFormat("fr-FR").format(Math.round(n));
+}
+
+function AnimatedNumber({
+  value,
+  duration = 1800,
+  suffix = "",
+  className,
+}: {
+  value: number | null;
+  duration?: number;
+  suffix?: string;
+  className?: string;
+}) {
+  const [display, setDisplay] = useState(0);
+  const [started, setStarted] = useState(false);
+  const ref = useState<{ el: HTMLSpanElement | null }>({ el: null })[0];
+
+  useEffect(() => {
+    if (value === null) return;
+    if (!started) return;
+    let raf = 0;
+    const start = performance.now();
+    const from = 0;
+    const to = value;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (to - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration, started]);
+
+  useEffect(() => {
+    if (!ref.el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setStarted(true);
+            obs.disconnect();
+          }
+        });
+      },
+      { threshold: 0.3 },
+    );
+    obs.observe(ref.el);
+    return () => obs.disconnect();
+  }, [ref]);
+
+  return (
+    <span
+      ref={(el) => {
+        ref.el = el;
+      }}
+      className={className}
+    >
+      {value === null ? "…" : `${formatNumberFr(display)}${suffix}`}
+    </span>
+  );
 }
 
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [usersCount, setUsersCount] = useState<number | null>(null);
   const [questionsCount, setQuestionsCount] = useState<number | null>(null);
+  const [coursesCount, setCoursesCount] = useState<number | null>(null);
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.15], [1, 0]);
   const heroY = useTransform(scrollYProgress, [0, 0.15], [0, -50]);
@@ -106,9 +165,14 @@ export default function Landing() {
     const loadStats = async () => {
       const { data, error } = await supabase.rpc("get_public_landing_stats");
       if (!error && data) {
-        const d = data as { users_count: number; questions_count: number };
+        const d = data as {
+          users_count: number;
+          questions_count: number;
+          courses_count: number;
+        };
         setUsersCount(d.users_count ?? 0);
         setQuestionsCount(d.questions_count ?? 0);
+        setCoursesCount(d.courses_count ?? 0);
       }
     };
     loadStats();
@@ -118,17 +182,22 @@ export default function Landing() {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const stats = [
-    { value: usersCount === null ? "…" : formatCount(usersCount), label: "Étudiants inscrits", icon: Users },
-    { value: questionsCount === null ? "…" : formatCount(questionsCount), label: "Questions disponibles", icon: GraduationCap },
-    { value: "85%", label: "Taux de réussite", icon: Target },
-    { value: "250", label: "Sessions par jour", icon: Zap },
+  const stats: Array<{
+    value: number | null;
+    fixed?: string;
+    label: string;
+    icon: typeof Users;
+  }> = [
+    { value: usersCount, label: "Étudiants inscrits", icon: Users },
+    { value: questionsCount, label: "Questions disponibles", icon: GraduationCap },
+    { value: null, fixed: "85%", label: "Taux de réussite", icon: Target },
+    { value: coursesCount, label: "Cours disponibles", icon: Zap },
   ];
 
-  const heroStats = [
-    { value: usersCount === null ? "…" : formatCount(usersCount), label: "Étudiants" },
-    { value: questionsCount === null ? "…" : formatCount(questionsCount), label: "Questions" },
-    { value: "85%", label: "Réussite" },
+  const heroStats: Array<{ value: number | null; fixed?: string; label: string }> = [
+    { value: usersCount, label: "Étudiants" },
+    { value: questionsCount, label: "Questions" },
+    { value: null, fixed: "85%", label: "Réussite" },
   ];
 
   return (
@@ -246,7 +315,9 @@ export default function Landing() {
           >
             {heroStats.map((s) => (
               <div key={s.label} className="text-center">
-                <div className="text-3xl md:text-4xl font-black text-[#1a1a1a]">{s.value}</div>
+                <div className="text-3xl md:text-4xl font-black text-[#1a1a1a]">
+                  {s.fixed ?? <AnimatedNumber value={s.value} />}
+                </div>
                 <div className="text-xs md:text-sm text-[#666] uppercase tracking-wider mt-1">{s.label}</div>
               </div>
             ))}
@@ -338,7 +409,9 @@ export default function Landing() {
                 <div className="h-14 w-14 mx-auto rounded-xl bg-white/10 flex items-center justify-center mb-4">
                   <s.icon className="h-7 w-7 text-white" />
                 </div>
-                <div className="text-4xl md:text-5xl font-black">{s.value}</div>
+                <div className="text-4xl md:text-5xl font-black">
+                  {s.fixed ?? <AnimatedNumber value={s.value} />}
+                </div>
                 <div className="mt-2 text-sm text-white/70 uppercase tracking-wider">{s.label}</div>
               </motion.div>
             ))}
