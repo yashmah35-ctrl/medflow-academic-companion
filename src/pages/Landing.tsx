@@ -315,7 +315,9 @@ export default function Landing() {
           >
             {heroStats.map((s) => (
               <div key={s.label} className="text-center">
-                <div className="text-3xl md:text-4xl font-black text-[#1a1a1a]">{s.value}</div>
+                <div className="text-3xl md:text-4xl font-black text-[#1a1a1a]">
+                  {s.fixed ?? <AnimatedNumber value={s.value} />}
+                </div>
                 <div className="text-xs md:text-sm text-[#666] uppercase tracking-wider mt-1">{s.label}</div>
               </div>
             ))}
