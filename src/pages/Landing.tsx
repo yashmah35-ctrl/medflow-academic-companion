@@ -597,8 +597,6 @@ export default function Landing() {
           <CGUContent />
         ) : legalOpen === "privacy" ? (
           <PrivacyContent />
-        ) : legalOpen ? (
-          <PlaceholderContent title={LEGAL_META[legalOpen].label} />
         ) : null}
       </LegalModal>
     </div>
