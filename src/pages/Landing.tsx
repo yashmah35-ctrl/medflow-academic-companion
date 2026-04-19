@@ -409,7 +409,9 @@ export default function Landing() {
                 <div className="h-14 w-14 mx-auto rounded-xl bg-white/10 flex items-center justify-center mb-4">
                   <s.icon className="h-7 w-7 text-white" />
                 </div>
-                <div className="text-4xl md:text-5xl font-black">{s.value}</div>
+                <div className="text-4xl md:text-5xl font-black">
+                  {s.fixed ?? <AnimatedNumber value={s.value} />}
+                </div>
                 <div className="mt-2 text-sm text-white/70 uppercase tracking-wider">{s.label}</div>
               </motion.div>
             ))}
