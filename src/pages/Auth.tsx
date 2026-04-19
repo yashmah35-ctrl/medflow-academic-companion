@@ -179,7 +179,7 @@ function ScrambledTitle() {
     }));
   }, []);
   return (
-    <div className="flex justify-center items-center h-16 relative">
+    <div className="flex justify-center items-center h-16 relative" translate="no">
       {letters.map((letter, i) => (
         <motion.span
           key={letter.id}
