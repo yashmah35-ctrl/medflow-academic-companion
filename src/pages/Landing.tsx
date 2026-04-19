@@ -256,23 +256,28 @@ export default function Landing() {
           style={{ opacity: heroOpacity, y: heroY }}
           className="relative z-10 max-w-6xl mx-auto px-6 text-center"
         >
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="space-y-2"
-          >
-            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-[#1a1a1a]">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-12">
+            <motion.h1
+              initial={{ opacity: 0, x: -100 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-[#1a1a1a] text-center md:text-right"
+            >
               TON
               <br />
-              <span className="text-[#2563eb]">CONCOURS</span>
-            </h1>
-            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-[#1a1a1a]">
+              CONCOURS
+            </motion.h1>
+            <motion.h1
+              initial={{ opacity: 0, x: 100 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-[0.9] text-[#2563eb] text-center md:text-left"
+            >
               TA
               <br />
-              <span className="text-[#2563eb]">RÉUSSITE</span>
-            </h1>
-          </motion.div>
+              RÉUSSITE
+            </motion.h1>
+          </div>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
