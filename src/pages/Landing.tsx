@@ -587,6 +587,19 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      <LegalModal
+        open={legalOpen !== null}
+        onOpenChange={(o) => !o && setLegalOpen(null)}
+        title={legalOpen ? LEGAL_META[legalOpen].label : ""}
+        subtitle={legalOpen ? LEGAL_META[legalOpen].subtitle : undefined}
+      >
+        {legalOpen === "cgu" ? (
+          <CGUContent />
+        ) : legalOpen ? (
+          <PlaceholderContent title={LEGAL_META[legalOpen].label} />
+        ) : null}
+      </LegalModal>
     </div>
   );
 }
