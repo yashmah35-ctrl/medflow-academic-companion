@@ -104,7 +104,7 @@ function CursorTrail() {
         ctx.fill();
         ctx.beginPath();
         ctx.arc(p.x, p.y, size * 0.3, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${life * 0.7})`;
+        ctx.fillStyle = `rgba(${r},${g},${b},${life * 0.9})`;
         ctx.fill();
       });
 
