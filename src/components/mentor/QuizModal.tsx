@@ -134,7 +134,8 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
           </div>
         </div>
 
-        {/* ===== QUESTION ===== */}
+        {/* ===== QUESTION (scrollable) ===== */}
+        <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestion}
