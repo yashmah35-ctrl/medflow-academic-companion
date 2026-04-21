@@ -56,7 +56,7 @@ const defaultProfile: StudentProfile = {
 
 export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: MentorPanelProps) {
   const { user } = useAuth();
-  const { credits, refresh: refreshCredits } = useCredits();
+  const { balance: credits, refresh: refreshCredits } = useCredits();
   const [loading, setLoading] = useState(true);
   const [chapter, setChapter] = useState<MentorChapterRow | null>(null);
   const [progress, setProgress] = useState<Record<string, ProgressRow>>({});
