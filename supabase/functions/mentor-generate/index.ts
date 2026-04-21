@@ -57,9 +57,30 @@ function extractPdfText(buffer: Uint8Array): string {
     .slice(0, 30000);
 }
 
-async function extractTextFromUrl(fileUrl: string): Promise<string> {
+const EXTERNAL_STORAGE_BASE = "https://tpvwxfbcdqpwvdwcrluy.supabase.co/storage/v1";
+const EXTERNAL_BUCKET = "courses";
+const LOVABLE_CLOUD_BUCKET = "course-files";
+
+async function resolveFileUrl(filePathOrUrl: string, supabaseUrl: string): Promise<string> {
+  if (filePathOrUrl.startsWith("http")) return filePathOrUrl;
+  const encoded = filePathOrUrl.split("/").map(encodeURIComponent).join("/");
+
+  // Try Lovable Cloud first
+  const cloudUrl = `${supabaseUrl}/storage/v1/object/public/${LOVABLE_CLOUD_BUCKET}/${encoded}`;
+  try {
+    const head = await fetch(cloudUrl, { method: "HEAD" });
+    if (head.ok) return cloudUrl;
+  } catch { /* ignore */ }
+
+  // Fallback external bucket
+  return `${EXTERNAL_STORAGE_BASE}/object/public/${EXTERNAL_BUCKET}/${encoded}`;
+}
+
+async function extractTextFromUrl(filePathOrUrl: string, supabaseUrl: string): Promise<string> {
+  const fileUrl = await resolveFileUrl(filePathOrUrl, supabaseUrl);
+  console.log("[mentor-generate] Resolved file URL:", fileUrl);
   const res = await fetch(fileUrl);
-  if (!res.ok) throw new Error(`Téléchargement échoué : ${res.status}`);
+  if (!res.ok) throw new Error(`Téléchargement échoué : ${res.status} (${fileUrl})`);
   const buffer = new Uint8Array(await res.arrayBuffer());
 
   const lower = fileUrl.toLowerCase();
@@ -153,7 +174,7 @@ Deno.serve(async (req) => {
     let courseText = "";
     if (course.file_url) {
       try {
-        courseText = await extractTextFromUrl(course.file_url);
+        courseText = await extractTextFromUrl(course.file_url, SUPABASE_URL);
       } catch (e) {
         console.error("Extraction file_url failed:", e);
       }
