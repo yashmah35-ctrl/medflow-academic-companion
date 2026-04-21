@@ -318,10 +318,13 @@ Deno.serve(async (req) => {
     const qcmPrompt = `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${courseText}\n\nGénère EXACTEMENT 30 questions de QCM final mélangeant tous les niveaux Bloom (rappel, compréhension, application, analyse, synthèse). Utilise OBLIGATOIREMENT l'outil create_qcm_final.`;
 
     // Appels parallèles
+    console.log("[mentor-generate] Lancement appels Claude parallèles (exercices + QCM)...");
+    const t0 = Date.now();
     const [exercisesRes, qcmRes] = await Promise.all([
       callClaude(exercisesPrompt, "create_exercises", "Crée 8 exercices de 10 questions", exercisesSchema),
       callClaude(qcmPrompt, "create_qcm_final", "Crée le QCM final de 30 questions", qcmSchema),
     ]);
+    console.log("[mentor-generate] Réponses Claude reçues en", Date.now() - t0, "ms (status exercices:", exercisesRes.status, "/ qcm:", qcmRes.status, ")");
 
     // Vérification erreurs
     for (const [label, res] of [["exercises", exercisesRes], ["qcm", qcmRes]] as const) {
