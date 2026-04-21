@@ -2,7 +2,7 @@
 // Génère un parcours pédagogique (8-12 exercices + QCM final 30 questions)
 // à partir du contenu d'un cours (DOCX ou PDF) via Lovable AI Gemini 2.5 Pro
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import mammoth from "https://esm.sh/mammoth@1.8.0";
+import mammoth from "npm:mammoth@1.8.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
