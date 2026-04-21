@@ -239,47 +239,38 @@ Deno.serve(async (req) => {
             type: "function",
             function: {
               name: "create_mentor_path",
-              description: "Crée le parcours pédagogique complet",
+              description: "Crée le parcours pédagogique : 8 à 12 exercices de 10 questions chacun + 1 QCM final de 30 questions",
               parameters: {
                 type: "object",
                 properties: {
                   exercises: {
                     type: "array",
-                    minItems: 8,
-                    maxItems: 12,
+                    description: "8 à 12 exercices, chacun avec exactement 10 questions",
                     items: {
                       type: "object",
                       properties: {
                         number: { type: "number" },
                         title: { type: "string" },
-                        bloomTarget: { type: "number", enum: [1, 2, 3, 4, 5] },
+                        bloomTarget: { type: "number" },
                         questions: {
                           type: "array",
-                          minItems: 10,
-                          maxItems: 10,
+                          description: "Exactement 10 questions",
                           items: {
                             type: "object",
                             properties: {
                               statement: { type: "string" },
                               options: {
                                 type: "array",
-                                minItems: 4,
-                                maxItems: 4,
+                                description: "Exactement 4 options",
                                 items: { type: "string" },
                               },
-                              correctAnswer: { type: "number", enum: [0, 1, 2, 3] },
+                              correctAnswer: { type: "number" },
                               hint: { type: "string" },
                               explanation: { type: "string" },
                               bridge: { type: "string" },
-                              bloomLevel: { type: "number", enum: [1, 2, 3, 4, 5] },
+                              bloomLevel: { type: "number" },
                             },
-                            required: [
-                              "statement",
-                              "options",
-                              "correctAnswer",
-                              "explanation",
-                              "bloomLevel",
-                            ],
+                            required: ["statement", "options", "correctAnswer", "explanation", "bloomLevel"],
                           },
                         },
                       },
@@ -292,31 +283,23 @@ Deno.serve(async (req) => {
                       title: { type: "string" },
                       questions: {
                         type: "array",
-                        minItems: 30,
-                        maxItems: 30,
+                        description: "Exactement 30 questions",
                         items: {
                           type: "object",
                           properties: {
                             statement: { type: "string" },
                             options: {
                               type: "array",
-                              minItems: 4,
-                              maxItems: 4,
+                              description: "Exactement 4 options",
                               items: { type: "string" },
                             },
-                            correctAnswer: { type: "number", enum: [0, 1, 2, 3] },
+                            correctAnswer: { type: "number" },
                             hint: { type: "string" },
                             explanation: { type: "string" },
                             bridge: { type: "string" },
-                            bloomLevel: { type: "number", enum: [1, 2, 3, 4, 5] },
+                            bloomLevel: { type: "number" },
                           },
-                          required: [
-                            "statement",
-                            "options",
-                            "correctAnswer",
-                            "explanation",
-                            "bloomLevel",
-                          ],
+                          required: ["statement", "options", "correctAnswer", "explanation", "bloomLevel"],
                         },
                       },
                     },
