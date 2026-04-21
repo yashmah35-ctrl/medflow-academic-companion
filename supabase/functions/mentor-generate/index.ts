@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
     let courseText = "";
     if (course.file_url) {
       try {
-        courseText = await extractTextFromUrl(course.file_url);
+        courseText = await extractTextFromUrl(course.file_url, SUPABASE_URL);
       } catch (e) {
         console.error("Extraction file_url failed:", e);
       }
