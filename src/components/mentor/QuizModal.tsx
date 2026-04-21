@@ -76,7 +76,9 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
       setCertaintyLevel(5);
     } else {
       const finalScore = newResults.filter((r) => r.isCorrect).length;
-      const stars = finalScore === 10 ? 3 : finalScore >= 8 ? 2 : finalScore >= 6 ? 1 : 0;
+      const total = questions.length;
+      const ratio = total > 0 ? finalScore / total : 0;
+      const stars = ratio === 1 ? 3 : ratio >= 0.8 ? 2 : ratio >= 0.6 ? 1 : 0;
       playComplete();
       onComplete(newResults, finalScore, stars);
     }
