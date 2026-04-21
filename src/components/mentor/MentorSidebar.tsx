@@ -30,6 +30,7 @@ export function MentorSidebar({
   currentSubjectId,
   currentChapterId,
   onUpdateProfile,
+  onUpdateExercise,
   onSelectSubject,
 }: MentorSidebarProps) {
   const [showDiagnostic, setShowDiagnostic] = useState(!profile.completedDiagnostic);
