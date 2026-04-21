@@ -216,22 +216,27 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Réduire le contexte à 15k caractères pour accélérer Claude
+    const trimmedText = courseText.slice(0, 15000);
     const subjectId = (course.folders as any)?.subject_id;
 
     // ============================================================
-    // STRATÉGIE : 2 APPELS PARALLÈLES à Claude Sonnet 4.5
-    // - Appel 1 : 8 exercices × 10 questions = 80 questions
-    // - Appel 2 : 1 QCM final de 30 questions
-    // Cela évite le timeout edge function (~150s) car chaque appel
-    // génère ~50% de moins de tokens et tourne en parallèle.
+    // STRATÉGIE : 4 APPELS PARALLÈLES LÉGERS à Claude Sonnet 4.5
+    // - Appels 1 & 2 : 4 exercices × 10 questions chacun (40 questions)
+    // - Appel 3      : 4 exercices × 10 questions chacun (40 questions)
+    // - Appel 4      : QCM final 30 questions
+    // Total : 8 exercices (80 q) + 30 q = 110 questions, en parallèle.
+    // Plus rapide et plus fiable que 2 gros appels.
     // ============================================================
 
     const callClaude = async (
+      label: string,
       userPrompt: string,
       toolName: string,
       toolDescription: string,
       inputSchema: any,
     ) => {
+      const t = Date.now();
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -241,13 +246,14 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-5-20250929",
-          max_tokens: 12000,
+          max_tokens: 8000,
           system: MENTOR_SYSTEM_PROMPT,
           messages: [{ role: "user", content: userPrompt }],
           tools: [{ name: toolName, description: toolDescription, input_schema: inputSchema }],
           tool_choice: { type: "tool", name: toolName },
         }),
       });
+      console.log(`[mentor-generate] [${label}] reçu en ${Date.now() - t}ms (status: ${res.status})`);
       return res;
     };
 
@@ -256,7 +262,7 @@ Deno.serve(async (req) => {
       properties: {
         exercises: {
           type: "array",
-          description: "Exactement 8 exercices, chacun avec exactement 10 questions",
+          description: "Exactement 4 exercices, chacun avec exactement 10 questions",
           items: {
             type: "object",
             properties: {
@@ -313,21 +319,24 @@ Deno.serve(async (req) => {
       required: ["title", "questions"],
     };
 
-    const exercisesPrompt = `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${courseText}\n\nGénère EXACTEMENT 8 exercices de 10 questions chacun (80 questions au total). Progression Bloom : Exo 1-2 (Bloom 1 Rappel), Exo 3-4 (Bloom 2 Compréhension), Exo 5-6 (Bloom 3 Application), Exo 7-8 (Bloom 4-5 Analyse/Synthèse). Utilise OBLIGATOIREMENT l'outil create_exercises.`;
+    const baseCtx = `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${trimmedText}\n\n`;
 
-    const qcmPrompt = `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${courseText}\n\nGénère EXACTEMENT 30 questions de QCM final mélangeant tous les niveaux Bloom (rappel, compréhension, application, analyse, synthèse). Utilise OBLIGATOIREMENT l'outil create_qcm_final.`;
+    const promptBatch1 = baseCtx + `Génère EXACTEMENT 4 exercices numérotés 1 à 4, chacun avec exactement 10 questions. Progression Bloom : Exo 1-2 (Bloom 1 Rappel — définitions, identifications), Exo 3-4 (Bloom 2 Compréhension — explications, reformulations). Utilise OBLIGATOIREMENT l'outil create_exercises.`;
+    const promptBatch2 = baseCtx + `Génère EXACTEMENT 4 exercices numérotés 5 à 8, chacun avec exactement 10 questions. Progression Bloom : Exo 5-6 (Bloom 3 Application — cas concrets), Exo 7-8 (Bloom 4-5 Analyse/Synthèse). Utilise OBLIGATOIREMENT l'outil create_exercises.`;
+    const qcmPrompt = baseCtx + `Génère EXACTEMENT 30 questions de QCM final mélangeant tous les niveaux Bloom (rappel, compréhension, application, analyse, synthèse). Utilise OBLIGATOIREMENT l'outil create_qcm_final.`;
 
-    // Appels parallèles
-    console.log("[mentor-generate] Lancement appels Claude parallèles (exercices + QCM)...");
+    // 3 appels parallèles légers
+    console.log("[mentor-generate] Lancement 3 appels Claude parallèles...");
     const t0 = Date.now();
-    const [exercisesRes, qcmRes] = await Promise.all([
-      callClaude(exercisesPrompt, "create_exercises", "Crée 8 exercices de 10 questions", exercisesSchema),
-      callClaude(qcmPrompt, "create_qcm_final", "Crée le QCM final de 30 questions", qcmSchema),
+    const [batch1Res, batch2Res, qcmRes] = await Promise.all([
+      callClaude("batch1", promptBatch1, "create_exercises", "Crée 4 exercices de 10 questions (Bloom 1-2)", exercisesSchema),
+      callClaude("batch2", promptBatch2, "create_exercises", "Crée 4 exercices de 10 questions (Bloom 3-5)", exercisesSchema),
+      callClaude("qcm", qcmPrompt, "create_qcm_final", "Crée le QCM final de 30 questions", qcmSchema),
     ]);
-    console.log("[mentor-generate] Réponses Claude reçues en", Date.now() - t0, "ms (status exercices:", exercisesRes.status, "/ qcm:", qcmRes.status, ")");
+    console.log(`[mentor-generate] Total parallèle terminé en ${Date.now() - t0}ms`);
 
     // Vérification erreurs
-    for (const [label, res] of [["exercises", exercisesRes], ["qcm", qcmRes]] as const) {
+    for (const [label, res] of [["batch1", batch1Res], ["batch2", batch2Res], ["qcm", qcmRes]] as const) {
       if (!res.ok) {
         const txt = await res.text();
         console.error(`Anthropic API error (${label}):`, res.status, txt);
@@ -350,22 +359,34 @@ Deno.serve(async (req) => {
       }
     }
 
-    const exercisesData = await exercisesRes.json();
+    const batch1Data = await batch1Res.json();
+    const batch2Data = await batch2Res.json();
     const qcmData = await qcmRes.json();
 
-    const exercisesTool = exercisesData.content?.find((c: any) => c.type === "tool_use");
+    const batch1Tool = batch1Data.content?.find((c: any) => c.type === "tool_use");
+    const batch2Tool = batch2Data.content?.find((c: any) => c.type === "tool_use");
     const qcmTool = qcmData.content?.find((c: any) => c.type === "tool_use");
 
-    if (!exercisesTool || !qcmTool) {
-      console.error("Pas de tool_use", { exercisesData: JSON.stringify(exercisesData).slice(0, 300), qcmData: JSON.stringify(qcmData).slice(0, 300) });
+    if (!batch1Tool || !batch2Tool || !qcmTool) {
+      console.error("Pas de tool_use", {
+        batch1: JSON.stringify(batch1Data).slice(0, 300),
+        batch2: JSON.stringify(batch2Data).slice(0, 300),
+        qcm: JSON.stringify(qcmData).slice(0, 300),
+      });
       return new Response(JSON.stringify({ error: "Réponse Claude invalide (pas de tool_use)" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const exercises = exercisesTool.input.exercises;
+    // Fusionner les 2 batches d'exercices
+    const exercises = [
+      ...(batch1Tool.input.exercises || []),
+      ...(batch2Tool.input.exercises || []),
+    ];
     const qcmFinal = qcmTool.input;
+
+    console.log(`[mentor-generate] Exercices fusionnés: ${exercises.length} / QCM questions: ${qcmFinal.questions?.length || 0}`);
 
     if (!Array.isArray(exercises) || exercises.length === 0) {
       console.error("Exercises vide dans la réponse Claude");
