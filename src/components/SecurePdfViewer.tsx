@@ -241,8 +241,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
                 {generatingMentor ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                )}
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />)}
                 {generatingMentor ? "Génération..." : "Générer parcours MENTOR"}
               </Button>
             )}
