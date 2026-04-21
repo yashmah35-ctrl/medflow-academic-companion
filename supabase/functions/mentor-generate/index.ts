@@ -76,6 +76,28 @@ async function resolveFileUrl(filePathOrUrl: string, supabaseUrl: string): Promi
   return `${EXTERNAL_STORAGE_BASE}/object/public/${EXTERNAL_BUCKET}/${encoded}`;
 }
 
+async function extractDocxText(buffer: Uint8Array): Promise<string> {
+  // Un DOCX est un ZIP contenant word/document.xml
+  const zip = await JSZip.loadAsync(buffer);
+  const docFile = zip.file("word/document.xml");
+  if (!docFile) throw new Error("DOCX invalide : word/document.xml introuvable");
+  const xml = await docFile.async("string");
+  // Extraction du texte : on prend tous les <w:t>...</w:t>
+  const textMatches = xml.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || [];
+  const text = textMatches
+    .map((m) => m.replace(/<w:t[^>]*>/, "").replace(/<\/w:t>/, ""))
+    .join(" ")
+    // Décodage des entités HTML basiques
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.slice(0, 30000);
+}
+
 async function extractTextFromUrl(filePathOrUrl: string, supabaseUrl: string): Promise<string> {
   const fileUrl = await resolveFileUrl(filePathOrUrl, supabaseUrl);
   console.log("[mentor-generate] Resolved file URL:", fileUrl);
@@ -83,14 +105,11 @@ async function extractTextFromUrl(filePathOrUrl: string, supabaseUrl: string): P
   if (!res.ok) throw new Error(`Téléchargement échoué : ${res.status} (${fileUrl})`);
   const arrayBuffer = await res.arrayBuffer();
   const buffer = new Uint8Array(arrayBuffer);
+  console.log("[mentor-generate] Downloaded bytes:", buffer.byteLength);
 
   const lower = fileUrl.toLowerCase();
   if (lower.includes(".docx")) {
-    // mammoth attend un ArrayBuffer pur (pas SharedArrayBuffer) — on copie pour garantir
-    const cleanBuffer = new ArrayBuffer(buffer.byteLength);
-    new Uint8Array(cleanBuffer).set(buffer);
-    const result = await mammoth.extractRawText({ arrayBuffer: cleanBuffer });
-    return result.value.slice(0, 30000);
+    return await extractDocxText(buffer);
   }
   if (lower.includes(".pdf")) {
     return extractPdfText(buffer);
