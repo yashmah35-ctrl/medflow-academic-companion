@@ -99,7 +99,7 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
 
       {/* Modal */}
       <motion.div
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 overflow-hidden"
+        className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 overflow-hidden flex flex-col max-h-[90vh]"
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 350, damping: 28 }}
