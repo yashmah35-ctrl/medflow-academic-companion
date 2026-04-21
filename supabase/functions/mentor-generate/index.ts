@@ -1,0 +1,425 @@
+// Edge function MENTOR-GENERATE
+// Génère un parcours pédagogique (8-12 exercices + QCM final 30 questions)
+// à partir du contenu d'un cours (DOCX ou PDF) via Lovable AI Gemini 2.5 Pro
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import mammoth from "https://esm.sh/mammoth@1.8.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const MENTOR_SYSTEM_PROMPT = `TU ES MENTOR-GENERATOR, un moteur IA pédagogique spécialisé en médecine (PACES/PASS/LAS).
+Tu génères automatiquement des parcours de révision et des quiz à partir des cours.
+
+=== MISSION ===
+À partir du contenu d'un cours, tu :
+1. ANALYSES le contenu
+2. GÉNÈRES un parcours de 8 à 12 exercices
+3. CRÉES exactement 10 questions par exercice (5 niveaux Bloom)
+4. CRÉES un QCM final de 30 questions
+
+=== RÈGLES DE GÉNÉRATION ===
+1. EXERCICES (8 à 12 par chapitre)
+   - Exo 1-2 : Bloom 1 (Rappel) — définitions, identifications
+   - Exo 3-4 : Bloom 2 (Compréhension) — explications, reformulations
+   - Exo 5-6 : Bloom 3 (Application) — cas concrets, classifications
+   - Exo 7-8 : Bloom 4 (Analyse) — comparaisons, raisonnements
+   - Exo 9-10 : Bloom 5 (Synthèse) — problèmes ouverts
+   - Exo 11-12 (optionnel) : Révision mixte tous niveaux
+
+2. QUESTIONS (exactement 10 par exercice)
+   - 4 options A, B, C, D
+   - 1 seule bonne réponse (correctAnswer = index 0,1,2 ou 3)
+   - hint : indice progressif (PAS la réponse)
+   - explanation : explication scientifique complète
+   - bridge : connexion avec une autre notion médicale
+
+3. QCM FINAL (exactement 30 questions, mélange tous niveaux Bloom)
+
+=== IMPORTANT ===
+- Questions UNIQUEMENT basées sur le contenu fourni
+- Ne JAMAIS inventer de notions absentes du cours
+- Langage : français médical (terminologie PACES/PASS)
+- Réponses mutuellement exclusives, pas d'ambiguïté
+- Une seule bonne réponse par question`;
+
+function extractPdfText(buffer: Uint8Array): string {
+  // Extraction PDF basique : on cherche les blocs de texte entre BT...ET
+  const text = new TextDecoder("latin1").decode(buffer);
+  const matches = text.match(/\(([^)]{2,})\)/g) || [];
+  return matches
+    .map((m) => m.slice(1, -1))
+    .filter((s) => /[a-zA-ZÀ-ÿ]{3,}/.test(s))
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .slice(0, 30000);
+}
+
+async function extractTextFromUrl(fileUrl: string): Promise<string> {
+  const res = await fetch(fileUrl);
+  if (!res.ok) throw new Error(`Téléchargement échoué : ${res.status}`);
+  const buffer = new Uint8Array(await res.arrayBuffer());
+
+  const lower = fileUrl.toLowerCase();
+  if (lower.includes(".docx")) {
+    const result = await mammoth.extractRawText({ arrayBuffer: buffer.buffer });
+    return result.value.slice(0, 30000);
+  }
+  if (lower.includes(".pdf")) {
+    return extractPdfText(buffer);
+  }
+  // Fallback texte brut
+  return new TextDecoder().decode(buffer).slice(0, 30000);
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY manquant" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Auth user
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Non authentifié" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user } } = await userClient.auth.getUser();
+    if (!user) {
+      return new Response(JSON.stringify({ error: "Non authentifié" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Vérifier rôle admin
+    const { data: roleRow } = await userClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "prepa_du_peuple")
+      .maybeSingle();
+
+    if (!roleRow) {
+      return new Response(JSON.stringify({ error: "Réservé aux administrateurs" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { courseId } = await req.json();
+    if (!courseId) {
+      return new Response(JSON.stringify({ error: "courseId requis" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Service-role pour lire le cours et écrire le parcours
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    const { data: course, error: courseErr } = await admin
+      .from("courses")
+      .select("id, title, file_url, content, folder_id, folders(subject_id)")
+      .eq("id", courseId)
+      .single();
+
+    if (courseErr || !course) {
+      return new Response(JSON.stringify({ error: "Cours introuvable" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Extraction du texte du cours (priorité au file_url, fallback content)
+    let courseText = "";
+    if (course.file_url) {
+      try {
+        courseText = await extractTextFromUrl(course.file_url);
+      } catch (e) {
+        console.error("Extraction file_url failed:", e);
+      }
+    }
+    if (!courseText && course.content) {
+      courseText = course.content.slice(0, 30000);
+    }
+
+    if (!courseText || courseText.length < 200) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Contenu du cours trop court ou vide. Vérifie que le fichier DOCX/PDF est bien lisible.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const subjectId = (course.folders as any)?.subject_id;
+
+    // Appel Lovable AI avec tool calling pour structured output
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-pro",
+        messages: [
+          { role: "system", content: MENTOR_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${courseText}\n\nGénère le parcours MENTOR complet (8-12 exercices × 10 questions + 1 QCM final 30 questions).`,
+          },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "create_mentor_path",
+              description: "Crée le parcours pédagogique complet",
+              parameters: {
+                type: "object",
+                properties: {
+                  exercises: {
+                    type: "array",
+                    minItems: 8,
+                    maxItems: 12,
+                    items: {
+                      type: "object",
+                      properties: {
+                        number: { type: "number" },
+                        title: { type: "string" },
+                        bloomTarget: { type: "number", enum: [1, 2, 3, 4, 5] },
+                        questions: {
+                          type: "array",
+                          minItems: 10,
+                          maxItems: 10,
+                          items: {
+                            type: "object",
+                            properties: {
+                              statement: { type: "string" },
+                              options: {
+                                type: "array",
+                                minItems: 4,
+                                maxItems: 4,
+                                items: { type: "string" },
+                              },
+                              correctAnswer: { type: "number", enum: [0, 1, 2, 3] },
+                              hint: { type: "string" },
+                              explanation: { type: "string" },
+                              bridge: { type: "string" },
+                              bloomLevel: { type: "number", enum: [1, 2, 3, 4, 5] },
+                            },
+                            required: [
+                              "statement",
+                              "options",
+                              "correctAnswer",
+                              "hint",
+                              "explanation",
+                              "bridge",
+                              "bloomLevel",
+                            ],
+                            additionalProperties: false,
+                          },
+                        },
+                      },
+                      required: ["number", "title", "bloomTarget", "questions"],
+                      additionalProperties: false,
+                    },
+                  },
+                  qcm_final: {
+                    type: "object",
+                    properties: {
+                      title: { type: "string" },
+                      questions: {
+                        type: "array",
+                        minItems: 30,
+                        maxItems: 30,
+                        items: {
+                          type: "object",
+                          properties: {
+                            statement: { type: "string" },
+                            options: {
+                              type: "array",
+                              minItems: 4,
+                              maxItems: 4,
+                              items: { type: "string" },
+                            },
+                            correctAnswer: { type: "number", enum: [0, 1, 2, 3] },
+                            hint: { type: "string" },
+                            explanation: { type: "string" },
+                            bridge: { type: "string" },
+                            bloomLevel: { type: "number", enum: [1, 2, 3, 4, 5] },
+                          },
+                          required: [
+                            "statement",
+                            "options",
+                            "correctAnswer",
+                            "hint",
+                            "explanation",
+                            "bridge",
+                            "bloomLevel",
+                          ],
+                          additionalProperties: false,
+                        },
+                      },
+                    },
+                    required: ["title", "questions"],
+                    additionalProperties: false,
+                  },
+                },
+                required: ["exercises", "qcm_final"],
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "create_mentor_path" } },
+      }),
+    });
+
+    if (!aiRes.ok) {
+      const txt = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, txt);
+      if (aiRes.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Trop de requêtes, réessaie dans une minute." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (aiRes.status === 402) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "Crédits IA Lovable épuisés. Recharge dans Workspace Settings > Usage.",
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ error: "Erreur génération IA" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const aiData = await aiRes.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
+    if (!toolCall) {
+      console.error("Pas de tool_call dans la réponse:", JSON.stringify(aiData).slice(0, 500));
+      return new Response(JSON.stringify({ error: "Réponse IA invalide" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const parsed = JSON.parse(toolCall.function.arguments);
+    const exercises = parsed.exercises;
+    const qcmFinal = parsed.qcm_final;
+
+    // Normaliser au format attendu par le frontend (Subject/Chapter/Exercise/Question)
+    const normalizedExercises = exercises.map((ex: any, idx: number) => ({
+      id: `exo-${idx + 1}`,
+      number: ex.number ?? idx + 1,
+      title: ex.title,
+      chapterId: courseId,
+      subjectId: subjectId || "",
+      status: idx === 0 ? "available" : "locked",
+      score: null,
+      stars: 0,
+      attempts: 0,
+      bestScore: null,
+      bloomTarget: ex.bloomTarget,
+      questions: ex.questions.map((q: any, qi: number) => ({
+        id: `exo-${idx + 1}-q${qi + 1}`,
+        type: "qcm",
+        bloomLevel: q.bloomLevel,
+        statement: q.statement,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        hint: q.hint,
+        explanation: q.explanation,
+        bridge: q.bridge,
+      })),
+    }));
+
+    const normalizedQcm = {
+      id: `qcm-final-${courseId}`,
+      title: qcmFinal.title,
+      questions: qcmFinal.questions.map((q: any, qi: number) => ({
+        id: `qcm-q${qi + 1}`,
+        type: "qcm",
+        bloomLevel: q.bloomLevel,
+        statement: q.statement,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        hint: q.hint,
+        explanation: q.explanation,
+        bridge: q.bridge,
+      })),
+      bestScore: null,
+      bestTime: null,
+      completed: false,
+      stars: 0,
+    };
+
+    // Upsert dans mentor_chapters
+    const { error: upErr } = await admin
+      .from("mentor_chapters")
+      .upsert(
+        {
+          course_id: courseId,
+          subject_id: subjectId,
+          chapter_title: course.title,
+          exercises_json: normalizedExercises,
+          qcm_final_json: normalizedQcm,
+          generated_by: user.id,
+          generation_model: "google/gemini-2.5-pro",
+          source_text_length: courseText.length,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "course_id" },
+      );
+
+    if (upErr) {
+      console.error("Upsert error:", upErr);
+      return new Response(JSON.stringify({ error: "Sauvegarde échouée: " + upErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        exercisesCount: normalizedExercises.length,
+        qcmQuestionsCount: normalizedQcm.questions.length,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (e) {
+    console.error("mentor-generate error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});
