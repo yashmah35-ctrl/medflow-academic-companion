@@ -81,11 +81,15 @@ async function extractTextFromUrl(filePathOrUrl: string, supabaseUrl: string): P
   console.log("[mentor-generate] Resolved file URL:", fileUrl);
   const res = await fetch(fileUrl);
   if (!res.ok) throw new Error(`Téléchargement échoué : ${res.status} (${fileUrl})`);
-  const buffer = new Uint8Array(await res.arrayBuffer());
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = new Uint8Array(arrayBuffer);
 
   const lower = fileUrl.toLowerCase();
   if (lower.includes(".docx")) {
-    const result = await mammoth.extractRawText({ arrayBuffer: buffer.buffer });
+    // mammoth attend un ArrayBuffer pur (pas SharedArrayBuffer) — on copie pour garantir
+    const cleanBuffer = new ArrayBuffer(buffer.byteLength);
+    new Uint8Array(cleanBuffer).set(buffer);
+    const result = await mammoth.extractRawText({ arrayBuffer: cleanBuffer });
     return result.value.slice(0, 30000);
   }
   if (lower.includes(".pdf")) {
