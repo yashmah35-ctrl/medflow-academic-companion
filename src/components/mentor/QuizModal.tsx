@@ -99,7 +99,7 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
 
       {/* Modal */}
       <motion.div
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 overflow-hidden"
+        className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 overflow-hidden flex flex-col max-h-[90vh]"
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 350, damping: 28 }}
@@ -134,7 +134,8 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
           </div>
         </div>
 
-        {/* ===== QUESTION ===== */}
+        {/* ===== QUESTION (scrollable) ===== */}
+        <div className="flex-1 overflow-y-auto">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestion}
@@ -267,9 +268,10 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
             </AnimatePresence>
           </motion.div>
         </AnimatePresence>
+        </div>
 
-        {/* ===== FOOTER ===== */}
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center">
+        {/* ===== FOOTER (sticky) ===== */}
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center bg-white shrink-0">
           <span className="text-sm text-gray-400">Score actuel : {score}/{currentQuestion + (showFeedback ? 1 : 0)}</span>
 
           {!showFeedback ? (
@@ -277,7 +279,7 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
               onClick={handleValidate}
               disabled={selectedAnswer === null}
               className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ backgroundColor: selectedAnswer !== null ? '#9CA3AF' : '#E5E7EB' }}
+              style={{ backgroundColor: selectedAnswer !== null ? '#10B981' : '#E5E7EB' }}
             >
               Valider
             </button>
