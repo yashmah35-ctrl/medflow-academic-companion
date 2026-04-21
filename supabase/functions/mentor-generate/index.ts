@@ -218,140 +218,146 @@ Deno.serve(async (req) => {
 
     const subjectId = (course.folders as any)?.subject_id;
 
-    // Appel Lovable AI avec tool calling pour structured output
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Appel Claude Sonnet 4.5 (Anthropic) avec tool calling pour structured output
+    // Claude est plus stable que Gemini pour les générations longues (50 questions)
+    const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 16000,
+        system: MENTOR_SYSTEM_PROMPT,
         messages: [
-          { role: "system", content: MENTOR_SYSTEM_PROMPT },
           {
             role: "user",
-            content: `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${courseText}\n\nGénère le parcours MENTOR complet (8-12 exercices × 10 questions + 1 QCM final 30 questions).`,
+            content: `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${courseText}\n\nGénère le parcours MENTOR complet (8 à 12 exercices × 10 questions + 1 QCM final de 30 questions). Utilise OBLIGATOIREMENT l'outil create_mentor_path pour structurer ta réponse.`,
           },
         ],
         tools: [
           {
-            type: "function",
-            function: {
-              name: "create_mentor_path",
-              description: "Crée le parcours pédagogique : 8 à 12 exercices de 10 questions chacun + 1 QCM final de 30 questions",
-              parameters: {
-                type: "object",
-                properties: {
-                  exercises: {
-                    type: "array",
-                    description: "8 à 12 exercices, chacun avec exactement 10 questions",
-                    items: {
-                      type: "object",
-                      properties: {
-                        number: { type: "number" },
-                        title: { type: "string" },
-                        bloomTarget: { type: "number" },
-                        questions: {
-                          type: "array",
-                          description: "Exactement 10 questions",
-                          items: {
-                            type: "object",
-                            properties: {
-                              statement: { type: "string" },
-                              options: {
-                                type: "array",
-                                description: "Exactement 4 options",
-                                items: { type: "string" },
-                              },
-                              correctAnswer: { type: "number" },
-                              hint: { type: "string" },
-                              explanation: { type: "string" },
-                              bridge: { type: "string" },
-                              bloomLevel: { type: "number" },
-                            },
-                            required: ["statement", "options", "correctAnswer", "explanation", "bloomLevel"],
-                          },
-                        },
-                      },
-                      required: ["number", "title", "bloomTarget", "questions"],
-                    },
-                  },
-                  qcm_final: {
+            name: "create_mentor_path",
+            description: "Crée le parcours pédagogique : 8 à 12 exercices de 10 questions chacun + 1 QCM final de 30 questions",
+            input_schema: {
+              type: "object",
+              properties: {
+                exercises: {
+                  type: "array",
+                  description: "8 à 12 exercices, chacun avec exactement 10 questions",
+                  items: {
                     type: "object",
                     properties: {
+                      number: { type: "number" },
                       title: { type: "string" },
+                      bloomTarget: { type: "number", description: "Niveau Bloom cible 1-5" },
                       questions: {
                         type: "array",
-                        description: "Exactement 30 questions",
+                        description: "Exactement 10 questions par exercice",
                         items: {
                           type: "object",
                           properties: {
                             statement: { type: "string" },
                             options: {
                               type: "array",
-                              description: "Exactement 4 options",
+                              description: "Exactement 4 options A, B, C, D",
                               items: { type: "string" },
                             },
-                            correctAnswer: { type: "number" },
+                            correctAnswer: { type: "number", description: "Index 0-3 de la bonne réponse" },
                             hint: { type: "string" },
                             explanation: { type: "string" },
                             bridge: { type: "string" },
-                            bloomLevel: { type: "number" },
+                            bloomLevel: { type: "number", description: "Niveau Bloom 1-5" },
                           },
                           required: ["statement", "options", "correctAnswer", "explanation", "bloomLevel"],
                         },
                       },
                     },
-                    required: ["title", "questions"],
+                    required: ["number", "title", "bloomTarget", "questions"],
                   },
                 },
-                required: ["exercises", "qcm_final"],
+                qcm_final: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string" },
+                    questions: {
+                      type: "array",
+                      description: "Exactement 30 questions mélangeant tous les niveaux Bloom",
+                      items: {
+                        type: "object",
+                        properties: {
+                          statement: { type: "string" },
+                          options: {
+                            type: "array",
+                            description: "Exactement 4 options",
+                            items: { type: "string" },
+                          },
+                          correctAnswer: { type: "number" },
+                          hint: { type: "string" },
+                          explanation: { type: "string" },
+                          bridge: { type: "string" },
+                          bloomLevel: { type: "number" },
+                        },
+                        required: ["statement", "options", "correctAnswer", "explanation", "bloomLevel"],
+                      },
+                    },
+                  },
+                  required: ["title", "questions"],
+                },
               },
+              required: ["exercises", "qcm_final"],
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "create_mentor_path" } },
+        tool_choice: { type: "tool", name: "create_mentor_path" },
       }),
     });
 
     if (!aiRes.ok) {
       const txt = await aiRes.text();
-      console.error("AI gateway error:", aiRes.status, txt);
+      console.error("Anthropic API error:", aiRes.status, txt);
       if (aiRes.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Trop de requêtes, réessaie dans une minute." }),
+          JSON.stringify({ error: "Trop de requêtes Claude, réessaie dans une minute." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      if (aiRes.status === 402) {
+      if (aiRes.status === 401) {
         return new Response(
-          JSON.stringify({
-            error:
-              "Crédits IA Lovable épuisés. Recharge dans Workspace Settings > Usage.",
-          }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: "Clé API Claude invalide" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      return new Response(JSON.stringify({ error: "Erreur génération IA" }), {
+      return new Response(JSON.stringify({ error: "Erreur génération Claude: " + txt.slice(0, 200) }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const aiData = await aiRes.json();
-    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      console.error("Pas de tool_call dans la réponse:", JSON.stringify(aiData).slice(0, 500));
-      return new Response(JSON.stringify({ error: "Réponse IA invalide" }), {
+    // Format Anthropic : content est un tableau, on cherche le block tool_use
+    const toolUseBlock = aiData.content?.find((c: any) => c.type === "tool_use");
+    if (!toolUseBlock) {
+      console.error("Pas de tool_use dans la réponse Claude:", JSON.stringify(aiData).slice(0, 500));
+      return new Response(JSON.stringify({ error: "Réponse Claude invalide (pas de tool_use)" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const parsed = JSON.parse(toolCall.function.arguments);
+    const parsed = toolUseBlock.input;
     const exercises = parsed.exercises;
     const qcmFinal = parsed.qcm_final;
+
+    if (!Array.isArray(exercises) || exercises.length === 0) {
+      console.error("Exercises vide dans la réponse Claude");
+      return new Response(JSON.stringify({ error: "Claude n'a pas généré d'exercices" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Normaliser au format attendu par le frontend (Subject/Chapter/Exercise/Question)
     const normalizedExercises = exercises.map((ex: any, idx: number) => ({
