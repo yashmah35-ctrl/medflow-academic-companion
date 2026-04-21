@@ -303,70 +303,84 @@ Pour chaque question : statement, options (4), correctAnswer (0-3), hint (indice
 
 Utilise OBLIGATOIREMENT l'outil create_mentor_path pour retourner les données.`;
 
-    console.log("[mentor-generate] Lancement appel Claude Haiku unique...");
+    console.log("[mentor-generate] Lancement appel Lovable AI (Gemini 2.5 Flash)...");
     const t0 = Date.now();
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 8000,
-        system: MENTOR_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: userPrompt }],
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: MENTOR_SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
         tools: [{
-          name: "create_mentor_path",
-          description: "Crée le parcours complet : 5 exercices de 5 questions + 1 QCM final de 15 questions",
-          input_schema: fullSchema,
+          type: "function",
+          function: {
+            name: "create_mentor_path",
+            description: "Crée le parcours complet : 5 exercices de 5 questions + 1 QCM final de 15 questions",
+            parameters: fullSchema,
+          },
         }],
-        tool_choice: { type: "tool", name: "create_mentor_path" },
+        tool_choice: { type: "function", function: { name: "create_mentor_path" } },
       }),
     });
-    console.log(`[mentor-generate] Claude répondu en ${Date.now() - t0}ms (status: ${claudeRes.status})`);
+    console.log(`[mentor-generate] Lovable AI répondu en ${Date.now() - t0}ms (status: ${aiRes.status})`);
 
-    if (!claudeRes.ok) {
-      const txt = await claudeRes.text();
-      console.error("Anthropic API error:", claudeRes.status, txt);
-      if (claudeRes.status === 429) {
+    if (!aiRes.ok) {
+      const txt = await aiRes.text();
+      console.error("Lovable AI error:", aiRes.status, txt);
+      if (aiRes.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Trop de requêtes Claude, réessaie dans une minute." }),
+          JSON.stringify({ error: "Trop de requêtes IA, réessaie dans une minute." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
-      if (claudeRes.status === 401) {
+      if (aiRes.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Clé API Claude invalide" }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: "Crédits IA épuisés. Ajoute des crédits dans Settings > Workspace > Usage." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       return new Response(
-        JSON.stringify({ error: "Erreur génération Claude : " + txt.slice(0, 200) }),
+        JSON.stringify({ error: "Erreur génération IA : " + txt.slice(0, 200) }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const claudeData = await claudeRes.json();
-    const toolUse = claudeData.content?.find((c: any) => c.type === "tool_use");
+    const aiData = await aiRes.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    if (!toolUse) {
-      console.error("Pas de tool_use:", JSON.stringify(claudeData).slice(0, 500));
-      return new Response(JSON.stringify({ error: "Réponse Claude invalide (pas de tool_use)" }), {
+    if (!toolCall?.function?.arguments) {
+      console.error("Pas de tool_call:", JSON.stringify(aiData).slice(0, 500));
+      return new Response(JSON.stringify({ error: "Réponse IA invalide (pas de tool_call)" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const exercises = toolUse.input.exercises || [];
-    const qcmFinal = toolUse.input.qcmFinal;
+    let parsed: any;
+    try {
+      parsed = JSON.parse(toolCall.function.arguments);
+    } catch (e) {
+      console.error("Parse JSON arguments failed:", e, toolCall.function.arguments?.slice(0, 300));
+      return new Response(JSON.stringify({ error: "Réponse IA non parsable" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const exercises = parsed.exercises || [];
+    const qcmFinal = parsed.qcmFinal;
 
     console.log(`[mentor-generate] Exercices: ${exercises.length} / QCM questions: ${qcmFinal?.questions?.length || 0}`);
 
     if (!Array.isArray(exercises) || exercises.length === 0 || !qcmFinal?.questions?.length) {
-      console.error("Données vides dans la réponse Claude");
-      return new Response(JSON.stringify({ error: "Claude n'a pas généré de contenu valide" }), {
+      console.error("Données vides dans la réponse IA");
+      return new Response(JSON.stringify({ error: "L'IA n'a pas généré de contenu valide" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
