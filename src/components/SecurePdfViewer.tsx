@@ -229,14 +229,32 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
               <p className="text-xs text-muted-foreground">Consultation en lecture seule</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 rounded-full h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
-            onClick={() => onOpenChange(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {isAdmin && courseId && subjectId && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={generatingMentor}
+                onClick={handleGenerateMentor}
+                className="hidden md:flex h-8 gap-1.5 text-xs"
+              >
+                {generatingMentor ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                )}
+                {generatingMentor ? "Génération..." : "Générer parcours MENTOR"}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full h-8 w-8 hover:bg-destructive/10 hover:text-destructive transition-colors"
+              onClick={() => onOpenChange(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         {/* ===== MOBILE: vertical stack ===== */}
@@ -271,9 +289,9 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {showRevisionPanel && subjectId && subjectName && (
-            <div className="w-full border-t border-border/50 bg-card">
-              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises folderId={folderId} />
+          {showRevisionPanel && courseId && subjectId && subjectName && (
+            <div className="w-full border-t border-border/50 bg-card" key={`mobile-${mentorVersion}`}>
+              <MentorPanel courseId={courseId} subjectId={subjectId} subjectName={subjectName} courseTitle={title} />
             </div>
           )}
         </div>
@@ -318,9 +336,9 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             )}
           </div>
 
-          {showRevisionPanel && subjectId && subjectName && (
-            <div className="w-[380px] shrink-0 border-l border-border/50 bg-card overflow-hidden">
-              <ExercisePanel subjectId={subjectId} courseId={courseId} subjectName={subjectName} hideExercises folderId={folderId} />
+          {showRevisionPanel && courseId && subjectId && subjectName && (
+            <div className="w-[420px] shrink-0 border-l border-border/50 bg-card overflow-hidden" key={`desktop-${mentorVersion}`}>
+              <MentorPanel courseId={courseId} subjectId={subjectId} subjectName={subjectName} courseTitle={title} />
             </div>
           )}
         </div>
