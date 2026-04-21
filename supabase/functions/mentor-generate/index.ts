@@ -443,7 +443,7 @@ Utilise OBLIGATOIREMENT l'outil create_mentor_path pour retourner les données.`
           exercises_json: normalizedExercises,
           qcm_final_json: normalizedQcm,
           generated_by: user.id,
-          generation_model: "claude-haiku-4-5-20251001",
+          generation_model: "google/gemini-2.5-flash",
           source_text_length: courseText.length,
           updated_at: new Date().toISOString(),
         },
