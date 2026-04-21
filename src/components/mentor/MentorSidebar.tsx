@@ -71,7 +71,18 @@ export function MentorSidebar({
     setLastStars(stars);
     setShowQuiz(false);
     setShowQuizResult(true);
-  }, []);
+    if (currentExercise && currentSubject && currentChapter) {
+      const total = results.length || currentExercise.questions.length;
+      const newStatus = stars === 3 ? 'perfect' : stars >= 1 ? 'passed' : 'failed';
+      onUpdateExercise(currentSubject.id, currentChapter.id, currentExercise.id, {
+        status: newStatus,
+        score,
+        stars: Math.max(stars, currentExercise.stars || 0),
+        attempts: (currentExercise.attempts || 0) + 1,
+        bestScore: Math.max(score, currentExercise.bestScore || 0),
+      });
+    }
+  }, [currentExercise, currentSubject, currentChapter, onUpdateExercise]);
 
   const handleQuizRetry = useCallback(() => {
     if (currentExercise) {
