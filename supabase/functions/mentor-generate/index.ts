@@ -216,62 +216,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Réduire le contexte à 15k caractères pour accélérer Claude
-    const trimmedText = courseText.slice(0, 15000);
+    // Réduire le contexte à 12k caractères pour accélérer Claude Haiku
+    const trimmedText = courseText.slice(0, 12000);
     const subjectId = (course.folders as any)?.subject_id;
 
     // ============================================================
-    // STRATÉGIE : 4 APPELS PARALLÈLES LÉGERS à Claude Sonnet 4.5
-    // - Appels 1 & 2 : 4 exercices × 10 questions chacun (40 questions)
-    // - Appel 3      : 4 exercices × 10 questions chacun (40 questions)
-    // - Appel 4      : QCM final 30 questions
-    // Total : 8 exercices (80 q) + 30 q = 110 questions, en parallèle.
-    // Plus rapide et plus fiable que 2 gros appels.
+    // STRATÉGIE SIMPLE : 1 SEUL APPEL Claude Haiku 4.5
+    // - 5 exercices × 5 questions = 25 questions
+    // - + 1 QCM final de 15 questions
+    // - Total : 40 questions (vs 110 avant)
+    // - Génération attendue : 30-40 secondes, fiable.
     // ============================================================
 
-    const callClaude = async (
-      label: string,
-      userPrompt: string,
-      toolName: string,
-      toolDescription: string,
-      inputSchema: any,
-    ) => {
-      const t = Date.now();
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-5-20250929",
-          max_tokens: 8000,
-          system: MENTOR_SYSTEM_PROMPT,
-          messages: [{ role: "user", content: userPrompt }],
-          tools: [{ name: toolName, description: toolDescription, input_schema: inputSchema }],
-          tool_choice: { type: "tool", name: toolName },
-        }),
-      });
-      console.log(`[mentor-generate] [${label}] reçu en ${Date.now() - t}ms (status: ${res.status})`);
-      return res;
-    };
-
-    const exercisesSchema = {
+    const fullSchema = {
       type: "object",
       properties: {
         exercises: {
           type: "array",
-          description: "Exactement 4 exercices, chacun avec exactement 10 questions",
+          description: "Exactement 5 exercices, chacun avec exactement 5 questions",
           items: {
             type: "object",
             properties: {
               number: { type: "number" },
               title: { type: "string" },
-              bloomTarget: { type: "number", description: "Niveau Bloom cible 1-5" },
+              bloomTarget: { type: "number", description: "Niveau Bloom 1-5" },
               questions: {
                 type: "array",
-                description: "Exactement 10 questions",
+                description: "Exactement 5 questions",
                 items: {
                   type: "object",
                   properties: {
@@ -290,107 +261,112 @@ Deno.serve(async (req) => {
             required: ["number", "title", "bloomTarget", "questions"],
           },
         },
-      },
-      required: ["exercises"],
-    };
-
-    const qcmSchema = {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        questions: {
-          type: "array",
-          description: "Exactement 30 questions mélangeant tous les niveaux Bloom",
-          items: {
-            type: "object",
-            properties: {
-              statement: { type: "string" },
-              options: { type: "array", description: "Exactement 4 options", items: { type: "string" } },
-              correctAnswer: { type: "number" },
-              hint: { type: "string" },
-              explanation: { type: "string" },
-              bridge: { type: "string" },
-              bloomLevel: { type: "number" },
+        qcmFinal: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            questions: {
+              type: "array",
+              description: "Exactement 15 questions mélangeant tous niveaux Bloom",
+              items: {
+                type: "object",
+                properties: {
+                  statement: { type: "string" },
+                  options: { type: "array", description: "Exactement 4 options", items: { type: "string" } },
+                  correctAnswer: { type: "number" },
+                  hint: { type: "string" },
+                  explanation: { type: "string" },
+                  bridge: { type: "string" },
+                  bloomLevel: { type: "number" },
+                },
+                required: ["statement", "options", "correctAnswer", "explanation", "bloomLevel"],
+              },
             },
-            required: ["statement", "options", "correctAnswer", "explanation", "bloomLevel"],
           },
+          required: ["title", "questions"],
         },
       },
-      required: ["title", "questions"],
+      required: ["exercises", "qcmFinal"],
     };
 
-    const baseCtx = `CHAPITRE : ${course.title}\n\nCONTENU DU COURS :\n${trimmedText}\n\n`;
+    const userPrompt = `CHAPITRE : ${course.title}
 
-    const promptBatch1 = baseCtx + `Génère EXACTEMENT 4 exercices numérotés 1 à 4, chacun avec exactement 10 questions. Progression Bloom : Exo 1-2 (Bloom 1 Rappel — définitions, identifications), Exo 3-4 (Bloom 2 Compréhension — explications, reformulations). Utilise OBLIGATOIREMENT l'outil create_exercises.`;
-    const promptBatch2 = baseCtx + `Génère EXACTEMENT 4 exercices numérotés 5 à 8, chacun avec exactement 10 questions. Progression Bloom : Exo 5-6 (Bloom 3 Application — cas concrets), Exo 7-8 (Bloom 4-5 Analyse/Synthèse). Utilise OBLIGATOIREMENT l'outil create_exercises.`;
-    const qcmPrompt = baseCtx + `Génère EXACTEMENT 30 questions de QCM final mélangeant tous les niveaux Bloom (rappel, compréhension, application, analyse, synthèse). Utilise OBLIGATOIREMENT l'outil create_qcm_final.`;
+CONTENU DU COURS :
+${trimmedText}
 
-    // 3 appels parallèles légers
-    console.log("[mentor-generate] Lancement 3 appels Claude parallèles...");
+Génère un parcours pédagogique complet :
+- EXACTEMENT 5 exercices, chacun avec EXACTEMENT 5 questions QCM (4 options A-D, une seule bonne réponse)
+- Progression Bloom : Exo 1 (Bloom 1 Rappel) → Exo 2 (Bloom 2 Compréhension) → Exo 3 (Bloom 3 Application) → Exo 4 (Bloom 4 Analyse) → Exo 5 (Bloom 5 Synthèse)
+- + 1 QCM final de EXACTEMENT 15 questions mélangeant tous les niveaux Bloom
+
+Pour chaque question : statement, options (4), correctAnswer (0-3), hint (indice court, pas la réponse), explanation (explication scientifique courte), bridge (connexion avec une autre notion), bloomLevel (1-5).
+
+Utilise OBLIGATOIREMENT l'outil create_mentor_path pour retourner les données.`;
+
+    console.log("[mentor-generate] Lancement appel Claude Haiku unique...");
     const t0 = Date.now();
-    const [batch1Res, batch2Res, qcmRes] = await Promise.all([
-      callClaude("batch1", promptBatch1, "create_exercises", "Crée 4 exercices de 10 questions (Bloom 1-2)", exercisesSchema),
-      callClaude("batch2", promptBatch2, "create_exercises", "Crée 4 exercices de 10 questions (Bloom 3-5)", exercisesSchema),
-      callClaude("qcm", qcmPrompt, "create_qcm_final", "Crée le QCM final de 30 questions", qcmSchema),
-    ]);
-    console.log(`[mentor-generate] Total parallèle terminé en ${Date.now() - t0}ms`);
+    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 8000,
+        system: MENTOR_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: userPrompt }],
+        tools: [{
+          name: "create_mentor_path",
+          description: "Crée le parcours complet : 5 exercices de 5 questions + 1 QCM final de 15 questions",
+          input_schema: fullSchema,
+        }],
+        tool_choice: { type: "tool", name: "create_mentor_path" },
+      }),
+    });
+    console.log(`[mentor-generate] Claude répondu en ${Date.now() - t0}ms (status: ${claudeRes.status})`);
 
-    // Vérification erreurs
-    for (const [label, res] of [["batch1", batch1Res], ["batch2", batch2Res], ["qcm", qcmRes]] as const) {
-      if (!res.ok) {
-        const txt = await res.text();
-        console.error(`Anthropic API error (${label}):`, res.status, txt);
-        if (res.status === 429) {
-          return new Response(
-            JSON.stringify({ error: "Trop de requêtes Claude, réessaie dans une minute." }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
-        if (res.status === 401) {
-          return new Response(
-            JSON.stringify({ error: "Clé API Claude invalide" }),
-            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-          );
-        }
+    if (!claudeRes.ok) {
+      const txt = await claudeRes.text();
+      console.error("Anthropic API error:", claudeRes.status, txt);
+      if (claudeRes.status === 429) {
         return new Response(
-          JSON.stringify({ error: `Erreur génération Claude (${label}): ` + txt.slice(0, 200) }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: "Trop de requêtes Claude, réessaie dans une minute." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+      if (claudeRes.status === 401) {
+        return new Response(
+          JSON.stringify({ error: "Clé API Claude invalide" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: "Erreur génération Claude : " + txt.slice(0, 200) }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    const batch1Data = await batch1Res.json();
-    const batch2Data = await batch2Res.json();
-    const qcmData = await qcmRes.json();
+    const claudeData = await claudeRes.json();
+    const toolUse = claudeData.content?.find((c: any) => c.type === "tool_use");
 
-    const batch1Tool = batch1Data.content?.find((c: any) => c.type === "tool_use");
-    const batch2Tool = batch2Data.content?.find((c: any) => c.type === "tool_use");
-    const qcmTool = qcmData.content?.find((c: any) => c.type === "tool_use");
-
-    if (!batch1Tool || !batch2Tool || !qcmTool) {
-      console.error("Pas de tool_use", {
-        batch1: JSON.stringify(batch1Data).slice(0, 300),
-        batch2: JSON.stringify(batch2Data).slice(0, 300),
-        qcm: JSON.stringify(qcmData).slice(0, 300),
-      });
+    if (!toolUse) {
+      console.error("Pas de tool_use:", JSON.stringify(claudeData).slice(0, 500));
       return new Response(JSON.stringify({ error: "Réponse Claude invalide (pas de tool_use)" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Fusionner les 2 batches d'exercices
-    const exercises = [
-      ...(batch1Tool.input.exercises || []),
-      ...(batch2Tool.input.exercises || []),
-    ];
-    const qcmFinal = qcmTool.input;
+    const exercises = toolUse.input.exercises || [];
+    const qcmFinal = toolUse.input.qcmFinal;
 
-    console.log(`[mentor-generate] Exercices fusionnés: ${exercises.length} / QCM questions: ${qcmFinal.questions?.length || 0}`);
+    console.log(`[mentor-generate] Exercices: ${exercises.length} / QCM questions: ${qcmFinal?.questions?.length || 0}`);
 
-    if (!Array.isArray(exercises) || exercises.length === 0) {
-      console.error("Exercises vide dans la réponse Claude");
-      return new Response(JSON.stringify({ error: "Claude n'a pas généré d'exercices" }), {
+    if (!Array.isArray(exercises) || exercises.length === 0 || !qcmFinal?.questions?.length) {
+      console.error("Données vides dans la réponse Claude");
+      return new Response(JSON.stringify({ error: "Claude n'a pas généré de contenu valide" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
