@@ -21,9 +21,11 @@ interface SecurePdfViewerProps {
 }
 
 export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId, folderId }: SecurePdfViewerProps) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generatingMentor, setGeneratingMentor] = useState(false);
+  const [mentorVersion, setMentorVersion] = useState(0);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const docxDesktopRef = useRef<HTMLDivElement>(null);
 
@@ -37,6 +39,25 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
       { onConflict: "user_id,course_id" }
     ).then();
   }, [open, courseId, folderId, user]);
+
+  const handleGenerateMentor = async () => {
+    if (!courseId || !subjectId) return;
+    setGeneratingMentor(true);
+    toast.info("Génération du parcours MENTOR en cours... (1-2 min)");
+    try {
+      const { data, error } = await supabase.functions.invoke("mentor-generate", {
+        body: { courseId, subjectId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success("Parcours MENTOR généré !");
+      setMentorVersion((v) => v + 1);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur de génération MENTOR");
+    } finally {
+      setGeneratingMentor(false);
+    }
+  };
 
   const fileType = useMemo(() => {
     const name = fileName || "";
