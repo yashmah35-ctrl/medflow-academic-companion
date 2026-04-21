@@ -268,9 +268,10 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
             </AnimatePresence>
           </motion.div>
         </AnimatePresence>
+        </div>
 
-        {/* ===== FOOTER ===== */}
-        <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center">
+        {/* ===== FOOTER (sticky) ===== */}
+        <div className="px-6 py-4 border-t border-gray-100 flex justify-between items-center bg-white shrink-0">
           <span className="text-sm text-gray-400">Score actuel : {score}/{currentQuestion + (showFeedback ? 1 : 0)}</span>
 
           {!showFeedback ? (
@@ -278,7 +279,7 @@ export function QuizModal({ exercise, onClose, onComplete }: QuizModalProps) {
               onClick={handleValidate}
               disabled={selectedAnswer === null}
               className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ backgroundColor: selectedAnswer !== null ? '#9CA3AF' : '#E5E7EB' }}
+              style={{ backgroundColor: selectedAnswer !== null ? '#10B981' : '#E5E7EB' }}
             >
               Valider
             </button>
