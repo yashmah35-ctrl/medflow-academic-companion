@@ -416,7 +416,7 @@ Deno.serve(async (req) => {
           exercises_json: normalizedExercises,
           qcm_final_json: normalizedQcm,
           generated_by: user.id,
-          generation_model: "google/gemini-2.5-pro",
+          generation_model: "claude-sonnet-4-5-20250929",
           source_text_length: courseText.length,
           updated_at: new Date().toISOString(),
         },
