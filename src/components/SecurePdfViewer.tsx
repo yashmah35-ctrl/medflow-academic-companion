@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText } from "lucide-react";
+import { Loader2, X, FileText, Sparkles } from "lucide-react";
 import { renderAsync } from "docx-preview";
-import { ExercisePanel } from "@/components/training/ExercisePanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { MentorPanel } from "@/components/mentor/MentorPanel";
+import { toast } from "sonner";
 
 interface SecurePdfViewerProps {
   open: boolean;
