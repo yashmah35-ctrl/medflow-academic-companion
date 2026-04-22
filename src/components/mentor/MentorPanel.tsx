@@ -260,7 +260,7 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
       stars: newStars,
       attempts: nextAttempts,
       last_attempted_at: new Date().toISOString(),
-    }, { onConflict: "user_id,course_id,exercise_id,is_qcm_final" });
+    }, { onConflict: "user_id,course_id,exercise_id" });
 
     if (error) {
       toast.error("Impossible de sauvegarder la progression de l'exercice");
