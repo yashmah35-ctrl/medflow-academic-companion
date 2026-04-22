@@ -124,28 +124,48 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
     if (!chapter?.exercises_json) return [];
     const rawExercises = Array.isArray(chapter.exercises_json) ? chapter.exercises_json : [];
 
-    return rawExercises.map((ex: any, idx: number) => {
-      const p = progress[ex.id];
-      let status: ExerciseStatus = "available";
-      if (p) {
-        if (p.status === "perfect") status = "perfect";
-        else if (p.status === "passed") status = "passed";
-        else if (p.status === "failed") status = "failed";
-        else status = "available";
+    // Construire d'abord les progressions pour chaque exercice
+    const built = rawExercises.map((ex: any, idx: number) => {
+      const id = ex.id || `exo-${idx + 1}`;
+      const p = progress[id];
+      const stars = p?.stars ?? 0;
+      return {
+        raw: ex,
+        idx,
+        id,
+        p,
+        stars,
+      };
+    });
+
+    // Verrouillage en cascade : exo 1 toujours débloqué, les suivants requièrent ≥ 2 étoiles au précédent
+    return built.map(({ raw, idx, id, p, stars }) => {
+      let status: ExerciseStatus;
+      if (p?.status === "perfect") status = "perfect";
+      else if (p?.status === "passed") status = "passed";
+      else if (p?.status === "failed") status = "failed";
+      else {
+        // Pas encore tenté : débloqué seulement si exo précédent a ≥ 2 étoiles
+        if (idx === 0) {
+          status = "available";
+        } else {
+          const prevStars = built[idx - 1].stars;
+          status = prevStars >= 2 ? "available" : "locked";
+        }
       }
       return {
-        id: ex.id || `exo-${idx + 1}`,
-        number: ex.number || idx + 1,
-        title: ex.title || `Exercice ${idx + 1}`,
+        id,
+        number: raw.number || idx + 1,
+        title: raw.title || `Exercice ${idx + 1}`,
         chapterId: chapter.id,
         subjectId: chapter.subject_id,
         status,
         score: p?.best_score ?? null,
-        stars: p?.stars ?? 0,
+        stars,
         attempts: p?.attempts ?? 0,
         bestScore: p?.best_score ?? null,
-        bloomTarget: ex.bloomTarget || 1,
-        questions: (ex.questions || []) as Question[],
+        bloomTarget: raw.bloomTarget || 1,
+        questions: (raw.questions || []) as Question[],
       };
     });
   }, [chapter, progress]);
