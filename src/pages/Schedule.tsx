@@ -312,6 +312,7 @@ export default function Schedule() {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDelete={handleDeleteEvent}
+        onToggleComplete={handleToggleComplete}
         onEdit={(ev) => {
           setDetailOpen(false);
           toast({ title: "Modification", description: "Fonctionnalité à venir" });
