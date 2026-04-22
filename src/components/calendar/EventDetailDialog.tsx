@@ -77,6 +77,20 @@ export function EventDetailDialog({ event, open, onOpenChange, onDelete, onEdit,
             <p className="text-sm text-muted-foreground border-t border-border pt-3">{event.description}</p>
           )}
 
+          {/* Completion checkbox */}
+          {onToggleComplete && (
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
+              <Checkbox
+                id="event-completed"
+                checked={!!event.completed}
+                onCheckedChange={() => onToggleComplete(event)}
+              />
+              <label htmlFor="event-completed" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                {event.completed ? "Terminé ✅" : "Marquer comme terminé"}
+              </label>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex justify-center gap-3 pt-3">
             <Button variant="outline" onClick={() => onEdit(event)}>
