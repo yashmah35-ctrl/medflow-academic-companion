@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarDays, Clock, Timer, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -12,9 +13,10 @@ interface EventDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onDelete: (event: CalendarEvent) => void;
   onEdit: (event: CalendarEvent) => void;
+  onToggleComplete?: (event: CalendarEvent) => void;
 }
 
-export function EventDetailDialog({ event, open, onOpenChange, onDelete, onEdit }: EventDetailDialogProps) {
+export function EventDetailDialog({ event, open, onOpenChange, onDelete, onEdit, onToggleComplete }: EventDetailDialogProps) {
   if (!event) return null;
 
   const dateObj = parseISO(event.scheduled_date);
