@@ -156,19 +156,23 @@ const Index = () => {
     return true;
   });
 
-  // Compute global schedule progress from localStorage
-  const totalProgress = (() => {
-    try {
-      const saved = localStorage.getItem("schedule-completion");
-      if (!saved) return 0;
-      const completionMap: Record<string, string> = JSON.parse(saved);
-      const total = scheduleBlocks.length;
-      if (total === 0) return 0;
-      const doneCount = Object.values(completionMap).filter((s) => s === "done").length;
-      const partialCount = Object.values(completionMap).filter((s) => s === "partial").length;
-      return Math.round(((doneCount + partialCount * 0.5) / total) * 100);
-    } catch { return 0; }
-  })();
+  // Compute today's schedule progression from Supabase
+  const [totalProgress, setTotalProgress] = useState(0);
+  useEffect(() => {
+    if (!user) return;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    supabase
+      .from("schedule_blocks")
+      .select("completed")
+      .eq("user_id", user.id)
+      .eq("scheduled_date", todayStr)
+      .eq("deleted_by_user", false)
+      .then(({ data }) => {
+        if (!data || data.length === 0) { setTotalProgress(0); return; }
+        const done = data.filter((b: any) => b.completed).length;
+        setTotalProgress(Math.round((done / data.length) * 100));
+      });
+  }, [user]);
 
   // Bloom level: based on accumulated XP (each 50 XP = ~1% bloom, max at 5000 XP)
   const bloomLevel = Math.min(100, ((stats?.xp ?? 0) / 5000) * 100 + studyMinutes * 0.5);

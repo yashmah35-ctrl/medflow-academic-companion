@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CalendarDays, Clock, Timer, X } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -12,9 +13,10 @@ interface EventDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onDelete: (event: CalendarEvent) => void;
   onEdit: (event: CalendarEvent) => void;
+  onToggleComplete?: (event: CalendarEvent) => void;
 }
 
-export function EventDetailDialog({ event, open, onOpenChange, onDelete, onEdit }: EventDetailDialogProps) {
+export function EventDetailDialog({ event, open, onOpenChange, onDelete, onEdit, onToggleComplete }: EventDetailDialogProps) {
   if (!event) return null;
 
   const dateObj = parseISO(event.scheduled_date);
@@ -73,6 +75,20 @@ export function EventDetailDialog({ event, open, onOpenChange, onDelete, onEdit 
 
           {event.description && (
             <p className="text-sm text-muted-foreground border-t border-border pt-3">{event.description}</p>
+          )}
+
+          {/* Completion checkbox */}
+          {onToggleComplete && (
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/40 p-3">
+              <Checkbox
+                id="event-completed"
+                checked={!!event.completed}
+                onCheckedChange={() => onToggleComplete(event)}
+              />
+              <label htmlFor="event-completed" className="text-sm font-medium text-foreground cursor-pointer select-none">
+                {event.completed ? "Terminé ✅" : "Marquer comme terminé"}
+              </label>
+            </div>
           )}
 
           {/* Actions */}
