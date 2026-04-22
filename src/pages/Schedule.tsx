@@ -212,7 +212,21 @@ export default function Schedule() {
     }
   };
 
-  // Admin task creation
+  // Toggle completion
+  const handleToggleComplete = async (event: CalendarEvent) => {
+    const newCompleted = !event.completed;
+    const { error } = await supabase
+      .from("schedule_blocks")
+      .update({ completed: newCompleted })
+      .eq("id", event.id);
+    if (!error) {
+      toast({ title: newCompleted ? "✅ Tâche validée" : "Tâche non validée" });
+      setSelectedEvent({ ...event, completed: newCompleted });
+      fetchEvents();
+    } else {
+      toast({ title: "Erreur", description: "Impossible de mettre à jour", variant: "destructive" });
+    }
+  };
   const handleCreateAdminTask = async (data: AdminTaskFormData) => {
     if (!user) return;
     const [startH, startM] = data.startTime.split(":").map(Number);
