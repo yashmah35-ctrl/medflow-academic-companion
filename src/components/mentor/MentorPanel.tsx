@@ -300,7 +300,7 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
       attempts: (existing?.attempts ?? 0) + 1,
       time_spent_seconds: time,
       last_attempted_at: new Date().toISOString(),
-    }, { onConflict: "user_id,course_id,exercise_id,is_qcm_final" });
+    }, { onConflict: "user_id,course_id,exercise_id" });
   }, [user, courseId, qcmFinalProgress]);
 
   // Pas encore de parcours généré
