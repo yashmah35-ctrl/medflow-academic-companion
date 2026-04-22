@@ -3,6 +3,7 @@ import { Loader2, Sparkles, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCredits } from "@/hooks/useCredits";
+import { useUserStats } from "@/hooks/useUserStats";
 import { toast } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import { DuolingoPath } from "./DuolingoPath";
@@ -57,6 +58,7 @@ const defaultProfile: StudentProfile = {
 export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: MentorPanelProps) {
   const { user } = useAuth();
   const { balance: credits, refresh: refreshCredits } = useCredits();
+  const { addXP } = useUserStats();
   const [loading, setLoading] = useState(true);
   const [chapter, setChapter] = useState<MentorChapterRow | null>(null);
   const [progress, setProgress] = useState<Record<string, ProgressRow>>({});
@@ -287,6 +289,16 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
       return;
     }
 
+    // Récompenses
+    await addXP(10);
+    await supabase.rpc("refund_credits", {
+      _user_id: user.id,
+      _amount: 100,
+      _reason: "mentor_exercise_completed",
+    });
+    await refreshCredits();
+    toast.success("🎉 +10 XP et +100 crédits !");
+
     // Recharger progression
     const { data: prog } = await supabase.from("mentor_progress").select("*")
       .eq("user_id", user.id).eq("course_id", courseId);
@@ -296,7 +308,7 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
       progMap[key] = p;
     });
     setProgress(progMap);
-  }, [user, currentExercise, courseId, progress]);
+  }, [user, currentExercise, courseId, progress, addXP, refreshCredits]);
 
   const handleQCMComplete = useCallback(async (_r: AnswerResult[], score: number, stars: number, time: number) => {
     if (!user) return;
@@ -321,7 +333,17 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
       time_spent_seconds: time,
       last_attempted_at: new Date().toISOString(),
     }, { onConflict: "user_id,course_id,exercise_id" });
-  }, [user, courseId, qcmFinalProgress]);
+
+    // Récompenses QCM Final
+    await addXP(10);
+    await supabase.rpc("refund_credits", {
+      _user_id: user.id,
+      _amount: 100,
+      _reason: "mentor_qcm_final_completed",
+    });
+    await refreshCredits();
+    toast.success("🎉 +10 XP et +100 crédits pour le QCM Final !");
+  }, [user, courseId, qcmFinalProgress, addXP, refreshCredits]);
 
   // Pas encore de parcours généré
   if (loading) {
