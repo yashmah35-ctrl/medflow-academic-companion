@@ -354,7 +354,7 @@ export function DuolingoPath({
               </GoldCircle>
             )}
             {/* Etoiles gagnees */}
-            {(ex.status === 'perfect' || ex.status === 'passed' || ex.status === 'failed') && (
+            {ex.stars > 0 && (
               <motion.div
                 className="flex gap-1 mt-2 px-2 py-1 rounded-full bg-white shadow-md border border-amber-100"
                 initial={{ scale: 0, y: -5 }}

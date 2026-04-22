@@ -223,18 +223,33 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
   // Sauvegarder résultat exercice
   const handleQuizComplete = useCallback(async (results: AnswerResult[], score: number, stars: number) => {
     if (!user || !currentExercise) return;
+
     setLastResults(results);
     setLastScore(score);
     setLastStars(stars);
     setShowQuiz(false);
     setShowQuizResult(true);
 
-    const status = score === 10 ? "perfect" : score >= 6 ? "passed" : "failed";
+    const status = stars === 3 ? "perfect" : stars >= 1 ? "passed" : "failed";
     const existing = progress[currentExercise.id];
     const newBest = Math.max(existing?.best_score ?? 0, score);
     const newStars = Math.max(existing?.stars ?? 0, stars);
+    const nextAttempts = (existing?.attempts ?? 0) + 1;
+    const optimisticRow: ProgressRow = {
+      exercise_id: currentExercise.id,
+      is_qcm_final: false,
+      status,
+      best_score: newBest,
+      stars: newStars,
+      attempts: nextAttempts,
+    };
 
-    await supabase.from("mentor_progress").upsert({
+    setProgress((prev) => ({
+      ...prev,
+      [currentExercise.id]: optimisticRow,
+    }));
+
+    const { error } = await supabase.from("mentor_progress").upsert({
       user_id: user.id,
       course_id: courseId,
       exercise_id: currentExercise.id,
@@ -243,9 +258,14 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
       score,
       best_score: newBest,
       stars: newStars,
-      attempts: (existing?.attempts ?? 0) + 1,
+      attempts: nextAttempts,
       last_attempted_at: new Date().toISOString(),
     }, { onConflict: "user_id,course_id,exercise_id,is_qcm_final" });
+
+    if (error) {
+      toast.error("Impossible de sauvegarder la progression de l'exercice");
+      return;
+    }
 
     // Recharger progression
     const { data: prog } = await supabase.from("mentor_progress").select("*")
