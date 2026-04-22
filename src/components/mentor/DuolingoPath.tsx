@@ -353,13 +353,24 @@ export function DuolingoPath({
                 {renderContent(ex)}
               </GoldCircle>
             )}
-            {/* Etoiles */}
+            {/* Etoiles gagnees */}
             {(ex.status === 'perfect' || ex.status === 'passed' || ex.status === 'failed') && (
-              <div className="flex gap-[2px] mt-1.5">
+              <motion.div
+                className="flex gap-1 mt-2 px-2 py-1 rounded-full bg-white shadow-md border border-amber-100"
+                initial={{ scale: 0, y: -5 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.2 }}
+              >
                 {[1, 2, 3].map((s) => (
-                  <Star key={s} size={10} fill={s <= ex.stars ? '#FBBF24' : '#E5E7EB'} stroke="none" />
+                  <Star
+                    key={s}
+                    size={14}
+                    fill={s <= (ex.stars || 0) ? '#FBBF24' : '#E5E7EB'}
+                    stroke={s <= (ex.stars || 0) ? '#F59E0B' : '#D1D5DB'}
+                    strokeWidth={1.5}
+                  />
                 ))}
-              </div>
+              </motion.div>
             )}
           </div>
         );
