@@ -136,7 +136,13 @@ export default function SubjectGroup() {
                 {s.name}
               </h3>
               <p className="text-xs text-muted-foreground">
-                {s.name.endsWith(" TC") ? "Tronc Commun" : "Option Santé"}
+                {s.name.endsWith(" PASS/LASS")
+                  ? "PASS/LASS"
+                  : s.name.endsWith(" PASS")
+                    ? "PASS"
+                    : s.name.endsWith(" TC")
+                      ? "Tronc Commun"
+                      : "Option Santé"}
               </p>
             </motion.div>
           );
