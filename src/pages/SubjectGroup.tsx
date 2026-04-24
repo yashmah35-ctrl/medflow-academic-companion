@@ -12,12 +12,12 @@ import shsImg from "@/assets/subjects/shs.png";
 import santePubliqueImg from "@/assets/subjects/sante-publique.png";
 
 const subjectImageMap: Record<string, string> = {
-  "Anatomie OS": anatomieOsImg,
-  "Anatomie TC": anatomieTcImg,
-  "SHS TC": shsImg,
-  "SHS OS": shsImg,
-  "Santé Publique OS": santePubliqueImg,
-  "Santé Publique TC": santePubliqueImg,
+  "UE 4 : Anatomie PASS/LASS": anatomieOsImg,
+  "UE 4 : Anatomie PASS": anatomieTcImg,
+  "UE 8 : SHS PASS": shsImg,
+  "UE 8 : SHS PASS/LASS": shsImg,
+  "UE 11 : Santé Publique PASS/LASS": santePubliqueImg,
+  "UE 11 : Santé Publique PASS": santePubliqueImg,
 };
 
 interface DBSubject {
@@ -68,10 +68,10 @@ export default function SubjectGroup() {
   }, []);
 
   const variants = subjects.filter((s) => {
-    const m = s.name.match(/^(.+)\s+(TC|OS)$/);
+    const m = s.name.match(/^(.+?)\s+(PASS\/LASS|PASS|TC|OS)$/);
     if (!m) return false;
     if (m[1].trim() !== decodedGroup) return false;
-    if (!canAccessTC(role) && s.name.endsWith(" TC")) return false;
+    if (!canAccessTC(role) && (s.name.endsWith(" TC") || s.name.endsWith(" PASS"))) return false;
     return true;
   });
 
@@ -136,7 +136,13 @@ export default function SubjectGroup() {
                 {s.name}
               </h3>
               <p className="text-xs text-muted-foreground">
-                {s.name.endsWith(" TC") ? "Tronc Commun" : "Option Santé"}
+                {s.name.endsWith(" PASS/LASS")
+                  ? "PASS/LASS"
+                  : s.name.endsWith(" PASS")
+                    ? "PASS"
+                    : s.name.endsWith(" TC")
+                      ? "Tronc Commun"
+                      : "Option Santé"}
               </p>
             </motion.div>
           );

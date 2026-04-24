@@ -15,12 +15,12 @@ import shsImg from "@/assets/subjects/shs.png";
 import santePubliqueImg from "@/assets/subjects/sante-publique.png";
 
 const subjectImageMap: Record<string, string> = {
-  "Anatomie OS": anatomieOsImg,
-  "Anatomie TC": anatomieTcImg,
-  "SHS TC": shsImg,
-  "SHS OS": shsImg,
-  "Santé Publique OS": santePubliqueImg,
-  "Santé Publique TC": santePubliqueImg,
+  "UE 4 : Anatomie PASS/LASS": anatomieOsImg,
+  "UE 4 : Anatomie PASS": anatomieTcImg,
+  "UE 8 : SHS PASS": shsImg,
+  "UE 8 : SHS PASS/LASS": shsImg,
+  "UE 11 : Santé Publique PASS/LASS": santePubliqueImg,
+  "UE 11 : Santé Publique PASS": santePubliqueImg,
 };
 
 interface DBSubject {
@@ -90,7 +90,7 @@ export default function Cours() {
   };
 
   const accessibleSubjects = subjects.filter((s) => {
-    if (!canAccessTC(role) && s.name.includes(" TC")) return false;
+    if (!canAccessTC(role) && (s.name.endsWith(" TC") || s.name.endsWith(" PASS"))) return false;
     return true;
   });
 
@@ -102,7 +102,7 @@ export default function Cours() {
   const groupsMap = new Map<string, DBSubject[]>();
   const singles: DBSubject[] = [];
   for (const s of accessibleSubjects) {
-    const m = s.name.match(/^(.+)\s+(TC|OS)$/);
+    const m = s.name.match(/^(.+?)\s+(PASS\/LASS|PASS|TC|OS)$/);
     if (m) {
       const key = m[1].trim();
       if (!groupsMap.has(key)) groupsMap.set(key, []);
@@ -134,7 +134,7 @@ export default function Cours() {
   });
 
   const groupImage = (name: string): string | undefined =>
-    subjectImageMap[`${name} OS`] ?? subjectImageMap[`${name} TC`];
+    subjectImageMap[`${name} PASS/LASS`] ?? subjectImageMap[`${name} PASS`];
 
   return (
     <div className="space-y-8">
@@ -212,7 +212,10 @@ export default function Cours() {
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {it.members
-                      .map((m) => (m.name.endsWith(" TC") ? "TC" : "OS"))
+                      .map((m) => {
+                        const mm = m.name.match(/\s+(PASS\/LASS|PASS|TC|OS)$/);
+                        return mm ? mm[1] : m.name;
+                      })
                       .sort()
                       .join(" • ")}
                   </p>
