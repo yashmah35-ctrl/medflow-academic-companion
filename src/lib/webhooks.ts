@@ -15,10 +15,11 @@ export async function callWebhook(
   body: Record<string, unknown>
 ): Promise<any> {
   const proxyBody = { webhook_url: url, payload: body };
-  console.log("[webhook] PROXY_URL:", PROXY_URL);
-  console.log("[webhook] Target webhook:", url);
-  console.log("[webhook] Request body:", JSON.stringify(proxyBody));
-  console.log("[webhook] Using apikey:", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.slice(0, 20) + "…");
+  if (import.meta.env.DEV) {
+    console.log("[webhook] PROXY_URL:", PROXY_URL);
+    console.log("[webhook] Target webhook:", url);
+    console.log("[webhook] Request body:", JSON.stringify(proxyBody));
+  }
 
   try {
     const res = await fetch(PROXY_URL, {
@@ -31,9 +32,11 @@ export async function callWebhook(
       body: JSON.stringify(proxyBody),
     });
 
-    console.log("[webhook] Response status:", res.status);
     const text = await res.text();
-    console.log("[webhook] Response body:", text);
+    if (import.meta.env.DEV) {
+      console.log("[webhook] Response status:", res.status);
+      console.log("[webhook] Response body:", text);
+    }
 
     if (!res.ok) {
       let errMsg = `Webhook proxy error ${res.status}`;
@@ -50,7 +53,7 @@ export async function callWebhook(
       return text || null;
     }
   } catch (err: any) {
-    console.error("[webhook] callWebhook failed:", err);
+    if (import.meta.env.DEV) console.error("[webhook] callWebhook failed:", err);
     throw err;
   }
 }
