@@ -637,14 +637,23 @@ export default function SubjectDetail() {
                 const scorePct = score && score.total > 0
                   ? Math.max(0, Math.min(100, Math.round((score.correct / score.total) * 100)))
                   : null;
+                const exLocked = isExerciseLocked(ex);
                 return (
-                  <motion.div key={ex.id} variants={item} className="px-5 py-3.5">
+                  <motion.div key={ex.id} variants={item} className={`px-5 py-3.5 ${exLocked ? "opacity-90" : ""}`}>
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-foreground text-sm">{ex.title}</h3>
+                        <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                          {ex.title}
+                          {exLocked && <Lock className="h-3.5 w-3.5 text-amber-600" />}
+                        </h3>
                         <div className="flex items-center gap-2 mt-0.5">
                           {ex.source_label && (
                             <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
+                          )}
+                          {exLocked && (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                              <Lock className="h-3 w-3 mr-0.5" /> Premium
+                            </Badge>
                           )}
                           <span className="text-xs text-muted-foreground">{qCount} Q</span>
                         </div>
@@ -679,9 +688,12 @@ export default function SubjectDetail() {
                         size="sm"
                         variant="outline"
                         className="shrink-0"
-                        onClick={() => navigate(`/learning?exerciseId=${ex.id}`)}
+                        onClick={() => {
+                          if (exLocked) { setPremiumModalOpen(true); return; }
+                          navigate(`/learning?exerciseId=${ex.id}`);
+                        }}
                       >
-                        <Play className="h-3.5 w-3.5 mr-1" /> Démarrer
+                        {exLocked ? <><Lock className="h-3.5 w-3.5 mr-1" /> Débloquer</> : <><Play className="h-3.5 w-3.5 mr-1" /> Démarrer</>}
                       </Button>
                     </div>
 
