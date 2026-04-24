@@ -5,10 +5,12 @@ const EXTERNAL_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const externalSupabase = createClient(EXTERNAL_URL, EXTERNAL_ANON_KEY);
 
+const isDev = import.meta.env.DEV;
+
 export async function syncUserToExternal(userId: string, email: string) {
   try {
-    console.log('[ExternalSync] Syncing user:', userId, email);
-    
+    if (isDev) console.log('[ExternalSync] Syncing user:', userId);
+
     // Try upsert first
     const { data, error } = await externalSupabase
       .from('users')
@@ -24,8 +26,8 @@ export async function syncUserToExternal(userId: string, email: string) {
       .select();
 
     if (error) {
-      console.error('[ExternalSync] Upsert error:', error.message, error.details, error.hint);
-      
+      if (isDev) console.error('[ExternalSync] Upsert error:', error.message);
+
       // If upsert fails, try insert (ignore conflict)
       const { error: insertError } = await externalSupabase
         .from('users')
@@ -35,22 +37,22 @@ export async function syncUserToExternal(userId: string, email: string) {
           created_at: new Date().toISOString(),
           role: 'student',
         });
-      
+
       if (insertError) {
         // If it's a duplicate key error, that's fine - user already exists
         if (insertError.message?.includes('duplicate') || insertError.code === '23505') {
-          console.log('[ExternalSync] User already exists in external DB');
+          if (isDev) console.log('[ExternalSync] User already exists in external DB');
           return true;
         }
-        console.error('[ExternalSync] Insert fallback error:', insertError.message);
+        if (isDev) console.error('[ExternalSync] Insert fallback error:', insertError.message);
         return false;
       }
     }
-    
-    console.log('[ExternalSync] User synced successfully:', data);
+
+    if (isDev) console.log('[ExternalSync] User synced successfully');
     return true;
   } catch (err) {
-    console.error('[ExternalSync] Failed:', err);
+    if (isDev) console.error('[ExternalSync] Failed:', err);
     return false;
   }
 }
