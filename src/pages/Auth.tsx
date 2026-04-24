@@ -183,7 +183,7 @@ function ScrambledTitle() {
       {letters.map((letter, i) => (
         <motion.span
           key={letter.id}
-          className="text-3xl font-bold text-white inline-block"
+          className="text-3xl font-bold text-foreground inline-block"
           style={{ display: letter.char === " " ? "inline" : "inline-block", minWidth: letter.char === " " ? "0.3em" : undefined }}
           initial={{ x: letter.offsetX, y: letter.offsetY, rotate: letter.rotation, opacity: 0, scale: 0.3 }}
           animate={{ x: 0, y: 0, rotate: 0, opacity: 1, scale: 1 }}
@@ -273,19 +273,19 @@ export default function Auth() {
   /* ============ SPLASH SCREEN (20s) ============ */
   if (showSplash) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0a0a0f] relative overflow-hidden">
+      <div className="flex min-h-screen items-center justify-center bg-white relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-blue-500/10 blur-[150px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[150px]" />
         </div>
         <motion.div className="flex flex-col items-center z-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <AuthShield3D animate />
           <div className="mt-6"><ScrambledTitle /></div>
-          <motion.p className="text-white/60 text-sm mt-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 14, duration: 1 }}>
+          <motion.p className="text-muted-foreground text-sm mt-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 14, duration: 1 }}>
             Prépare-toi à réussir
           </motion.p>
-          <motion.div className="mt-8 h-1 rounded-full bg-blue-500/30 w-48 overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 15 }}>
+          <motion.div className="mt-8 h-1 rounded-full bg-primary/20 w-48 overflow-hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 15 }}>
             <motion.div
-              className="h-full rounded-full bg-blue-500"
+              className="h-full rounded-full bg-primary"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
               transition={{ delay: 15.5, duration: 4, ease: "easeInOut" }}
