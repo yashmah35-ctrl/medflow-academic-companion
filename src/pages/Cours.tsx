@@ -134,7 +134,7 @@ export default function Cours() {
   });
 
   const groupImage = (name: string): string | undefined =>
-    subjectImageMap[`${name} OS`] ?? subjectImageMap[`${name} TC`];
+    subjectImageMap[`${name} PASS/LASS`] ?? subjectImageMap[`${name} PASS`];
 
   return (
     <div className="space-y-8">
