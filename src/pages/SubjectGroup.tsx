@@ -68,10 +68,10 @@ export default function SubjectGroup() {
   }, []);
 
   const variants = subjects.filter((s) => {
-    const m = s.name.match(/^(.+)\s+(TC|OS)$/);
+    const m = s.name.match(/^(.+?)\s+(PASS\/LASS|PASS|TC|OS)$/);
     if (!m) return false;
     if (m[1].trim() !== decodedGroup) return false;
-    if (!canAccessTC(role) && s.name.endsWith(" TC")) return false;
+    if (!canAccessTC(role) && (s.name.endsWith(" TC") || s.name.endsWith(" PASS"))) return false;
     return true;
   });
 
