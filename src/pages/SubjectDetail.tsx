@@ -479,12 +479,16 @@ export default function SubjectDetail() {
               {dbFolders.map((folder) => {
                 const isOwner = folder.created_by === user?.id;
                 const courseCount = folderCourseCounts[folder.id] ?? 0;
+                const locked = isFolderLocked(folder);
                 return (
                   <motion.div
                     key={folder.id}
                     variants={item}
-                    className="group relative rounded-2xl border border-border bg-accent/20 overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
-                    onClick={() => navigate(`/subject/${subjectId}/folder/${folder.id}`)}
+                    className={`group relative rounded-2xl border border-border bg-accent/20 overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 ${locked ? "opacity-90" : ""}`}
+                    onClick={() => {
+                      if (locked) { setPremiumModalOpen(true); return; }
+                      navigate(`/subject/${subjectId}/folder/${folder.id}`);
+                    }}
                   >
                     {/* Card content */}
                     <div className="p-5 pb-4">
@@ -496,10 +500,15 @@ export default function SubjectDetail() {
                           {folder.is_public && (
                             <Badge variant="secondary" className="text-[10px]">Public</Badge>
                           )}
+                          {locked && (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                              <Lock className="h-3 w-3 mr-0.5" /> Premium
+                            </Badge>
+                          )}
                         </div>
                         {/* Folder icon placeholder */}
                         <div className={`h-14 w-14 rounded-lg ${colors.light} flex items-center justify-center text-2xl opacity-60`}>
-                          📄
+                          {locked ? <Lock className="h-6 w-6 text-amber-600" /> : "📄"}
                         </div>
                       </div>
 
