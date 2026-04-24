@@ -14,6 +14,7 @@ import Index from "./pages/Index";
 import Landing from "./pages/Landing";
 import Cours from "./pages/Cours";
 import SubjectDetail from "./pages/SubjectDetail";
+import SubjectGroup from "./pages/SubjectGroup";
 import Schedule from "./pages/Schedule";
 import ActiveLearning from "./pages/ActiveLearning";
 import ErrorNotebook from "./pages/ErrorNotebook";
