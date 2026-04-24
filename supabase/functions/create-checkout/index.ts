@@ -65,7 +65,7 @@ serve(async (req) => {
 
     // Whitelist Stripe price IDs to prevent tampering
     const ALLOWED_PRICE_IDS = new Set([
-      "price_1SLzcZ19EBNXe60DHGaEX9hC", // mensuel 10€
+      "price_1TDPri19EBNXe60DCN8FSQ4h", // mensuel 10€
       "price_1TNgUs19EBNXe60DgdZksSXK", // trimestriel 28€
       "price_1TNgVk19EBNXe60DBTCTyV4m", // annuel 99€
     ]);
