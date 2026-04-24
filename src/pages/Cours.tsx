@@ -102,7 +102,7 @@ export default function Cours() {
   const groupsMap = new Map<string, DBSubject[]>();
   const singles: DBSubject[] = [];
   for (const s of accessibleSubjects) {
-    const m = s.name.match(/^(.+)\s+(TC|OS)$/);
+    const m = s.name.match(/^(.+?)\s+(PASS\/LASS|PASS|TC|OS)$/);
     if (m) {
       const key = m[1].trim();
       if (!groupsMap.has(key)) groupsMap.set(key, []);
