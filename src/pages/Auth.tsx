@@ -246,6 +246,11 @@ export default function Auth() {
     setLoading(true);
     try {
       if (mode === "register") {
+        if (password.length < 8) {
+          toast.error("Le mot de passe doit contenir au moins 8 caractères");
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
