@@ -59,6 +59,7 @@ function AppRoutes() {
         <Route path="/cours" element={<Cours />} />
         <Route path="/subject/:subjectId" element={<SubjectDetail />} />
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />
+        <Route path="/subject-group/:groupName" element={<SubjectGroup />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/learning" element={<ActiveLearning />} />
         <Route path="/errors" element={<AdminBlockedRoute><PremiumPaywall><ErrorNotebook /></PremiumPaywall></AdminBlockedRoute>} />
