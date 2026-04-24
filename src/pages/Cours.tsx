@@ -89,11 +89,52 @@ export default function Cours() {
     toast.success("Matière renommée !");
   };
 
-  const filteredSubjects = subjects.filter((s) => {
+  const accessibleSubjects = subjects.filter((s) => {
     if (!canAccessTC(role) && s.name.includes(" TC")) return false;
-    if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  // Regroupement: matières finissant par "TC" ou "OS" partageant le même préfixe
+  type DisplayItem =
+    | { kind: "single"; subject: DBSubject }
+    | { kind: "group"; name: string; members: DBSubject[] };
+
+  const groupsMap = new Map<string, DBSubject[]>();
+  const singles: DBSubject[] = [];
+  for (const s of accessibleSubjects) {
+    const m = s.name.match(/^(.+)\s+(TC|OS)$/);
+    if (m) {
+      const key = m[1].trim();
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(s);
+    } else {
+      singles.push(s);
+    }
+  }
+
+  const displayItems: DisplayItem[] = [
+    ...Array.from(groupsMap.entries()).map(([name, members]) =>
+      members.length >= 2
+        ? ({ kind: "group", name, members } as DisplayItem)
+        : ({ kind: "single", subject: members[0] } as DisplayItem)
+    ),
+    ...singles.map((s) => ({ kind: "single", subject: s } as DisplayItem)),
+  ];
+
+  const filteredItems = displayItems.filter((it) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    if (it.kind === "group") {
+      return (
+        it.name.toLowerCase().includes(q) ||
+        it.members.some((m) => m.name.toLowerCase().includes(q))
+      );
+    }
+    return it.subject.name.toLowerCase().includes(q);
+  });
+
+  const groupImage = (name: string): string | undefined =>
+    subjectImageMap[`${name} OS`] ?? subjectImageMap[`${name} TC`];
 
   return (
     <div className="space-y-8">
@@ -139,7 +180,46 @@ export default function Cours() {
           initial="hidden"
           animate="show"
         >
-          {filteredSubjects.map((s) => {
+          {filteredItems.map((it) => {
+            if (it.kind === "group") {
+              const colors =
+                subjectColorMap[(it.members[0].color as SubjectColor)] ??
+                subjectColorMap.chemistry;
+              const img = groupImage(it.name);
+              return (
+                <motion.div
+                  key={`group-${it.name}`}
+                  variants={item}
+                  className={`group relative overflow-hidden rounded-2xl border border-border ${colors.light} p-5 hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col`}
+                  onClick={() => navigate(`/subject-group/${encodeURIComponent(it.name)}`)}
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    {img ? (
+                      <div className="h-12 w-12 rounded-xl overflow-hidden shadow-sm">
+                        <img src={img} alt={it.name} className="h-full w-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card/80 text-2xl shadow-sm">
+                        {it.members[0].icon}
+                      </div>
+                    )}
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground bg-card/80 px-2 py-0.5 rounded-full">
+                      {it.members.length} variantes
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-foreground text-sm leading-tight mb-1">
+                    {it.name}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {it.members
+                      .map((m) => (m.name.endsWith(" TC") ? "TC" : "OS"))
+                      .sort()
+                      .join(" • ")}
+                  </p>
+                </motion.div>
+              );
+            }
+            const s = it.subject;
             const colors =
               subjectColorMap[s.color as SubjectColor] ?? subjectColorMap.chemistry;
             return (
