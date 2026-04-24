@@ -108,6 +108,40 @@ export default function SubjectDetail() {
   const isCollegeOrLycee = role === "college" || role === "lycee";
   const canCreateFolder = !isCollegeOrLycee;
 
+  // Freemium: l'élément le plus ancien (public) est gratuit, le reste est verrouillé pour les non-abonnés.
+  // Les contenus personnels (créés par l'utilisateur) restent toujours accessibles.
+  const hasFullAccess = isSubscribed || isAdmin;
+
+  // 1er dossier public (le plus ancien) gratuit
+  const publicFolders = dbFolders.filter(f => f.is_public);
+  const freeFolderId = publicFolders[0]?.id;
+  const isFolderLocked = (folder: DBFolder) => {
+    if (hasFullAccess) return false;
+    if (folder.created_by === user?.id) return false; // dossier personnel
+    if (!folder.is_public) return false;
+    return folder.id !== freeFolderId;
+  };
+
+  // 1er cours du dossier (le plus ancien) gratuit
+  const sortedCoursesAsc = [...dbCourses].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const freeCourseId = sortedCoursesAsc[0]?.id;
+  const isCourseLocked = (course: DBCourse) => {
+    if (hasFullAccess) return false;
+    return course.id !== freeCourseId;
+  };
+
+  // 1er exercice (le plus ancien) gratuit
+  const sortedExercisesAsc = [...exercises].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const freeExerciseId = sortedExercisesAsc[0]?.id;
+  const isExerciseLocked = (ex: AdminExercise) => {
+    if (hasFullAccess) return false;
+    return ex.id !== freeExerciseId;
+  };
+
   // Fetch subject
   useEffect(() => {
     if (!subjectId) return;
@@ -445,12 +479,16 @@ export default function SubjectDetail() {
               {dbFolders.map((folder) => {
                 const isOwner = folder.created_by === user?.id;
                 const courseCount = folderCourseCounts[folder.id] ?? 0;
+                const locked = isFolderLocked(folder);
                 return (
                   <motion.div
                     key={folder.id}
                     variants={item}
-                    className="group relative rounded-2xl border border-border bg-accent/20 overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300"
-                    onClick={() => navigate(`/subject/${subjectId}/folder/${folder.id}`)}
+                    className={`group relative rounded-2xl border border-border bg-accent/20 overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-300 ${locked ? "opacity-90" : ""}`}
+                    onClick={() => {
+                      if (locked) { setPremiumModalOpen(true); return; }
+                      navigate(`/subject/${subjectId}/folder/${folder.id}`);
+                    }}
                   >
                     {/* Card content */}
                     <div className="p-5 pb-4">
@@ -462,10 +500,15 @@ export default function SubjectDetail() {
                           {folder.is_public && (
                             <Badge variant="secondary" className="text-[10px]">Public</Badge>
                           )}
+                          {locked && (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                              <Lock className="h-3 w-3 mr-0.5" /> Premium
+                            </Badge>
+                          )}
                         </div>
                         {/* Folder icon placeholder */}
                         <div className={`h-14 w-14 rounded-lg ${colors.light} flex items-center justify-center text-2xl opacity-60`}>
-                          📄
+                          {locked ? <Lock className="h-6 w-6 text-amber-600" /> : "📄"}
                         </div>
                       </div>
 
@@ -594,14 +637,23 @@ export default function SubjectDetail() {
                 const scorePct = score && score.total > 0
                   ? Math.max(0, Math.min(100, Math.round((score.correct / score.total) * 100)))
                   : null;
+                const exLocked = isExerciseLocked(ex);
                 return (
-                  <motion.div key={ex.id} variants={item} className="px-5 py-3.5">
+                  <motion.div key={ex.id} variants={item} className={`px-5 py-3.5 ${exLocked ? "opacity-90" : ""}`}>
                     <div className="flex items-center gap-3">
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-foreground text-sm">{ex.title}</h3>
+                        <h3 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                          {ex.title}
+                          {exLocked && <Lock className="h-3.5 w-3.5 text-amber-600" />}
+                        </h3>
                         <div className="flex items-center gap-2 mt-0.5">
                           {ex.source_label && (
                             <Badge variant="outline" className="text-[10px] font-normal">{ex.source_label}</Badge>
+                          )}
+                          {exLocked && (
+                            <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
+                              <Lock className="h-3 w-3 mr-0.5" /> Premium
+                            </Badge>
                           )}
                           <span className="text-xs text-muted-foreground">{qCount} Q</span>
                         </div>
@@ -636,9 +688,12 @@ export default function SubjectDetail() {
                         size="sm"
                         variant="outline"
                         className="shrink-0"
-                        onClick={() => navigate(`/learning?exerciseId=${ex.id}`)}
+                        onClick={() => {
+                          if (exLocked) { setPremiumModalOpen(true); return; }
+                          navigate(`/learning?exerciseId=${ex.id}`);
+                        }}
                       >
-                        <Play className="h-3.5 w-3.5 mr-1" /> Démarrer
+                        {exLocked ? <><Lock className="h-3.5 w-3.5 mr-1" /> Débloquer</> : <><Play className="h-3.5 w-3.5 mr-1" /> Démarrer</>}
                       </Button>
                     </div>
 
@@ -697,11 +752,13 @@ export default function SubjectDetail() {
           <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {dbCourses
               .sort((a, b) => (a.source === "fac" ? -1 : 1))
-              .map((course) => (
+              .map((course) => {
+                const courseLocked = isCourseLocked(course);
+                return (
                 <motion.div
                   key={course.id}
                   variants={item}
-                  className="group relative rounded-2xl border border-border bg-accent/20 overflow-hidden hover:shadow-lg transition-all duration-300"
+                  className={`group relative rounded-2xl border border-border bg-accent/20 overflow-hidden hover:shadow-lg transition-all duration-300 ${courseLocked ? "opacity-90" : ""}`}
                 >
                   <div className="p-5 pb-4">
                     <div className="flex items-start justify-between mb-3">
@@ -709,14 +766,14 @@ export default function SubjectDetail() {
                         <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-[10px]">
                           {course.source === "fac" ? "Cours de la Fac" : "Prépa du Peuple"}
                         </Badge>
-                        {course.source === "bonus" && !isSubscribed && !isAdmin && (
+                        {courseLocked && (
                           <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
-                            <Crown className="h-3 w-3 mr-0.5" /> Premium
+                            <Lock className="h-3 w-3 mr-0.5" /> Premium
                           </Badge>
                         )}
                       </div>
                       <div className={`h-14 w-14 rounded-lg ${colors.light} flex items-center justify-center text-2xl opacity-60 shrink-0`}>
-                        📄
+                        {courseLocked ? <Lock className="h-6 w-6 text-amber-600" /> : "📄"}
                       </div>
                     </div>
 
@@ -751,7 +808,7 @@ export default function SubjectDetail() {
                         size="sm"
                         className="rounded-full px-5 bg-foreground text-background hover:bg-foreground/90"
                         onClick={async () => {
-                          if (course.source === "bonus" && !isSubscribed && !isAdmin) { setPremiumModalOpen(true); return; }
+                          if (courseLocked) { setPremiumModalOpen(true); return; }
                           const publicUrl = await resolveCourseUrl(course.file_url!);
                           setPdfSignedUrl(publicUrl);
                           setPdfTitle(course.title);
@@ -760,12 +817,13 @@ export default function SubjectDetail() {
                           setPdfViewerOpen(true);
                         }}
                       >
-                        <Eye className="h-4 w-4 mr-1" /> Consulter
+                        {courseLocked ? <><Lock className="h-4 w-4 mr-1" /> Débloquer</> : <><Eye className="h-4 w-4 mr-1" /> Consulter</>}
                       </Button>
                     )}
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
           </motion.div>
 
           {dbCourses.length === 0 && (
