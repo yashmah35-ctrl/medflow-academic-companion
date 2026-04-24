@@ -90,7 +90,7 @@ export default function Cours() {
   };
 
   const accessibleSubjects = subjects.filter((s) => {
-    if (!canAccessTC(role) && s.name.includes(" TC")) return false;
+    if (!canAccessTC(role) && (s.name.endsWith(" TC") || s.name.endsWith(" PASS"))) return false;
     return true;
   });
 
