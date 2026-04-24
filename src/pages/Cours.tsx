@@ -212,7 +212,10 @@ export default function Cours() {
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     {it.members
-                      .map((m) => (m.name.endsWith(" TC") ? "TC" : "OS"))
+                      .map((m) => {
+                        const mm = m.name.match(/\s+(PASS\/LASS|PASS|TC|OS)$/);
+                        return mm ? mm[1] : m.name;
+                      })
                       .sort()
                       .join(" • ")}
                   </p>
