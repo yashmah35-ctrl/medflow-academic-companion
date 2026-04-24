@@ -18,7 +18,7 @@ export const PLANS: Record<PlanId, PlanInfo> = {
   monthly: {
     id: "monthly",
     name: "Mensuel",
-    priceId: "price_1SLzcZ19EBNXe60DHGaEX9hC", // existant 10€/mois
+    priceId: "price_1TDPri19EBNXe60DCN8FSQ4h", // mensuel 10€/mois
     amountCents: 1000,
     interval: "month",
     intervalLabel: "/mois",
