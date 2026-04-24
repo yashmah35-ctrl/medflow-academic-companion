@@ -108,6 +108,40 @@ export default function SubjectDetail() {
   const isCollegeOrLycee = role === "college" || role === "lycee";
   const canCreateFolder = !isCollegeOrLycee;
 
+  // Freemium: l'élément le plus ancien (public) est gratuit, le reste est verrouillé pour les non-abonnés.
+  // Les contenus personnels (créés par l'utilisateur) restent toujours accessibles.
+  const hasFullAccess = isSubscribed || isAdmin;
+
+  // 1er dossier public (le plus ancien) gratuit
+  const publicFolders = dbFolders.filter(f => f.is_public);
+  const freeFolderId = publicFolders[0]?.id;
+  const isFolderLocked = (folder: DBFolder) => {
+    if (hasFullAccess) return false;
+    if (folder.created_by === user?.id) return false; // dossier personnel
+    if (!folder.is_public) return false;
+    return folder.id !== freeFolderId;
+  };
+
+  // 1er cours du dossier (le plus ancien) gratuit
+  const sortedCoursesAsc = [...dbCourses].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const freeCourseId = sortedCoursesAsc[0]?.id;
+  const isCourseLocked = (course: DBCourse) => {
+    if (hasFullAccess) return false;
+    return course.id !== freeCourseId;
+  };
+
+  // 1er exercice (le plus ancien) gratuit
+  const sortedExercisesAsc = [...exercises].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const freeExerciseId = sortedExercisesAsc[0]?.id;
+  const isExerciseLocked = (ex: AdminExercise) => {
+    if (hasFullAccess) return false;
+    return ex.id !== freeExerciseId;
+  };
+
   // Fetch subject
   useEffect(() => {
     if (!subjectId) return;
