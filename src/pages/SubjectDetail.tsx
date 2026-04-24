@@ -740,11 +740,13 @@ export default function SubjectDetail() {
           <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {dbCourses
               .sort((a, b) => (a.source === "fac" ? -1 : 1))
-              .map((course) => (
+              .map((course) => {
+                const courseLocked = isCourseLocked(course);
+                return (
                 <motion.div
                   key={course.id}
                   variants={item}
-                  className="group relative rounded-2xl border border-border bg-accent/20 overflow-hidden hover:shadow-lg transition-all duration-300"
+                  className={`group relative rounded-2xl border border-border bg-accent/20 overflow-hidden hover:shadow-lg transition-all duration-300 ${courseLocked ? "opacity-90" : ""}`}
                 >
                   <div className="p-5 pb-4">
                     <div className="flex items-start justify-between mb-3">
@@ -752,14 +754,14 @@ export default function SubjectDetail() {
                         <Badge variant={course.source === "fac" ? "default" : "secondary"} className="text-[10px]">
                           {course.source === "fac" ? "Cours de la Fac" : "Prépa du Peuple"}
                         </Badge>
-                        {course.source === "bonus" && !isSubscribed && !isAdmin && (
+                        {courseLocked && (
                           <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-300">
-                            <Crown className="h-3 w-3 mr-0.5" /> Premium
+                            <Lock className="h-3 w-3 mr-0.5" /> Premium
                           </Badge>
                         )}
                       </div>
                       <div className={`h-14 w-14 rounded-lg ${colors.light} flex items-center justify-center text-2xl opacity-60 shrink-0`}>
-                        📄
+                        {courseLocked ? <Lock className="h-6 w-6 text-amber-600" /> : "📄"}
                       </div>
                     </div>
 
@@ -794,7 +796,7 @@ export default function SubjectDetail() {
                         size="sm"
                         className="rounded-full px-5 bg-foreground text-background hover:bg-foreground/90"
                         onClick={async () => {
-                          if (course.source === "bonus" && !isSubscribed && !isAdmin) { setPremiumModalOpen(true); return; }
+                          if (courseLocked) { setPremiumModalOpen(true); return; }
                           const publicUrl = await resolveCourseUrl(course.file_url!);
                           setPdfSignedUrl(publicUrl);
                           setPdfTitle(course.title);
@@ -803,12 +805,13 @@ export default function SubjectDetail() {
                           setPdfViewerOpen(true);
                         }}
                       >
-                        <Eye className="h-4 w-4 mr-1" /> Consulter
+                        {courseLocked ? <><Lock className="h-4 w-4 mr-1" /> Débloquer</> : <><Eye className="h-4 w-4 mr-1" /> Consulter</>}
                       </Button>
                     )}
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
           </motion.div>
 
           {dbCourses.length === 0 && (
