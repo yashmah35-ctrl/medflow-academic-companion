@@ -219,7 +219,7 @@ export default function ActiveLearning() {
           <h1 className="text-2xl font-bold text-foreground">Apprentissage Actif</h1>
           <p className="text-muted-foreground mt-1">Choisis un mode pour commencer à apprendre.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <motion.div
             initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="rounded-xl border border-border bg-card p-6 hover:shadow-lg transition-all cursor-pointer group"
