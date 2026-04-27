@@ -1013,32 +1013,41 @@ export default function ErrorNotebook() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-bold text-foreground">
-              {mode === "notebook" ? "Mon Cahier d'Erreurs" : "Mode Flashcard"}
+              {mode === "notebook" && "Mon Cahier d'Erreurs"}
+              {mode === "flashcard" && "Mode Flashcard"}
+              {mode === "auto" && "Erreurs des évaluations"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {mode === "notebook"
-                ? `${filteredErrors.length} erreur${filteredErrors.length > 1 ? "s" : ""} affichée${filteredErrors.length > 1 ? "s" : ""}`
-                : `${dueErrors.length} carte${dueErrors.length > 1 ? "s" : ""} à réviser`}
+              {mode === "notebook" &&
+                `${filteredErrors.length} erreur${filteredErrors.length > 1 ? "s" : ""} affichée${filteredErrors.length > 1 ? "s" : ""}`}
+              {mode === "flashcard" &&
+                `${dueErrors.length} carte${dueErrors.length > 1 ? "s" : ""} à réviser`}
+              {mode === "auto" &&
+                "Erreurs auto-enregistrées des Khôlles, Annales et Examens blancs"}
             </p>
           </div>
-          <ErrorForm
-            onAdd={addError}
-            folders={folders}
-            onCreateFolder={createFolder}
-            defaultFolderId={defaultFolderForForm}
-          />
+          {mode !== "auto" && (
+            <ErrorForm
+              onAdd={addError}
+              folders={folders}
+              onCreateFolder={createFolder}
+              defaultFolderId={defaultFolderForForm}
+            />
+          )}
         </div>
 
-        {/* Barre de dossiers — visible dans les deux modes pour cohérence */}
-        <FolderBar
-          folders={folders}
-          activeFolder={activeFolder}
-          setActiveFolder={setActiveFolder}
-          folderCounts={folderCounts}
-          onCreateFolder={createFolder}
-          onRenameFolder={renameFolder}
-          onDeleteFolder={deleteFolder}
-        />
+        {/* Barre de dossiers — uniquement pour le cahier manuel */}
+        {mode !== "auto" && (
+          <FolderBar
+            folders={folders}
+            activeFolder={activeFolder}
+            setActiveFolder={setActiveFolder}
+            folderCounts={folderCounts}
+            onCreateFolder={createFolder}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={deleteFolder}
+          />
+        )}
 
         {loading ? (
           <div className="text-center text-muted-foreground py-20">Chargement...</div>
