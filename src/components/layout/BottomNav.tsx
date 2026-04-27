@@ -34,7 +34,8 @@ interface Tab {
 
 const studentTabs: Tab[] = [
   { title: "Matières", path: "/dashboard", icon: BookOpen },
-  { title: "Cours", path: "/learning", icon: Brain },
+  { title: "Cours", path: "/cours", icon: BookOpen },
+  { title: "Apprentissage", path: "/learning", icon: Brain },
   { title: "Modules", path: "/modules", icon: Puzzle },
   { title: "Planning", path: "/schedule", icon: Calendar },
   {
