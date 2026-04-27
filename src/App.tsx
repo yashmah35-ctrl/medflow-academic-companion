@@ -23,6 +23,7 @@ import ExamsBlancs from "./pages/ExamsBlancs";
 import Annales from "./pages/Annales";
 import InteractiveModules from "./pages/InteractiveModules";
 import Flashcards from "./pages/Flashcards";
+import QCMCreator from "./pages/QCMCreator";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import AdminAnnouncements from "./pages/AdminAnnouncements";
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="/annales" element={<AdminBlockedRoute><PremiumPaywall><Annales /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/modules" element={<InteractiveModules />} />
         <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
+        <Route path="/qcm-creator" element={<AdminBlockedRoute><QCMCreator /></AdminBlockedRoute>} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/announcements" element={<AdminAnnouncements />} />
         <Route path="/affiliates" element={<AdminAffiliates />} />
