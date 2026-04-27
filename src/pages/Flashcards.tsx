@@ -536,12 +536,21 @@ export default function Flashcards() {
                         {subj && <p className="text-[10px] text-muted-foreground">{subj.name}</p>}
                       </div>
                     </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDeleteDeck(deck.id); }}
-                      className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setRenameDeckId(deck.id); setRenameDeckName(deck.name); }}
+                        className="text-muted-foreground hover:text-primary transition-colors p-1"
+                        title="Renommer"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteDeck(deck.id); }}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="flex gap-3 text-xs text-muted-foreground mb-3">
