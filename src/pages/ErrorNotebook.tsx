@@ -35,7 +35,8 @@ import {
 } from "@/hooks/useMedicalErrorBook";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, GraduationCap as GradIcon, FolderOpen } from "lucide-react";
+import { ArrowLeft, GraduationCap as GradIcon, FolderOpen, Sparkles } from "lucide-react";
+import AutoErrorsView from "@/components/error-notebook/AutoErrorsView";
 
 type SubjectSource = "prepa" | "perso";
 
