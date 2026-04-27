@@ -127,16 +127,14 @@ export default function ExamsBlancs() {
   };
 
   const handleCreate = async () => {
-    if (!newSubjectId || !user) return;
-    const subject = subjects.find((s) => s.id === newSubjectId);
-    if (!subject) return;
+    if (!newSubject || !user) return;
 
-    const name = `EB — ${subject.name}`;
+    const name = `EB — ${newSubject.subjectName}`;
     const { error } = await supabase.from("exams").insert({
       user_id: user.id,
       name,
       format: newFormat,
-      subject_id: newSubjectId,
+      subject_id: newSubject.subjectId,
       date: new Date().toISOString().split("T")[0],
       questions_json: [],
     });
@@ -147,7 +145,7 @@ export default function ExamsBlancs() {
     }
     toast.success("Examen blanc créé !");
     setShowCreate(false);
-    setNewSubjectId("");
+    setNewSubject(null);
     setNewFormat("QCM");
     fetchExams();
   };
