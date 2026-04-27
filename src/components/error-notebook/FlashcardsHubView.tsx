@@ -309,33 +309,13 @@ function AutoSourceView({
 
   if (activeSubject) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={() => setActiveSubject(null)} className="gap-1.5">
-            <ArrowLeft className="h-4 w-4" /> Retour aux matières
-          </Button>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1">
-              <Layers className="h-3 w-3" />
-              {subjectErrors.length} carte{subjectErrors.length > 1 ? "s" : ""}
-            </Badge>
-            <Button variant="outline" size="sm" onClick={reload} className="gap-1.5">
-              <RefreshCw className="h-3.5 w-3.5" /> Actualiser
-            </Button>
-          </div>
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold">{activeSubject}</h2>
-          <p className="text-sm text-muted-foreground">{src.label}</p>
-        </div>
-        <AnimatePresence mode="popLayout">
-          <div className="space-y-6">
-            {subjectErrors.map((e) => (
-              <AutoFlashcardItem key={e.id} err={e} onDelete={handleDelete} />
-            ))}
-          </div>
-        </AnimatePresence>
-      </div>
+      <AutoFlashcardSession
+        cards={subjectErrors}
+        subjectName={activeSubject}
+        sourceLabel={src.label}
+        onDelete={handleDelete}
+        onBack={() => setActiveSubject(null)}
+      />
     );
   }
 
