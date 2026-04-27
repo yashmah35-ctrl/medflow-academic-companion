@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Search, Layers, BarChart3, Flame, Clock, Trash2, Edit3, Play,
   RotateCcw, ArrowLeft, BookOpen, ChevronRight, X, Type, ImageIcon, Upload, FileText, Sparkles, Loader2,
-  ArrowDown, Star, Trophy
+  ArrowDown, Star, Trophy, GraduationCap, ClipboardList, FlaskConical, NotebookPen
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ import {
   SRSRating, updateCardState, getCardState, getDueCardIds,
   getButtonPreviews, computeSRSTransition, loadSRSState
 } from "@/lib/srs";
+import AutoFlashcardsView, { AutoSourceKey } from "@/components/flashcards/AutoFlashcardsView";
 
 // ─── Types ──────────────────────────────────────────
 interface Deck {
@@ -68,6 +69,7 @@ function parseCloze(text: string): { question: string; answer: string }[] {
 
 export default function Flashcards() {
   const { user } = useAuth();
+  const [source, setSource] = useState<"home" | AutoSourceKey | "manual">("home");
   const [view, setView] = useState<View>("decks");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [subjects, setSubjects] = useState<{ id: string; name: string; icon: string }[]>([]);
@@ -75,6 +77,7 @@ export default function Flashcards() {
   const [cards, setCards] = useState<Card[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [autoCounts, setAutoCounts] = useState<Record<AutoSourceKey, number>>({ kholle: 0, annale: 0, exam: 0 });
 
   // Create deck dialog
   const [showCreateDeck, setShowCreateDeck] = useState(false);
@@ -155,6 +158,26 @@ export default function Flashcards() {
       if (data) setSubjects(data);
     });
   }, []);
+
+  // Fetch counts for auto sources
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("errors")
+      .select("source")
+      .eq("user_id", user.id)
+      .in("source", ["kholle", "annale", "exam", "exam_blanc"])
+      .limit(1000)
+      .then(({ data }) => {
+        const counts: Record<AutoSourceKey, number> = { kholle: 0, annale: 0, exam: 0 };
+        for (const r of data || []) {
+          if (r.source === "kholle") counts.kholle++;
+          else if (r.source === "annale") counts.annale++;
+          else if (r.source === "exam" || r.source === "exam_blanc") counts.exam++;
+        }
+        setAutoCounts(counts);
+      });
+  }, [user, source]);
 
   // ─── Fetch cards for a deck ──────────────────────
   const fetchCards = async (deckId: string) => {
@@ -429,13 +452,70 @@ export default function Flashcards() {
   // VIEWS
   // ═══════════════════════════════════════════════════
 
-  // ─── DECK LIST ───────────────────────────────────
-  if (view === "decks") {
+  // ─── HOME : 4 source blocks ───────────────────────
+  if (source === "home") {
+    const manualCount = decks.reduce((sum, d) => sum + d.cardCount, 0);
+    const blocks = [
+      { key: "kholle" as const, label: "Khôlles", icon: GraduationCap, gradient: "from-blue-500/20 to-blue-600/5 border-blue-500/30", count: autoCounts.kholle, desc: "Flashcards depuis tes erreurs de khôlles" },
+      { key: "annale" as const, label: "Annales", icon: ClipboardList, gradient: "from-purple-500/20 to-purple-600/5 border-purple-500/30", count: autoCounts.annale, desc: "Flashcards depuis tes erreurs d'annales" },
+      { key: "exam" as const, label: "Examens blancs", icon: FlaskConical, gradient: "from-amber-500/20 to-amber-600/5 border-amber-500/30", count: autoCounts.exam, desc: "Flashcards depuis tes examens blancs" },
+      { key: "manual" as const, label: "Manuelle", icon: NotebookPen, gradient: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/30", count: manualCount, desc: "Tes decks personnels (Mon Cahier)" },
+    ];
     return (
       <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Mes Flashcards</h1>
+          <p className="text-sm text-muted-foreground mt-1">Choisis une catégorie pour commencer.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {blocks.map((b) => {
+            const Icon = b.icon;
+            return (
+              <motion.button
+                key={b.key}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSource(b.key)}
+                className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br ${b.gradient} p-6 md:p-7 text-left transition-all hover:shadow-xl min-h-[180px] flex flex-col justify-between`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="h-14 w-14 rounded-xl bg-background/80 backdrop-blur flex items-center justify-center shadow-sm">
+                    <Icon className="h-7 w-7 text-primary" />
+                  </div>
+                  <Badge variant="secondary" className="text-xs font-semibold">
+                    {b.count} carte{b.count > 1 ? "s" : ""}
+                  </Badge>
+                </div>
+                <div className="mt-6">
+                  <h3 className="text-xl font-bold text-foreground">{b.label}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{b.desc}</p>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── AUTO SOURCES (Khôlles / Annales / Examens) ──
+  if (source === "kholle" || source === "annale" || source === "exam") {
+    return <AutoFlashcardsView initialSource={source} onBack={() => setSource("home")} />;
+  }
+
+  // ─── DECK LIST (Manuelle) ────────────────────────
+  if (view === "decks") {
+
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={() => setSource("home")} className="gap-1.5 -ml-2">
+          <ArrowLeft className="h-4 w-4" /> Retour aux catégories
+        </Button>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Mes Flashcards</h1>
+            <h1 className="text-2xl font-bold text-foreground">Mon Cahier — Flashcards</h1>
             <p className="text-sm text-muted-foreground mt-1">Organise tes decks et révise efficacement.</p>
           </div>
           <div className="flex gap-2">
