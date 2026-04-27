@@ -432,19 +432,9 @@ function FolderBar({
 
   return (
     <div className="space-y-3">
+      {/* Ligne du haut : Tous + Nouveau dossier */}
       <div className="flex items-center gap-2 flex-wrap">
         <FolderChip id="all" label="Tous" count={folderCounts.all || 0} icon={Layers} />
-        <FolderChip id="none" label="Sans dossier" count={folderCounts.none || 0} icon={Inbox} />
-        {folders.map((f) => (
-          <FolderChip
-            key={f.id}
-            id={f.id}
-            label={f.name}
-            count={folderCounts[f.id] || 0}
-            icon={Folder}
-            folder={f}
-          />
-        ))}
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
             <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border border-dashed border-border hover:border-primary hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all">
@@ -476,6 +466,22 @@ function FolderBar({
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Ligne du bas : dossiers créés */}
+      {folders.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap pt-1">
+          {folders.map((f) => (
+            <FolderChip
+              key={f.id}
+              id={f.id}
+              label={f.name}
+              count={folderCounts[f.id] || 0}
+              icon={Folder}
+              folder={f}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Rename dialog */}
       <Dialog open={!!renaming} onOpenChange={(v) => !v && setRenaming(null)}>
