@@ -674,6 +674,183 @@ function ErrorPage({
   );
 }
 
+// ============== VUE GRILLE DE DOSSIERS ==============
+function FoldersGridView({
+  folders, folderCounts, onOpenFolder, onCreateFolder, onRenameFolder, onDeleteFolder,
+}: {
+  folders: ErrorFolder[];
+  folderCounts: Record<string, number>;
+  onOpenFolder: (id: string) => void;
+  onCreateFolder: (name: string) => Promise<ErrorFolder | null>;
+  onRenameFolder: (id: string, name: string) => void;
+  onDeleteFolder: (id: string) => void;
+}) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [renaming, setRenaming] = useState<ErrorFolder | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    const f = await onCreateFolder(newName.trim());
+    if (f) {
+      setNewName("");
+      setCreateOpen(false);
+    }
+  };
+
+  // Erreurs sans dossier = "all" - somme(dossiers)
+  const noneCount = folderCounts.none || 0;
+  const allCount = folderCounts.all || 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Badge variant="outline" className="gap-1">
+          <Layers className="h-3 w-3" /> {allCount} erreur{allCount > 1 ? "s" : ""} au total
+        </Badge>
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-1.5">
+              <FolderPlus className="h-4 w-4" /> Nouveau dossier
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderPlus className="h-5 w-5 text-primary" /> Créer un dossier
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="grid-folder-name">Nom du dossier</Label>
+              <Input
+                id="grid-folder-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Ex: À revoir avant la kholle"
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
+              <Button onClick={handleCreate} disabled={!newName.trim()}>Créer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        {/* Tuile "Sans dossier" */}
+        {noneCount > 0 && (
+          <button
+            onClick={() => onOpenFolder("none")}
+            className="group relative flex flex-col items-start gap-3 p-5 rounded-xl border border-border bg-card hover:border-primary hover:shadow-md transition-all text-left"
+          >
+            <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+              <Inbox className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-foreground">Sans dossier</h3>
+              <p className="text-xs text-muted-foreground">
+                {noneCount} erreur{noneCount > 1 ? "s" : ""}
+              </p>
+            </div>
+          </button>
+        )}
+
+        {folders.map((f) => {
+          const count = folderCounts[f.id] || 0;
+          return (
+            <div
+              key={f.id}
+              className="group relative flex flex-col items-start gap-3 p-5 rounded-xl border border-border bg-card hover:border-primary hover:shadow-md transition-all text-left cursor-pointer"
+              onClick={() => onOpenFolder(f.id)}
+            >
+              <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuItem onClick={() => { setRenaming(f); setRenameValue(f.name); }}>
+                      <Pencil className="h-3.5 w-3.5 mr-2" /> Renommer
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => onDeleteFolder(f.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-2" /> Supprimer
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <Folder className="h-6 w-6 text-primary" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-semibold text-foreground line-clamp-2">{f.name}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {count} erreur{count > 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+
+        {folders.length === 0 && noneCount === 0 && (
+          <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+            <FolderOpen className="h-16 w-16 text-muted-foreground/40 mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Aucun dossier</h3>
+            <p className="text-muted-foreground max-w-md">
+              Créez votre premier dossier pour organiser vos erreurs.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Rename dialog */}
+      <Dialog open={!!renaming} onOpenChange={(v) => !v && setRenaming(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Renommer le dossier
+            </DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && renaming && renameValue.trim()) {
+                onRenameFolder(renaming.id, renameValue.trim());
+                setRenaming(null);
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenaming(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (renaming && renameValue.trim()) {
+                  onRenameFolder(renaming.id, renameValue.trim());
+                  setRenaming(null);
+                }
+              }}
+              disabled={!renameValue.trim()}
+            >
+              Renommer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function NotebookView({
   errors, subjects, activeSubject, setActiveSubject, folders, onDelete, onMove,
 }: {
