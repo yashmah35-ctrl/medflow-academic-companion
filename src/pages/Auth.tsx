@@ -119,7 +119,7 @@ function CursorTrail() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1] hidden md:block" style={{ touchAction: "none" }} />;
 }
 
 /* ============ Typing effect ============ */
