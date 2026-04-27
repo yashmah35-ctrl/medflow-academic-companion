@@ -105,10 +105,31 @@ Réponds UNIQUEMENT avec un JSON valide, sans texte avant ni après. Format:
     }
 
     let jsonStr = textContent.trim();
-    const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) jsonStr = jsonMatch[1].trim();
+    // Remove markdown code fences (closed or unclosed)
+    const fencedMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
+    if (fencedMatch) jsonStr = fencedMatch[1].trim();
+    // Extract from first { to last }
+    const firstBrace = jsonStr.indexOf("{");
+    const lastBrace = jsonStr.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.slice(firstBrace, lastBrace + 1);
+    }
 
-    const result = JSON.parse(jsonStr);
+    let result;
+    try {
+      result = JSON.parse(jsonStr);
+    } catch (parseErr) {
+      console.error("JSON parse failed. Raw text (first 500 chars):", textContent.slice(0, 500));
+      console.error("Stop reason:", data.stop_reason);
+      return new Response(
+        JSON.stringify({
+          error: data.stop_reason === "max_tokens"
+            ? "La réponse de l'IA a été tronquée. Réessaie avec un PDF plus court."
+            : "Réponse IA invalide. Réessaie.",
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Ensure each question has an id
     if (Array.isArray(result.questions)) {
