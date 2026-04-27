@@ -1060,7 +1060,7 @@ export default function ErrorNotebook() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {mode === "notebook" ? (
+              {mode === "notebook" && (
                 <NotebookView
                   errors={filteredErrors}
                   subjects={subjects}
@@ -1070,7 +1070,8 @@ export default function ErrorNotebook() {
                   onDelete={deleteError}
                   onMove={moveError}
                 />
-              ) : (
+              )}
+              {mode === "flashcard" && (
                 <FlashcardView
                   dueErrors={dueErrors}
                   subjects={subjects}
@@ -1080,6 +1081,7 @@ export default function ErrorNotebook() {
                   totalErrors={filteredErrors.length}
                 />
               )}
+              {mode === "auto" && <AutoErrorsView />}
             </motion.div>
           </AnimatePresence>
         )}
