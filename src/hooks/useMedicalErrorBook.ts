@@ -9,6 +9,7 @@ export interface MedicalError {
   question: string;
   explanation: string;
   isTrue: boolean;
+  folderId: string | null;
   createdAt: number;
   interval: number;
   repetitions: number;
@@ -17,26 +18,14 @@ export interface MedicalError {
   lastReviewed?: number;
 }
 
-export type Difficulty = "again" | "hard" | "good" | "easy";
+export interface ErrorFolder {
+  id: string;
+  name: string;
+  color: string | null;
+  createdAt: number;
+}
 
-export const SUBJECTS = [
-  "Anatomie",
-  "Physiologie",
-  "Biochimie",
-  "Pharmacologie",
-  "Pathologie",
-  "Chirurgie",
-  "Médecine interne",
-  "Pédiatrie",
-  "Gynécologie",
-  "Psychiatrie",
-  "Dermatologie",
-  "Neurologie",
-  "Cardiologie",
-  "Pneumologie",
-  "Néphrologie",
-  "Autre",
-] as const;
+export type Difficulty = "again" | "hard" | "good" | "easy";
 
 interface DBRow {
   id: string;
@@ -44,11 +33,19 @@ interface DBRow {
   question: string;
   explanation: string;
   is_true: boolean;
+  folder_id: string | null;
   interval_days: number;
   repetitions: number;
   ease_factor: number;
   next_review: string;
   last_reviewed: string | null;
+  created_at: string;
+}
+
+interface DBFolder {
+  id: string;
+  name: string;
+  color: string | null;
   created_at: string;
 }
 
@@ -58,12 +55,20 @@ const fromDB = (r: DBRow): MedicalError => ({
   question: r.question,
   explanation: r.explanation,
   isTrue: r.is_true,
+  folderId: r.folder_id,
   interval: r.interval_days,
   repetitions: r.repetitions,
   easeFactor: Number(r.ease_factor),
   nextReview: new Date(r.next_review).getTime(),
   lastReviewed: r.last_reviewed ? new Date(r.last_reviewed).getTime() : undefined,
   createdAt: new Date(r.created_at).getTime(),
+});
+
+const folderFromDB = (f: DBFolder): ErrorFolder => ({
+  id: f.id,
+  name: f.name,
+  color: f.color,
+  createdAt: new Date(f.created_at).getTime(),
 });
 
 function calculateNextReview(error: MedicalError, difficulty: Difficulty) {
@@ -102,23 +107,34 @@ function calculateNextReview(error: MedicalError, difficulty: Difficulty) {
 export function useMedicalErrorBook() {
   const { user } = useAuth();
   const [errors, setErrors] = useState<MedicalError[]>([]);
+  const [folders, setFolders] = useState<ErrorFolder[]>([]);
+  // activeFolder: "all" | "none" (sans dossier) | folder.id
+  const [activeFolder, setActiveFolder] = useState<string>("all");
   const [activeSubject, setActiveSubject] = useState<string>("Toutes");
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { data, error } = await supabase
-      .from("medical_errors")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    if (error) {
+    const [errRes, folRes] = await Promise.all([
+      supabase
+        .from("medical_errors")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("error_folders")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: true }),
+    ]);
+    if (errRes.error || folRes.error) {
       toast.error("Erreur de chargement");
       setLoading(false);
       return;
     }
-    setErrors((data as DBRow[]).map(fromDB));
+    setErrors(((errRes.data ?? []) as DBRow[]).map(fromDB));
+    setFolders(((folRes.data ?? []) as DBFolder[]).map(folderFromDB));
     setLoading(false);
   }, [user]);
 
@@ -127,7 +143,13 @@ export function useMedicalErrorBook() {
   }, [reload]);
 
   const addError = useCallback(
-    async (input: { subject: string; question: string; explanation: string; isTrue: boolean }) => {
+    async (input: {
+      subject: string;
+      question: string;
+      explanation: string;
+      isTrue: boolean;
+      folderId?: string | null;
+    }) => {
       if (!user) return;
       const { data, error } = await supabase
         .from("medical_errors")
@@ -137,6 +159,7 @@ export function useMedicalErrorBook() {
           question: input.question,
           explanation: input.explanation,
           is_true: input.isTrue,
+          folder_id: input.folderId ?? null,
         })
         .select("*")
         .single();
@@ -160,12 +183,31 @@ export function useMedicalErrorBook() {
     toast.success("Erreur supprimée");
   }, []);
 
+  const moveError = useCallback(
+    async (id: string, folderId: string | null) => {
+      // Optimistic
+      setErrors((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, folderId } : e))
+      );
+      const { error } = await supabase
+        .from("medical_errors")
+        .update({ folder_id: folderId })
+        .eq("id", id);
+      if (error) {
+        toast.error("Impossible de déplacer");
+        reload();
+        return;
+      }
+      toast.success(folderId ? "Erreur déplacée" : "Retirée du dossier");
+    },
+    [reload]
+  );
+
   const updateReview = useCallback(
     async (id: string, difficulty: Difficulty) => {
       const current = errors.find((e) => e.id === id);
       if (!current) return;
       const updates = calculateNextReview(current, difficulty);
-      // Optimistic
       setErrors((prev) =>
         prev.map((e) =>
           e.id === id
@@ -189,27 +231,102 @@ export function useMedicalErrorBook() {
     [errors, reload]
   );
 
-  const filteredErrors =
-    activeSubject === "Toutes" ? errors : errors.filter((e) => e.subject === activeSubject);
+  // ===== Folder CRUD =====
+  const createFolder = useCallback(
+    async (name: string, color?: string | null) => {
+      if (!user) return null;
+      const trimmed = name.trim();
+      if (!trimmed) return null;
+      const { data, error } = await supabase
+        .from("error_folders")
+        .insert({ user_id: user.id, name: trimmed, color: color ?? null })
+        .select("*")
+        .single();
+      if (error) {
+        toast.error("Impossible de créer le dossier");
+        return null;
+      }
+      const folder = folderFromDB(data as DBFolder);
+      setFolders((prev) => [...prev, folder]);
+      toast.success("Dossier créé");
+      return folder;
+    },
+    [user]
+  );
+
+  const renameFolder = useCallback(async (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name: trimmed } : f)));
+    const { error } = await supabase
+      .from("error_folders")
+      .update({ name: trimmed })
+      .eq("id", id);
+    if (error) {
+      toast.error("Impossible de renommer");
+      reload();
+    }
+  }, [reload]);
+
+  const deleteFolder = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from("error_folders").delete().eq("id", id);
+      if (error) {
+        toast.error("Impossible de supprimer le dossier");
+        return;
+      }
+      setFolders((prev) => prev.filter((f) => f.id !== id));
+      // Erreurs deviennent sans dossier (ON DELETE SET NULL)
+      setErrors((prev) =>
+        prev.map((e) => (e.folderId === id ? { ...e, folderId: null } : e))
+      );
+      if (activeFolder === id) setActiveFolder("all");
+      toast.success("Dossier supprimé");
+    },
+    [activeFolder]
+  );
+
+  // ===== Filtres =====
+  const byFolder = (e: MedicalError) => {
+    if (activeFolder === "all") return true;
+    if (activeFolder === "none") return e.folderId === null;
+    return e.folderId === activeFolder;
+  };
+  const bySubject = (e: MedicalError) =>
+    activeSubject === "Toutes" ? true : e.subject === activeSubject;
+
+  const filteredErrors = errors.filter((e) => byFolder(e) && bySubject(e));
 
   const dueErrorsAll = errors.filter((e) => e.nextReview <= Date.now());
-  const dueErrors =
-    activeSubject === "Toutes"
-      ? dueErrorsAll
-      : dueErrorsAll.filter((e) => e.subject === activeSubject);
+  const dueErrors = dueErrorsAll.filter((e) => byFolder(e) && bySubject(e));
 
   const subjects = Array.from(new Set(errors.map((e) => e.subject)));
+
+  // Compteurs par dossier
+  const folderCounts: Record<string, number> = { all: errors.length, none: 0 };
+  errors.forEach((e) => {
+    if (e.folderId === null) folderCounts.none = (folderCounts.none || 0) + 1;
+    else folderCounts[e.folderId] = (folderCounts[e.folderId] || 0) + 1;
+  });
 
   return {
     errors,
     filteredErrors,
     dueErrors,
     subjects,
+    folders,
     activeSubject,
     setActiveSubject,
+    activeFolder,
+    setActiveFolder,
+    folderCounts,
     addError,
     deleteError,
+    moveError,
     updateReview,
+    createFolder,
+    renameFolder,
+    deleteFolder,
     loading,
   };
 }

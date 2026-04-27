@@ -503,6 +503,33 @@ export type Database = {
         }
         Relationships: []
       }
+      error_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       errors: {
         Row: {
           consecutive_wrong: number
@@ -868,6 +895,7 @@ export type Database = {
           created_at: string
           ease_factor: number
           explanation: string
+          folder_id: string | null
           id: string
           interval_days: number
           is_true: boolean
@@ -883,6 +911,7 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           explanation: string
+          folder_id?: string | null
           id?: string
           interval_days?: number
           is_true?: boolean
@@ -898,6 +927,7 @@ export type Database = {
           created_at?: string
           ease_factor?: number
           explanation?: string
+          folder_id?: string | null
           id?: string
           interval_days?: number
           is_true?: boolean
@@ -909,7 +939,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "medical_errors_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "error_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mentor_badges: {
         Row: {
