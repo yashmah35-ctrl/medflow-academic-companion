@@ -35,7 +35,8 @@ import {
 } from "@/hooks/useMedicalErrorBook";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { ArrowLeft, GraduationCap as GradIcon, FolderOpen } from "lucide-react";
+import { ArrowLeft, GraduationCap as GradIcon, FolderOpen, Sparkles } from "lucide-react";
+import AutoErrorsView from "@/components/error-notebook/AutoErrorsView";
 
 type SubjectSource = "prepa" | "perso";
 
@@ -945,7 +946,7 @@ function FlashcardView({
 
 // ============== PAGE PRINCIPALE ==============
 export default function ErrorNotebook() {
-  const [mode, setMode] = useState<"notebook" | "flashcard">("notebook");
+  const [mode, setMode] = useState<"notebook" | "flashcard" | "auto">("notebook");
   const {
     filteredErrors, dueErrors, subjects, folders, activeSubject, setActiveSubject,
     activeFolder, setActiveFolder, folderCounts,
@@ -974,21 +975,30 @@ export default function ErrorNotebook() {
           <nav className="flex items-center gap-1 rounded-lg bg-muted p-1">
             <button
               onClick={() => setMode("notebook")}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all ${
                 mode === "notebook" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <BookOpen className="h-4 w-4" />
-              Mon Cahier
+              <span className="hidden sm:inline">Mon Cahier</span>
+            </button>
+            <button
+              onClick={() => setMode("auto")}
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all ${
+                mode === "auto" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">Évaluations</span>
             </button>
             <button
               onClick={() => setMode("flashcard")}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all ${
                 mode === "flashcard" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Layers className="h-4 w-4" />
-              Flashcards
+              <span className="hidden sm:inline">Flashcards</span>
               {dueErrors.length > 0 && (
                 <span className="flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
                   {dueErrors.length}
@@ -1003,32 +1013,41 @@ export default function ErrorNotebook() {
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-bold text-foreground">
-              {mode === "notebook" ? "Mon Cahier d'Erreurs" : "Mode Flashcard"}
+              {mode === "notebook" && "Mon Cahier d'Erreurs"}
+              {mode === "flashcard" && "Mode Flashcard"}
+              {mode === "auto" && "Erreurs des évaluations"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              {mode === "notebook"
-                ? `${filteredErrors.length} erreur${filteredErrors.length > 1 ? "s" : ""} affichée${filteredErrors.length > 1 ? "s" : ""}`
-                : `${dueErrors.length} carte${dueErrors.length > 1 ? "s" : ""} à réviser`}
+              {mode === "notebook" &&
+                `${filteredErrors.length} erreur${filteredErrors.length > 1 ? "s" : ""} affichée${filteredErrors.length > 1 ? "s" : ""}`}
+              {mode === "flashcard" &&
+                `${dueErrors.length} carte${dueErrors.length > 1 ? "s" : ""} à réviser`}
+              {mode === "auto" &&
+                "Erreurs auto-enregistrées des Khôlles, Annales et Examens blancs"}
             </p>
           </div>
-          <ErrorForm
-            onAdd={addError}
-            folders={folders}
-            onCreateFolder={createFolder}
-            defaultFolderId={defaultFolderForForm}
-          />
+          {mode !== "auto" && (
+            <ErrorForm
+              onAdd={addError}
+              folders={folders}
+              onCreateFolder={createFolder}
+              defaultFolderId={defaultFolderForForm}
+            />
+          )}
         </div>
 
-        {/* Barre de dossiers — visible dans les deux modes pour cohérence */}
-        <FolderBar
-          folders={folders}
-          activeFolder={activeFolder}
-          setActiveFolder={setActiveFolder}
-          folderCounts={folderCounts}
-          onCreateFolder={createFolder}
-          onRenameFolder={renameFolder}
-          onDeleteFolder={deleteFolder}
-        />
+        {/* Barre de dossiers — uniquement pour le cahier manuel */}
+        {mode !== "auto" && (
+          <FolderBar
+            folders={folders}
+            activeFolder={activeFolder}
+            setActiveFolder={setActiveFolder}
+            folderCounts={folderCounts}
+            onCreateFolder={createFolder}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={deleteFolder}
+          />
+        )}
 
         {loading ? (
           <div className="text-center text-muted-foreground py-20">Chargement...</div>
@@ -1041,7 +1060,7 @@ export default function ErrorNotebook() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {mode === "notebook" ? (
+              {mode === "notebook" && (
                 <NotebookView
                   errors={filteredErrors}
                   subjects={subjects}
@@ -1051,7 +1070,8 @@ export default function ErrorNotebook() {
                   onDelete={deleteError}
                   onMove={moveError}
                 />
-              ) : (
+              )}
+              {mode === "flashcard" && (
                 <FlashcardView
                   dueErrors={dueErrors}
                   subjects={subjects}
@@ -1061,6 +1081,7 @@ export default function ErrorNotebook() {
                   totalErrors={filteredErrors.length}
                 />
               )}
+              {mode === "auto" && <AutoErrorsView />}
             </motion.div>
           </AnimatePresence>
         )}
