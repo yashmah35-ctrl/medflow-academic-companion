@@ -57,85 +57,193 @@ const MANUAL_SOURCE = {
   gradient: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/30",
 };
 
-// ====================== AUTO FLASHCARD ITEM ======================
-function AutoFlashcardItem({ err, onDelete }: { err: AutoError; onDelete: (id: string) => void }) {
-  const [revealed, setRevealed] = useState(false);
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="rounded-lg overflow-hidden border border-border bg-card shadow-sm"
-    >
-      <div className="flex flex-col md:flex-row min-h-[260px]">
-        <div className="flex-1 p-6 md:p-8 relative border-b md:border-b-0 md:border-r border-border">
-          <div className="absolute top-4 right-4 flex items-center gap-1.5 flex-wrap justify-end max-w-[60%]">
-            {err.occurrence_count > 1 && (
-              <Badge variant="outline" className="text-[10px] gap-1">
-                <RefreshCw className="h-3 w-3" /> x{err.occurrence_count}
-              </Badge>
-            )}
-          </div>
-          <div className="mt-2">
-            <div className="flex items-center gap-2 mb-3">
-              <GraduationCap className="h-4 w-4 text-primary" />
-              <span className="text-xs font-semibold uppercase tracking-wider text-primary">Question</span>
-            </div>
-            <p className="text-foreground leading-relaxed text-[15px] font-medium">{err.question}</p>
-          </div>
-          <div className="absolute bottom-4 left-6 md:left-8 text-[10px] text-muted-foreground">
-            Vue le {new Date(err.last_seen).toLocaleDateString("fr-FR")}
-          </div>
-        </div>
+// ====================== AUTO FLASHCARD SESSION (flip cards) ======================
+function AutoFlashcardSession({
+  cards,
+  subjectName,
+  sourceLabel,
+  onDelete,
+  onBack,
+}: {
+  cards: AutoError[];
+  subjectName: string;
+  sourceLabel: string;
+  onDelete: (id: string) => void;
+  onBack: () => void;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [direction, setDirection] = useState(0);
 
-        <div className="flex-1 p-6 md:p-8 relative bg-muted/30 cursor-pointer group" onClick={() => setRevealed(!revealed)}>
-          {!revealed ? (
-            <div className="flex flex-col items-center justify-center h-full min-h-[180px] gap-3">
-              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                <Eye className="h-5 w-5 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground font-medium">Cliquer pour révéler la réponse</p>
-            </div>
-          ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-              <div className="flex items-center gap-2 mb-3">
-                <BookOpen className="h-4 w-4 text-emerald-600" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Réponse</span>
-              </div>
-              <p className="text-foreground leading-relaxed text-[15px] whitespace-pre-wrap">{err.correct_answer || "—"}</p>
-              <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                <EyeOff className="h-3 w-3" /> Cliquer pour masquer
-              </div>
-            </motion.div>
-          )}
+  useEffect(() => {
+    setCurrentIndex(0);
+    setFlipped(false);
+  }, [subjectName]);
 
-          <div className="absolute bottom-4 right-6 md:right-8 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-destructive" /> Supprimer cette flashcard ?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>Cette flashcard sera retirée définitivement.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onDelete(err.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Supprimer
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+  const safeIndex = Math.min(currentIndex, Math.max(0, cards.length - 1));
+  const currentCard = cards[safeIndex];
+
+  const goNext = () => {
+    if (cards.length === 0) return;
+    setDirection(1);
+    setFlipped(false);
+    setTimeout(() => {
+      setCurrentIndex((p) => (p + 1) % cards.length);
+      setDirection(0);
+    }, 200);
+  };
+
+  const goPrev = () => {
+    if (cards.length === 0) return;
+    setDirection(-1);
+    setFlipped(false);
+    setTimeout(() => {
+      setCurrentIndex((p) => (p - 1 + cards.length) % cards.length);
+      setDirection(0);
+    }, 200);
+  };
+
+  const handleDelete = (id: string) => {
+    onDelete(id);
+    setFlipped(false);
+    setCurrentIndex((p) => Math.max(0, Math.min(p, cards.length - 2)));
+  };
+
+  if (!currentCard) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
+          <ArrowLeft className="h-4 w-4" /> Retour aux matières
+        </Button>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <BookOpen className="h-16 w-16 text-muted-foreground/40 mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">Aucune flashcard</h3>
         </div>
       </div>
-    </motion.div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
+          <ArrowLeft className="h-4 w-4" /> Retour aux matières
+        </Button>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Layers className="h-4 w-4" />
+          <span>{safeIndex + 1} / {cards.length}</span>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="text-2xl font-bold">{subjectName}</h2>
+        <p className="text-sm text-muted-foreground">{sourceLabel}</p>
+      </div>
+
+      <div>
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={currentCard.id}
+            custom={direction}
+            initial={{ x: direction * 80, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -direction * 80, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <div
+              className={`flip-card w-full ${flipped ? "flipped" : ""}`}
+              style={{ height: "400px" }}
+              onClick={() => setFlipped(!flipped)}
+            >
+              <div className="flip-card-inner">
+                <div className="flip-card-front">
+                  <div className="h-full w-full bg-card border border-border rounded-xl p-8 flex flex-col relative cursor-pointer hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-6">
+                      <Badge variant="outline" className="gap-1">
+                        <GraduationCap className="h-3 w-3" />
+                        Question
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {currentCard.occurrence_count > 1 && (
+                          <Badge variant="outline" className="text-[10px] gap-1">
+                            <RefreshCw className="h-3 w-3" /> x{currentCard.occurrence_count}
+                          </Badge>
+                        )}
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <RotateCcw className="h-3 w-3" />
+                          <span>Cliquer pour retourner</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center overflow-y-auto">
+                      <p className="text-xl md:text-2xl text-foreground font-medium text-center leading-relaxed max-w-2xl">
+                        {currentCard.question}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-4">
+                      <Clock className="h-3 w-3" />
+                      <span>Vue le {new Date(currentCard.last_seen).toLocaleDateString("fr-FR")}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flip-card-back">
+                  <div className="h-full w-full rounded-xl p-8 flex flex-col relative cursor-pointer bg-muted/40 border border-border shadow-lg">
+                    <div className="flex items-center justify-between mb-6">
+                      <Badge className="bg-emerald-500 text-white hover:opacity-90 gap-1">
+                        <BookOpen className="h-3 w-3" /> Réponse
+                      </Badge>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <RotateCcw className="h-3 w-3" />
+                        <span>Cliquer pour retourner</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                      <p className="text-lg text-foreground leading-relaxed whitespace-pre-wrap">
+                        {currentCard.correct_answer || "—"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <Button variant="outline" onClick={goPrev} className="gap-1.5">
+          <ArrowLeft className="h-4 w-4" /> Précédent
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="outline" className="gap-1.5 text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4" /> Supprimer
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" /> Supprimer cette flashcard ?
+              </AlertDialogTitle>
+              <AlertDialogDescription>Cette flashcard sera retirée définitivement.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => handleDelete(currentCard.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <Button onClick={goNext} className="gap-1.5">
+          Suivant <ArrowLeft className="h-4 w-4 rotate-180" />
+        </Button>
+      </div>
+    </div>
   );
 }
 
