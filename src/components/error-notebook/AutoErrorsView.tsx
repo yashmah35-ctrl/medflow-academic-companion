@@ -1,14 +1,11 @@
-import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   GraduationCap, BookOpen, Eye, EyeOff, Trash2, AlertCircle,
-  RefreshCw, Layers,
+  RefreshCw, Layers, ArrowLeft, FolderOpen, FileText, ClipboardList, FlaskConical,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
@@ -30,29 +27,34 @@ interface AutoError {
   last_seen: string;
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  kholle: "Khôlle",
-  annale: "Annale",
-  exam: "Examen blanc",
-  exam_blanc: "Examen blanc",
-};
+type SourceKey = "kholle" | "annale" | "exam";
 
-const SOURCE_COLORS: Record<string, string> = {
-  kholle: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
-  annale: "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300",
-  exam: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-  exam_blanc: "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
-};
+const SOURCES: { key: SourceKey; label: string; icon: any; gradient: string; match: string[] }[] = [
+  {
+    key: "kholle",
+    label: "Khôlles",
+    icon: GraduationCap,
+    gradient: "from-blue-500/20 to-blue-600/5 border-blue-500/30",
+    match: ["kholle"],
+  },
+  {
+    key: "annale",
+    label: "Annales",
+    icon: ClipboardList,
+    gradient: "from-purple-500/20 to-purple-600/5 border-purple-500/30",
+    match: ["annale"],
+  },
+  {
+    key: "exam",
+    label: "Examens blancs",
+    icon: FlaskConical,
+    gradient: "from-amber-500/20 to-amber-600/5 border-amber-500/30",
+    match: ["exam", "exam_blanc"],
+  },
+];
 
-function ErrorCard({
-  err, onDelete,
-}: {
-  err: AutoError;
-  onDelete: (id: string) => void;
-}) {
+function ErrorCard({ err, onDelete }: { err: AutoError; onDelete: (id: string) => void }) {
   const [revealed, setRevealed] = useState(false);
-  const sourceLabel = SOURCE_LABELS[err.source] ?? err.source;
-  const sourceColor = SOURCE_COLORS[err.source] ?? "bg-muted text-foreground";
 
   return (
     <motion.div
@@ -63,15 +65,8 @@ function ErrorCard({
       className="rounded-lg overflow-hidden border border-border bg-card shadow-sm"
     >
       <div className="flex flex-col md:flex-row min-h-[260px]">
-        {/* Question */}
         <div className="flex-1 p-6 md:p-8 relative border-b md:border-b-0 md:border-r border-border">
           <div className="absolute top-4 right-4 flex items-center gap-1.5 flex-wrap justify-end max-w-[60%]">
-            <Badge className={`text-[10px] ${sourceColor} border-0`}>
-              {sourceLabel}
-            </Badge>
-            {err.subject_name && (
-              <Badge variant="secondary" className="text-xs">{err.subject_name}</Badge>
-            )}
             {err.occurrence_count > 1 && (
               <Badge variant="outline" className="text-[10px] gap-1">
                 <RefreshCw className="h-3 w-3" /> x{err.occurrence_count}
@@ -99,7 +94,6 @@ function ErrorCard({
           </div>
         </div>
 
-        {/* Réponse */}
         <div
           className="flex-1 p-6 md:p-8 relative bg-muted/30 cursor-pointer group"
           onClick={() => setRevealed(!revealed)}
@@ -169,8 +163,8 @@ export default function AutoErrorsView() {
   const { user } = useAuth();
   const [errors, setErrors] = useState<AutoError[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [subjectFilter, setSubjectFilter] = useState<string>("all");
+  const [activeSource, setActiveSource] = useState<SourceKey | null>(null);
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
 
   const reload = async () => {
     if (!user) return;
@@ -182,11 +176,8 @@ export default function AutoErrorsView() {
       .in("source", ["kholle", "annale", "exam", "exam_blanc"])
       .order("last_seen", { ascending: false })
       .limit(1000);
-    if (error) {
-      toast.error("Erreur de chargement");
-    } else {
-      setErrors((data ?? []) as AutoError[]);
-    }
+    if (error) toast.error("Erreur de chargement");
+    else setErrors((data ?? []) as AutoError[]);
     setLoading(false);
   };
 
@@ -197,83 +188,191 @@ export default function AutoErrorsView() {
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("errors").delete().eq("id", id);
-    if (error) {
-      toast.error("Suppression impossible");
-      return;
-    }
+    if (error) return toast.error("Suppression impossible");
     setErrors((prev) => prev.filter((e) => e.id !== id));
     toast.success("Erreur supprimée");
   };
 
-  const subjects = Array.from(
-    new Set(errors.map((e) => e.subject_name).filter(Boolean) as string[])
-  );
-
-  const filtered = errors.filter((e) => {
-    if (sourceFilter !== "all" && e.source !== sourceFilter && !(sourceFilter === "exam" && e.source === "exam_blanc")) {
-      return false;
+  // Comptes par source
+  const sourceCounts = useMemo(() => {
+    const counts: Record<SourceKey, number> = { kholle: 0, annale: 0, exam: 0 };
+    for (const e of errors) {
+      const s = SOURCES.find((src) => src.match.includes(e.source));
+      if (s) counts[s.key]++;
     }
-    if (subjectFilter !== "all" && e.subject_name !== subjectFilter) return false;
-    return true;
-  });
+    return counts;
+  }, [errors]);
+
+  // Erreurs filtrées par source active
+  const sourceErrors = useMemo(() => {
+    if (!activeSource) return [];
+    const src = SOURCES.find((s) => s.key === activeSource)!;
+    return errors.filter((e) => src.match.includes(e.source));
+  }, [errors, activeSource]);
+
+  // Groupement par matière
+  const subjectGroups = useMemo(() => {
+    const map = new Map<string, AutoError[]>();
+    for (const e of sourceErrors) {
+      const key = e.subject_name || "Sans matière";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(e);
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [sourceErrors]);
+
+  const subjectErrors = useMemo(() => {
+    if (!activeSubject) return [];
+    return sourceErrors.filter((e) => (e.subject_name || "Sans matière") === activeSubject);
+  }, [sourceErrors, activeSubject]);
 
   if (loading) {
     return <div className="text-center text-muted-foreground py-20">Chargement...</div>;
   }
 
+  // === NIVEAU 3 : Questions ===
+  if (activeSource && activeSubject) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <Button variant="ghost" size="sm" onClick={() => setActiveSubject(null)} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" /> Retour aux matières
+          </Button>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1">
+              <Layers className="h-3 w-3" />
+              {subjectErrors.length} erreur{subjectErrors.length > 1 ? "s" : ""}
+            </Badge>
+            <Button variant="outline" size="sm" onClick={reload} className="gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+            </Button>
+          </div>
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold">{activeSubject}</h2>
+          <p className="text-sm text-muted-foreground">
+            {SOURCES.find((s) => s.key === activeSource)?.label}
+          </p>
+        </div>
+        <AnimatePresence mode="popLayout">
+          <div className="space-y-6">
+            {subjectErrors.map((e) => (
+              <ErrorCard key={e.id} err={e} onDelete={handleDelete} />
+            ))}
+          </div>
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // === NIVEAU 2 : Dossiers par matière ===
+  if (activeSource) {
+    const src = SOURCES.find((s) => s.key === activeSource)!;
+    const Icon = src.icon;
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <Button variant="ghost" size="sm" onClick={() => setActiveSource(null)} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" /> Retour aux évaluations
+          </Button>
+          <Button variant="outline" size="sm" onClick={reload} className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" /> Actualiser
+          </Button>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Icon className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold">{src.label}</h2>
+            <p className="text-sm text-muted-foreground">Sélectionnez une matière</p>
+          </div>
+        </div>
+
+        {subjectGroups.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <BookOpen className="h-16 w-16 text-muted-foreground/40 mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">Aucune erreur enregistrée</h3>
+            <p className="text-muted-foreground max-w-md">
+              Les erreurs apparaîtront ici dès que vous en commettrez dans cette catégorie.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {subjectGroups.map(([subject, errs]) => (
+              <motion.button
+                key={subject}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ y: -4 }}
+                onClick={() => setActiveSubject(subject)}
+                className="group relative flex flex-col items-start gap-3 p-5 rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-lg transition-all text-left"
+              >
+                <div className="h-11 w-11 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <FolderOpen className="h-5 w-5 text-primary" />
+                </div>
+                <div className="w-full">
+                  <h3 className="font-semibold text-foreground line-clamp-2 text-sm">{subject}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {errs.length} erreur{errs.length > 1 ? "s" : ""}
+                  </p>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // === NIVEAU 1 : 3 grands blocs ===
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Select value={sourceFilter} onValueChange={setSourceFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Source" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes les sources</SelectItem>
-              <SelectItem value="kholle">Khôlles</SelectItem>
-              <SelectItem value="annale">Annales</SelectItem>
-              <SelectItem value="exam">Examens blancs</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Matière" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes les matières</SelectItem>
-              {subjects.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Badge variant="outline" className="gap-1">
-            <Layers className="h-3 w-3" />
-            {filtered.length} erreur{filtered.length > 1 ? "s" : ""}
-          </Badge>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold">Erreurs des évaluations</h2>
+          <p className="text-sm text-muted-foreground">
+            Choisissez une catégorie d'évaluation
+          </p>
         </div>
         <Button variant="outline" size="sm" onClick={reload} className="gap-1.5">
           <RefreshCw className="h-3.5 w-3.5" /> Actualiser
         </Button>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BookOpen className="h-16 w-16 text-muted-foreground/40 mb-4" />
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            Aucune erreur enregistrée
-          </h3>
-          <p className="text-muted-foreground max-w-md">
-            Les erreurs commises lors des Khôlles, Annales et Examens blancs apparaîtront automatiquement ici.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {filtered.map((e) => (
-            <ErrorCard key={e.id} err={e} onDelete={handleDelete} />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {SOURCES.map((src) => {
+          const Icon = src.icon;
+          const count = sourceCounts[src.key];
+          return (
+            <motion.button
+              key={src.key}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ y: -6, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveSource(src.key)}
+              className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br ${src.gradient} p-6 md:p-8 text-left transition-all hover:shadow-xl min-h-[180px] flex flex-col justify-between`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="h-14 w-14 rounded-xl bg-background/80 backdrop-blur flex items-center justify-center shadow-sm">
+                  <Icon className="h-7 w-7 text-primary" />
+                </div>
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {count} erreur{count > 1 ? "s" : ""}
+                </Badge>
+              </div>
+              <div className="mt-6">
+                <h3 className="text-xl md:text-2xl font-bold text-foreground">{src.label}</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Voir les erreurs par matière →
+                </p>
+              </div>
+            </motion.button>
+          );
+        })}
+      </div>
     </div>
   );
 }
