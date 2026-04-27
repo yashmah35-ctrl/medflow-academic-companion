@@ -118,6 +118,9 @@ serve(async (req) => {
 
     if (couponId) {
       sessionParams.discounts = [{ coupon: couponId }];
+    } else {
+      // Permet à l'utilisateur de saisir un code promo (ex: accès gratuit)
+      sessionParams.allow_promotion_codes = true;
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
