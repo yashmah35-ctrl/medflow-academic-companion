@@ -579,8 +579,8 @@ function ManualFlashcardSession({
 // ====================== MANUAL VIEW (Mon Cahier — dossiers) ======================
 function ManualView({ onBack }: { onBack: () => void }) {
   const {
+    errors,
     folders,
-    dueErrors,
     filteredErrors,
     setActiveFolder,
     activeFolder,
@@ -590,26 +590,18 @@ function ManualView({ onBack }: { onBack: () => void }) {
 
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
 
-  // Comptes par dossier (basés sur dueErrors = cartes à réviser)
-  const folderDueCounts = useMemo(() => {
+  // Comptes TOTAUX par dossier (toutes les cartes, pas seulement les dues)
+  const folderTotalCounts = useMemo(() => {
     const map: Record<string, number> = { __none__: 0 };
     for (const f of folders) map[f.id] = 0;
-    for (const e of dueErrors) {
+    for (const e of errors) {
       const k = e.folderId ?? "__none__";
       map[k] = (map[k] || 0) + 1;
     }
     return map;
-  }, [dueErrors, folders]);
+  }, [errors, folders]);
 
-  const folderTotalCounts = useMemo(() => {
-    // utilise filteredErrors quand activeFolder = "all", sinon il faut une autre source.
-    // Pour avoir le total par dossier on s'appuie sur la requête déjà faite par useMedicalErrorBook
-    // qui renvoie filteredErrors filtrés. Comme on n'a pas la liste totale ici facilement,
-    // on affiche simplement le compte des cartes dues par dossier.
-    return folderDueCounts;
-  }, [folderDueCounts]);
-
-  // Quand on sélectionne un dossier, on bascule activeFolder dans le hook pour que dueErrors soit filtré
+  // Quand on sélectionne un dossier, on bascule activeFolder dans le hook pour filtrer
   useEffect(() => {
     if (selectedFolderId === null) {
       if (activeFolder !== "all") setActiveFolder("all");
@@ -621,13 +613,13 @@ function ManualView({ onBack }: { onBack: () => void }) {
 
   if (loading) return <div className="text-center text-muted-foreground py-20">Chargement...</div>;
 
-  // Niveau 3 : session SRS
+  // Niveau 3 : session SRS — on utilise TOUTES les cartes du dossier
   if (selectedFolderId !== null) {
     const folder = folders.find((f) => f.id === selectedFolderId);
     const folderName = selectedFolderId === "__none__" ? "Sans dossier" : folder?.name ?? "Dossier";
     return (
       <ManualFlashcardSession
-        cards={dueErrors}
+        cards={filteredErrors}
         totalCount={filteredErrors.length}
         folderName={folderName}
         onReview={updateReview}
@@ -656,7 +648,7 @@ function ManualView({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      {folders.length === 0 && (folderDueCounts["__none__"] || 0) === 0 ? (
+      {folders.length === 0 && (folderTotalCounts["__none__"] || 0) === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <BookOpen className="h-16 w-16 text-muted-foreground/40 mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">Aucun dossier</h3>
@@ -682,12 +674,12 @@ function ManualView({ onBack }: { onBack: () => void }) {
               <div className="w-full">
                 <h3 className="font-semibold text-foreground line-clamp-2 text-sm">{f.name}</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {folderDueCounts[f.id] || 0} à réviser
+                  {folderTotalCounts[f.id] || 0} carte{(folderTotalCounts[f.id] || 0) > 1 ? "s" : ""}
                 </p>
               </div>
             </motion.button>
           ))}
-          {(folderDueCounts["__none__"] || 0) > 0 && (
+          {(folderTotalCounts["__none__"] || 0) > 0 && (
             <motion.button
               layout
               initial={{ opacity: 0, scale: 0.95 }}
@@ -702,7 +694,7 @@ function ManualView({ onBack }: { onBack: () => void }) {
               <div className="w-full">
                 <h3 className="font-semibold text-foreground line-clamp-2 text-sm">Sans dossier</h3>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {folderDueCounts["__none__"] || 0} à réviser
+                  {folderTotalCounts["__none__"] || 0} carte{(folderTotalCounts["__none__"] || 0) > 1 ? "s" : ""}
                 </p>
               </div>
             </motion.button>
