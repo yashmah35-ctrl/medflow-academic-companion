@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Plus, Search, Layers, BarChart3, Flame, Clock, Trash2, Edit3, Play,
   RotateCcw, ArrowLeft, BookOpen, ChevronRight, X, Type, ImageIcon, Upload, FileText, Sparkles, Loader2,
-  ArrowDown, Star, Trophy
+  ArrowDown, Star, Trophy, GraduationCap, ClipboardList, FlaskConical, NotebookPen
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -21,6 +21,7 @@ import {
   SRSRating, updateCardState, getCardState, getDueCardIds,
   getButtonPreviews, computeSRSTransition, loadSRSState
 } from "@/lib/srs";
+import AutoFlashcardsView, { AutoSourceKey } from "@/components/flashcards/AutoFlashcardsView";
 
 // ─── Types ──────────────────────────────────────────
 interface Deck {
