@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
+import { SubjectSourceSelector, SubjectSelection } from "@/components/SubjectSourceSelector";
 
 interface Proposition {
   id: string;
@@ -60,7 +61,7 @@ export default function Kholles() {
 
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
-  const [newSubjectId, setNewSubjectId] = useState("");
+  const [newSubject, setNewSubject] = useState<SubjectSelection | null>(null);
   const [newFormat, setNewFormat] = useState<"QIM" | "QCM">("QCM");
 
   // Add question dialog
@@ -125,16 +126,14 @@ export default function Kholles() {
   };
 
   const handleCreate = async () => {
-    if (!newSubjectId || !user) return;
-    const subject = subjects.find((s) => s.id === newSubjectId);
-    if (!subject) return;
+    if (!newSubject || !user) return;
 
-    const name = `Khôlle — ${subject.name}`;
+    const name = `Khôlle — ${newSubject.subjectName}`;
     const { error } = await supabase.from("kholles").insert({
       user_id: user.id,
       name,
       format: newFormat,
-      subject_id: newSubjectId,
+      subject_id: newSubject.subjectId,
       date: new Date().toISOString().split("T")[0],
       questions_json: [],
     });
@@ -145,7 +144,7 @@ export default function Kholles() {
     }
     toast.success("Khôlle créée !");
     setShowCreate(false);
-    setNewSubjectId("");
+    setNewSubject(null);
     setNewFormat("QCM");
     fetchKholles();
   };
@@ -998,16 +997,9 @@ export default function Kholles() {
           <div className="space-y-4">
             <div>
               <Label>Matière</Label>
-              <Select value={newSubjectId} onValueChange={setNewSubjectId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Choisir une matière" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="mt-2">
+                <SubjectSourceSelector value={newSubject} onChange={setNewSubject} />
+              </div>
             </div>
             <div>
               <Label>Format</Label>
@@ -1037,7 +1029,7 @@ export default function Kholles() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Annuler</Button>
-            <Button onClick={handleCreate} disabled={!newSubjectId}>Créer</Button>
+            <Button onClick={handleCreate} disabled={!newSubject}>Créer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

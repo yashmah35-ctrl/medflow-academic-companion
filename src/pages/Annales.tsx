@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
+import { SubjectSourceSelector, SubjectSelection } from "@/components/SubjectSourceSelector";
 
 interface Proposition {
   id: string;
@@ -69,7 +70,7 @@ export default function Annales() {
 
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
-  const [newSubjectId, setNewSubjectId] = useState("");
+  const [newSubject, setNewSubject] = useState<SubjectSelection | null>(null);
   const [newFormat, setNewFormat] = useState<"QIM" | "QCM">("QCM");
   const [newYear, setNewYear] = useState("");
   const [newSession, setNewSession] = useState("");
@@ -182,16 +183,14 @@ export default function Annales() {
   }, [annales, topQuestionsSubject, topQuestionsSearch]);
 
   const handleCreate = async () => {
-    if (!newSubjectId || !user) return;
-    const subject = subjects.find((s) => s.id === newSubjectId);
-    if (!subject) return;
+    if (!newSubject || !user) return;
 
-    const name = `Annale — ${subject.name}`;
+    const name = `Annale — ${newSubject.subjectName}`;
     const { error } = await supabase.from("annales").insert({
       user_id: user.id,
       name,
       format: newFormat,
-      subject_id: newSubjectId,
+      subject_id: newSubject.subjectId,
       year: newYear || null,
       session: newSession || null,
       city: newCity || null,
@@ -206,14 +205,14 @@ export default function Annales() {
     // Call Annales webhook
     callWebhook(WEBHOOKS.ANNALES, {
       user_id: user.id,
-      subject_id: newSubjectId,
+      subject_id: newSubject.subjectId,
       year: newYear || null,
       session: newSession || null,
     }).catch(() => {});
 
     toast.success("Annale créée !");
     setShowCreate(false);
-    setNewSubjectId("");
+    setNewSubject(null);
     setNewFormat("QCM");
     setNewYear("");
     setNewSession("");
@@ -970,14 +969,9 @@ export default function Annales() {
           <div className="space-y-4">
             <div>
               <Label>Matière</Label>
-              <Select value={newSubjectId} onValueChange={setNewSubjectId}>
-                <SelectTrigger className="mt-1"><SelectValue placeholder="Choisir une matière" /></SelectTrigger>
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="mt-2">
+                <SubjectSourceSelector value={newSubject} onChange={setNewSubject} />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1017,7 +1011,7 @@ export default function Annales() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Annuler</Button>
-            <Button onClick={handleCreate} disabled={!newSubjectId}>Créer</Button>
+            <Button onClick={handleCreate} disabled={!newSubject}>Créer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
