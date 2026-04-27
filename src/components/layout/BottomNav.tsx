@@ -35,13 +35,13 @@ interface Tab {
 const studentTabs: Tab[] = [
   { title: "Matières", path: "/dashboard", icon: BookOpen },
   { title: "Cours", path: "/cours", icon: BookOpen },
-  { title: "Apprentissage", path: "/learning", icon: Brain },
   { title: "Modules", path: "/modules", icon: Puzzle },
   { title: "Planning", path: "/schedule", icon: Calendar },
   {
     title: "Plus",
     icon: BarChart3,
     subItems: [
+      { title: "Apprentissage actif", path: "/learning", icon: Brain },
       { title: "Cahier d'erreurs", path: "/errors", icon: BookX },
       { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
       { title: "Annales", path: "/annales", icon: Archive, restricted: true },
