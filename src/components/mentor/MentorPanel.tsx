@@ -364,7 +364,7 @@ export function MentorPanel({ courseId, subjectId, subjectName, courseTitle }: M
         <div>
           <h3 className="font-semibold text-foreground">Parcours MENTOR</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Le parcours de révision IA n'est pas encore généré pour ce cours.
+            Le parcours de révision n'est pas encore généré pour ce cours.
           </p>
         </div>
         <div className="text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
