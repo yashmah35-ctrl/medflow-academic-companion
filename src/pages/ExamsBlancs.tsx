@@ -920,7 +920,7 @@ export default function ExamsBlancs() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Annuler</Button>
-            <Button onClick={handleCreate} disabled={!newSubjectId}>Créer</Button>
+            <Button onClick={handleCreate} disabled={!newSubject}>Créer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
