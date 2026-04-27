@@ -578,6 +578,17 @@ export default function Flashcards() {
             })}
           </motion.div>
         )}
+
+        {/* Rename deck dialog */}
+        <Dialog open={!!renameDeckId} onOpenChange={(open) => { if (!open) { setRenameDeckId(null); setRenameDeckName(""); } }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Renommer le deck</DialogTitle><DialogDescription className="sr-only">Modifier le nom du deck</DialogDescription></DialogHeader>
+            <div className="space-y-4 mt-2">
+              <Input value={renameDeckName} onChange={(e) => setRenameDeckName(e.target.value)} placeholder="Nouveau nom" />
+              <Button className="w-full" onClick={handleRenameDeck} disabled={!renameDeckName.trim()}>Renommer</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
