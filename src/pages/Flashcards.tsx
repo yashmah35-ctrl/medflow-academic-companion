@@ -452,8 +452,62 @@ export default function Flashcards() {
   // VIEWS
   // ═══════════════════════════════════════════════════
 
-  // ─── DECK LIST ───────────────────────────────────
+  // ─── HOME : 4 source blocks ───────────────────────
+  if (source === "home") {
+    const manualCount = decks.reduce((sum, d) => sum + d.cardCount, 0);
+    const blocks = [
+      { key: "kholle" as const, label: "Khôlles", icon: GraduationCap, gradient: "from-blue-500/20 to-blue-600/5 border-blue-500/30", count: autoCounts.kholle, desc: "Flashcards depuis tes erreurs de khôlles" },
+      { key: "annale" as const, label: "Annales", icon: ClipboardList, gradient: "from-purple-500/20 to-purple-600/5 border-purple-500/30", count: autoCounts.annale, desc: "Flashcards depuis tes erreurs d'annales" },
+      { key: "exam" as const, label: "Examens blancs", icon: FlaskConical, gradient: "from-amber-500/20 to-amber-600/5 border-amber-500/30", count: autoCounts.exam, desc: "Flashcards depuis tes examens blancs" },
+      { key: "manual" as const, label: "Manuelle", icon: NotebookPen, gradient: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/30", count: manualCount, desc: "Tes decks personnels (Mon Cahier)" },
+    ];
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Mes Flashcards</h1>
+          <p className="text-sm text-muted-foreground mt-1">Choisis une catégorie pour commencer.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {blocks.map((b) => {
+            const Icon = b.icon;
+            return (
+              <motion.button
+                key={b.key}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                whileHover={{ y: -6, scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSource(b.key)}
+                className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br ${b.gradient} p-6 md:p-7 text-left transition-all hover:shadow-xl min-h-[180px] flex flex-col justify-between`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="h-14 w-14 rounded-xl bg-background/80 backdrop-blur flex items-center justify-center shadow-sm">
+                    <Icon className="h-7 w-7 text-primary" />
+                  </div>
+                  <Badge variant="secondary" className="text-xs font-semibold">
+                    {b.count} carte{b.count > 1 ? "s" : ""}
+                  </Badge>
+                </div>
+                <div className="mt-6">
+                  <h3 className="text-xl font-bold text-foreground">{b.label}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{b.desc}</p>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // ─── AUTO SOURCES (Khôlles / Annales / Examens) ──
+  if (source === "kholle" || source === "annale" || source === "exam") {
+    return <AutoFlashcardsView initialSource={source} onBack={() => setSource("home")} />;
+  }
+
+  // ─── DECK LIST (Manuelle) ────────────────────────
   if (view === "decks") {
+
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
