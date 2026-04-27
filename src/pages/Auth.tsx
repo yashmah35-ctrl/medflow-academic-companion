@@ -119,7 +119,7 @@ function CursorTrail() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1] hidden md:block" style={{ touchAction: "none" }} />;
 }
 
 /* ============ Typing effect ============ */
@@ -305,9 +305,10 @@ export default function Auth() {
   /* ============ MAIN AUTH PAGE ============ */
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
-      {/* Cursor trail */}
-      <CursorTrail />
-
+      {/* Cursor trail (desktop only) */}
+      <div className="hidden md:block">
+        <CursorTrail />
+      </div>
       {/* Soft pastel blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <motion.div
