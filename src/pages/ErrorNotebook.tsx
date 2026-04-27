@@ -1275,16 +1275,7 @@ export default function ErrorNotebook() {
                   onMove={moveError}
                 />
               )}
-              {mode === "flashcard" && (
-                <FlashcardView
-                  dueErrors={dueErrors}
-                  subjects={subjects}
-                  activeSubject={activeSubject}
-                  setActiveSubject={setActiveSubject}
-                  onReview={updateReview}
-                  totalErrors={filteredErrors.length}
-                />
-              )}
+              {mode === "flashcard" && <FlashcardsHubView />}
               {mode === "auto" && <AutoErrorsView />}
             </motion.div>
           </AnimatePresence>
