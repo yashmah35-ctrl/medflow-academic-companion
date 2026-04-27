@@ -1042,17 +1042,27 @@ export default function ErrorNotebook() {
           )}
         </div>
 
-        {/* Barre de dossiers — uniquement pour le cahier manuel */}
-        {mode !== "auto" && (
-          <FolderBar
-            folders={folders}
-            activeFolder={activeFolder}
-            setActiveFolder={setActiveFolder}
-            folderCounts={folderCounts}
-            onCreateFolder={createFolder}
-            onRenameFolder={renameFolder}
-            onDeleteFolder={deleteFolder}
-          />
+        {/* Barre de dossiers — uniquement quand on est DANS un dossier (vue questions) */}
+        {mode !== "auto" && activeFolder !== "all" && (
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActiveFolder("all")}
+              className="gap-1.5"
+            >
+              <ArrowLeft className="h-4 w-4" /> Retour aux dossiers
+            </Button>
+            <FolderBar
+              folders={folders}
+              activeFolder={activeFolder}
+              setActiveFolder={setActiveFolder}
+              folderCounts={folderCounts}
+              onCreateFolder={createFolder}
+              onRenameFolder={renameFolder}
+              onDeleteFolder={deleteFolder}
+            />
+          </div>
         )}
 
         {loading ? (
@@ -1060,13 +1070,23 @@ export default function ErrorNotebook() {
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
-              key={mode}
+              key={`${mode}-${activeFolder}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {mode === "notebook" && (
+              {mode === "notebook" && activeFolder === "all" && (
+                <FoldersGridView
+                  folders={folders}
+                  folderCounts={folderCounts}
+                  onOpenFolder={(id) => setActiveFolder(id)}
+                  onCreateFolder={createFolder}
+                  onRenameFolder={renameFolder}
+                  onDeleteFolder={deleteFolder}
+                />
+              )}
+              {mode === "notebook" && activeFolder !== "all" && (
                 <NotebookView
                   errors={filteredErrors}
                   subjects={subjects}
