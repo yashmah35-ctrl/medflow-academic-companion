@@ -70,7 +70,7 @@ export default function Annales() {
 
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
-  const [newSubjectId, setNewSubjectId] = useState("");
+  const [newSubject, setNewSubject] = useState<SubjectSelection | null>(null);
   const [newFormat, setNewFormat] = useState<"QIM" | "QCM">("QCM");
   const [newYear, setNewYear] = useState("");
   const [newSession, setNewSession] = useState("");
