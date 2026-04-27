@@ -467,6 +467,22 @@ function FolderBar({
         </Dialog>
       </div>
 
+      {/* Ligne du bas : dossiers créés */}
+      {folders.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap pt-1">
+          {folders.map((f) => (
+            <FolderChip
+              key={f.id}
+              id={f.id}
+              label={f.name}
+              count={folderCounts[f.id] || 0}
+              icon={Folder}
+              folder={f}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Rename dialog */}
       <Dialog open={!!renaming} onOpenChange={(v) => !v && setRenaming(null)}>
         <DialogContent className="max-w-sm">
