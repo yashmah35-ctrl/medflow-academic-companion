@@ -1186,6 +1186,36 @@ export type Database = {
         }
         Relationships: []
       }
+      qcm_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          questions_json: Json
+          source_filename: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          questions_json?: Json
+          source_filename?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          questions_json?: Json
+          source_filename?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       schedule_blocks: {
         Row: {
           color: string | null
