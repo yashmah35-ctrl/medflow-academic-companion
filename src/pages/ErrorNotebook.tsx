@@ -975,21 +975,30 @@ export default function ErrorNotebook() {
           <nav className="flex items-center gap-1 rounded-lg bg-muted p-1">
             <button
               onClick={() => setMode("notebook")}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all ${
                 mode === "notebook" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <BookOpen className="h-4 w-4" />
-              Mon Cahier
+              <span className="hidden sm:inline">Mon Cahier</span>
+            </button>
+            <button
+              onClick={() => setMode("auto")}
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all ${
+                mode === "auto" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">Évaluations</span>
             </button>
             <button
               onClick={() => setMode("flashcard")}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all ${
                 mode === "flashcard" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Layers className="h-4 w-4" />
-              Flashcards
+              <span className="hidden sm:inline">Flashcards</span>
               {dueErrors.length > 0 && (
                 <span className="flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
                   {dueErrors.length}
