@@ -16,6 +16,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
 import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
+import { SubjectSourceSelector, SubjectSelection } from "@/components/SubjectSourceSelector";
 
 interface Proposition {
   id: string;
