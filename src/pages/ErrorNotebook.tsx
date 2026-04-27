@@ -98,7 +98,7 @@ function ErrorForm({
   const currentList = source === "prepa" ? prepaSubjects : persoSubjects;
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <PlusCircle className="h-4 w-4" />
@@ -108,88 +108,172 @@ function ErrorForm({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
+            {step !== "source" && (
+              <button
+                type="button"
+                onClick={() => setStep(step === "details" ? "subject" : "source")}
+                className="p-1 rounded hover:bg-muted"
+                aria-label="Retour"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
             <PlusCircle className="h-5 w-5 text-primary" />
-            Ajouter une erreur au cahier
+            {step === "source" && "Choisir la source"}
+            {step === "subject" && (source === "prepa" ? "Matières Prépa du Peuple" : "Mes matières")}
+            {step === "details" && "Ajouter une erreur"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          <div className="space-y-2">
-            <Label htmlFor="subject">Matière</Label>
-            <Select value={subject} onValueChange={setSubject} required>
-              <SelectTrigger><SelectValue placeholder="Choisir une matière..." /></SelectTrigger>
-              <SelectContent>
-                {SUBJECTS.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="question">Question / Énoncé</Label>
-            <Textarea
-              id="question"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ex: Le traitement de première intention de la FA est..."
-              className="min-h-[80px] resize-none"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="explanation">Explication / Réponse</Label>
-            <Textarea
-              id="explanation"
-              value={explanation}
-              onChange={(e) => setExplanation(e.target.value)}
-              placeholder="Ex: Faux. Le traitement de première intention est..."
-              className="min-h-[100px] resize-none"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>L'énoncé est-il vrai ou faux ?</Label>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setIsTrue(true)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
-                  isTrue
-                    ? "bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30"
-                    : "bg-card border-border text-muted-foreground hover:border-emerald-300"
-                }`}
-              >
-                <CheckCircle className="h-4 w-4" /> Vrai
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsTrue(false)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
-                  !isTrue
-                    ? "bg-red-50 border-red-400 text-red-700 dark:bg-red-950/30"
-                    : "bg-card border-border text-muted-foreground hover:border-red-300"
-                }`}
-              >
-                <XCircle className="h-4 w-4" /> Faux
-              </button>
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">
+        {/* STEP 1 : source */}
+        {step === "source" && (
+          <div className="space-y-3 mt-2">
+            <p className="text-sm text-muted-foreground">D'où vient cette erreur ?</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSource("prepa");
+                setStep("subject");
+              }}
+              className="w-full flex items-center gap-3 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left"
+            >
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <GradIcon className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="font-medium text-foreground">Prépa du Peuple</div>
+                <div className="text-xs text-muted-foreground">Matières officielles de la prépa</div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSource("perso");
+                setStep("subject");
+              }}
+              className="w-full flex items-center gap-3 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left"
+            >
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <FolderOpen className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <div className="font-medium text-foreground">Mes matières</div>
+                <div className="text-xs text-muted-foreground">Vos dossiers ajoutés dans Cours</div>
+              </div>
+            </button>
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="w-full mt-2">
               <X className="h-4 w-4 mr-1" /> Annuler
             </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={!subject || !question.trim() || !explanation.trim()}
-            >
-              <PlusCircle className="h-4 w-4 mr-1" /> Ajouter
-            </Button>
           </div>
-        </form>
+        )}
+
+        {/* STEP 2 : choix matière */}
+        {step === "subject" && (
+          <div className="space-y-2 mt-2">
+            {loadingSubjects ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">Chargement...</p>
+            ) : currentList.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                {source === "perso"
+                  ? "Vous n'avez pas encore créé de matière dans Cours."
+                  : "Aucune matière disponible."}
+              </p>
+            ) : (
+              <div className="max-h-[360px] overflow-y-auto space-y-1 pr-1">
+                {currentList.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      setSubject(s);
+                      setStep("details");
+                    }}
+                    className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-sm font-medium text-foreground"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* STEP 3 : détails */}
+        {step === "details" && (
+          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Badge variant="secondary">{subject}</Badge>
+              <span className="text-xs text-muted-foreground">
+                ({source === "prepa" ? "Prépa du Peuple" : "Mes matières"})
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="question">Question / Énoncé</Label>
+              <Textarea
+                id="question"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                placeholder="Ex: Le traitement de première intention de la FA est..."
+                className="min-h-[80px] resize-none"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="explanation">Explication / Réponse</Label>
+              <Textarea
+                id="explanation"
+                value={explanation}
+                onChange={(e) => setExplanation(e.target.value)}
+                placeholder="Ex: Faux. Le traitement de première intention est..."
+                className="min-h-[100px] resize-none"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>L'énoncé est-il vrai ou faux ?</Label>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsTrue(true)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
+                    isTrue
+                      ? "bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30"
+                      : "bg-card border-border text-muted-foreground hover:border-emerald-300"
+                  }`}
+                >
+                  <CheckCircle className="h-4 w-4" /> Vrai
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsTrue(false)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
+                    !isTrue
+                      ? "bg-red-50 border-red-400 text-red-700 dark:bg-red-950/30"
+                      : "bg-card border-border text-muted-foreground hover:border-red-300"
+                  }`}
+                >
+                  <XCircle className="h-4 w-4" /> Faux
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="flex-1">
+                <X className="h-4 w-4 mr-1" /> Annuler
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={!subject || !question.trim() || !explanation.trim()}
+              >
+                <PlusCircle className="h-4 w-4 mr-1" /> Ajouter
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
