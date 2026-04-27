@@ -946,7 +946,7 @@ function FlashcardView({
 
 // ============== PAGE PRINCIPALE ==============
 export default function ErrorNotebook() {
-  const [mode, setMode] = useState<"notebook" | "flashcard">("notebook");
+  const [mode, setMode] = useState<"notebook" | "flashcard" | "auto">("notebook");
   const {
     filteredErrors, dueErrors, subjects, folders, activeSubject, setActiveSubject,
     activeFolder, setActiveFolder, folderCounts,
