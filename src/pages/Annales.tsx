@@ -183,16 +183,14 @@ export default function Annales() {
   }, [annales, topQuestionsSubject, topQuestionsSearch]);
 
   const handleCreate = async () => {
-    if (!newSubjectId || !user) return;
-    const subject = subjects.find((s) => s.id === newSubjectId);
-    if (!subject) return;
+    if (!newSubject || !user) return;
 
-    const name = `Annale — ${subject.name}`;
+    const name = `Annale — ${newSubject.subjectName}`;
     const { error } = await supabase.from("annales").insert({
       user_id: user.id,
       name,
       format: newFormat,
-      subject_id: newSubjectId,
+      subject_id: newSubject.subjectId,
       year: newYear || null,
       session: newSession || null,
       city: newCity || null,
@@ -207,14 +205,14 @@ export default function Annales() {
     // Call Annales webhook
     callWebhook(WEBHOOKS.ANNALES, {
       user_id: user.id,
-      subject_id: newSubjectId,
+      subject_id: newSubject.subjectId,
       year: newYear || null,
       session: newSession || null,
     }).catch(() => {});
 
     toast.success("Annale créée !");
     setShowCreate(false);
-    setNewSubjectId("");
+    setNewSubject(null);
     setNewFormat("QCM");
     setNewYear("");
     setNewSession("");
