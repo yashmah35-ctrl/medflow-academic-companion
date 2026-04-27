@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { TrainingEngine, type Question } from "@/components/training/TrainingEngine";
 import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
-import { Layers, PenLine, Upload, Image, Type, Eye, Loader2 } from "lucide-react";
+import { Layers, PenLine, Upload, Image, Type, Eye, Loader2, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -251,6 +251,25 @@ export default function ActiveLearning() {
             <p className="text-sm text-muted-foreground">
               Choisis une matière et un cours, puis écris tout ce que tu as retenu. Consulte le cours en parallèle.
             </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="rounded-xl border border-border bg-card p-6 hover:shadow-lg transition-all cursor-pointer group"
+            onClick={() => navigate("/qcm-creator")}
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-success/10 text-success mb-4 group-hover:scale-110 transition-transform">
+              <Sparkles className="h-7 w-7" />
+            </div>
+            <h3 className="text-lg font-semibold text-foreground mb-2">Création de QCM</h3>
+            <p className="text-sm text-muted-foreground">
+              Importe un cours en PDF, l'IA Claude génère 20 QCM de 5 propositions chacun pour t'évaluer.
+            </p>
+            <div className="flex gap-2 mt-3">
+              <Badge variant="secondary" className="text-xs"><Upload className="h-3 w-3 mr-1" />PDF</Badge>
+              <Badge variant="secondary" className="text-xs">20 QCM</Badge>
+              <Badge variant="secondary" className="text-xs">5 props</Badge>
+            </div>
           </motion.div>
         </div>
       </div>
