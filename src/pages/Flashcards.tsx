@@ -21,7 +21,7 @@ import {
   SRSRating, updateCardState, getCardState, getDueCardIds,
   getButtonPreviews, computeSRSTransition, loadSRSState
 } from "@/lib/srs";
-import AutoFlashcardsView, { AutoSourceKey } from "@/components/flashcards/AutoFlashcardsView";
+
 
 // ─── Types ──────────────────────────────────────────
 interface Deck {
