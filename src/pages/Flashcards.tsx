@@ -69,7 +69,6 @@ function parseCloze(text: string): { question: string; answer: string }[] {
 
 export default function Flashcards() {
   const { user } = useAuth();
-  const [source, setSource] = useState<"home" | AutoSourceKey | "manual">("home");
   const [view, setView] = useState<View>("decks");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [subjects, setSubjects] = useState<{ id: string; name: string; icon: string }[]>([]);
@@ -77,13 +76,16 @@ export default function Flashcards() {
   const [cards, setCards] = useState<Card[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [autoCounts, setAutoCounts] = useState<Record<AutoSourceKey, number>>({ kholle: 0, annale: 0, exam: 0 });
 
   // Create deck dialog
   const [showCreateDeck, setShowCreateDeck] = useState(false);
   const [newDeckName, setNewDeckName] = useState("");
   const [newDeckDesc, setNewDeckDesc] = useState("");
   const [newDeckSubject, setNewDeckSubject] = useState("");
+
+  // Rename deck dialog
+  const [renameDeckId, setRenameDeckId] = useState<string | null>(null);
+  const [renameDeckName, setRenameDeckName] = useState("");
 
   // Card editor
   const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -109,6 +111,18 @@ export default function Flashcards() {
   const [importCardCount, setImportCardCount] = useState("10");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCards, setGeneratedCards] = useState<{ front: string; back: string; explanation?: string }[]>([]);
+
+  // Rename handler
+  const handleRenameDeck = async () => {
+    if (!renameDeckId || !renameDeckName.trim()) return;
+    const { error } = await supabase.from("flashcard_decks").update({ name: renameDeckName.trim() }).eq("id", renameDeckId);
+    if (error) { toast.error("Erreur renommage"); return; }
+    toast.success("Deck renommé");
+    setRenameDeckId(null);
+    setRenameDeckName("");
+    fetchDecks();
+  };
+
 
   // ─── Fetch decks ─────────────────────────────────
   const fetchDecks = useCallback(async () => {
