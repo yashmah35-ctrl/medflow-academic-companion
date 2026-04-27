@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, GraduationCap as GradIcon, FolderOpen, Sparkles } from "lucide-react";
 import AutoErrorsView from "@/components/error-notebook/AutoErrorsView";
+import FlashcardsHubView from "@/components/error-notebook/FlashcardsHubView";
 
 type SubjectSource = "prepa" | "perso";
 
@@ -1274,16 +1275,7 @@ export default function ErrorNotebook() {
                   onMove={moveError}
                 />
               )}
-              {mode === "flashcard" && (
-                <FlashcardView
-                  dueErrors={dueErrors}
-                  subjects={subjects}
-                  activeSubject={activeSubject}
-                  setActiveSubject={setActiveSubject}
-                  onReview={updateReview}
-                  totalErrors={filteredErrors.length}
-                />
-              )}
+              {mode === "flashcard" && <FlashcardsHubView />}
               {mode === "auto" && <AutoErrorsView />}
             </motion.div>
           </AnimatePresence>
