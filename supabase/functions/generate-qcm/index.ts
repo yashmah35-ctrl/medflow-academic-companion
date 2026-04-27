@@ -35,7 +35,9 @@ RÈGLES STRICTES :
 - Donne une explication concise et pédagogique pour chaque QCM.
 
 Réponds UNIQUEMENT avec un JSON valide, sans texte avant ni après. Format:
-{"questions": [{"question": "énoncé...", "propositions": [{"id":"A","text":"...","isCorrect":true},{"id":"B","text":"...","isCorrect":false},{"id":"C","text":"...","isCorrect":false},{"id":"D","text":"...","isCorrect":true},{"id":"E","text":"...","isCorrect":false}], "explanation": "explication globale"}]}`;
+{"questions": [{"question": "énoncé...", "propositions": [{"id":"A","text":"...","isCorrect":true},{"id":"B","text":"...","isCorrect":false},{"id":"C","text":"...","isCorrect":false},{"id":"D","text":"...","isCorrect":true},{"id":"E","text":"...","isCorrect":false}], "explanation": "explication globale"}]}
+
+NE PAS entourer le JSON de \`\`\`json ou de \`\`\`. Réponds avec le JSON brut uniquement.`;
 
     const userContent: any[] = [];
 
