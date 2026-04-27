@@ -23,10 +23,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   useMedicalErrorBook,
-  SUBJECTS,
   type MedicalError,
   type Difficulty,
 } from "@/hooks/useMedicalErrorBook";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { ArrowLeft, GraduationCap as GradIcon, FolderOpen } from "lucide-react";
+
+type SubjectSource = "prepa" | "perso";
 
 // ============== FORMULAIRE D'AJOUT ==============
 function ErrorForm({
@@ -34,22 +38,64 @@ function ErrorForm({
 }: {
   onAdd: (input: { subject: string; question: string; explanation: string; isTrue: boolean }) => void;
 }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [step, setStep] = useState<"source" | "subject" | "details">("source");
+  const [source, setSource] = useState<SubjectSource | null>(null);
   const [subject, setSubject] = useState("");
   const [question, setQuestion] = useState("");
   const [explanation, setExplanation] = useState("");
   const [isTrue, setIsTrue] = useState(false);
+  const [prepaSubjects, setPrepaSubjects] = useState<string[]>([]);
+  const [persoSubjects, setPersoSubjects] = useState<string[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingSubjects(true);
+      const [prepaRes, persoRes] = await Promise.all([
+        supabase.from("subjects").select("name").order("name"),
+        supabase.from("folders").select("name").eq("created_by", user.id).order("name"),
+      ]);
+      if (cancelled) return;
+      setPrepaSubjects(
+        Array.from(new Set(((prepaRes.data ?? []) as { name: string }[]).map((s) => s.name))).filter(Boolean)
+      );
+      setPersoSubjects(
+        Array.from(new Set(((persoRes.data ?? []) as { name: string }[]).map((s) => s.name))).filter(Boolean)
+      );
+      setLoadingSubjects(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, user]);
+
+  const reset = () => {
+    setStep("source");
+    setSource(null);
+    setSubject("");
+    setQuestion("");
+    setExplanation("");
+    setIsTrue(false);
+  };
+
+  const handleOpenChange = (v: boolean) => {
+    setOpen(v);
+    if (!v) reset();
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject || !question.trim() || !explanation.trim()) return;
     onAdd({ subject, question: question.trim(), explanation: explanation.trim(), isTrue });
-    setSubject("");
-    setQuestion("");
-    setExplanation("");
-    setIsTrue(false);
+    reset();
     setOpen(false);
   };
+
+  const currentList = source === "prepa" ? prepaSubjects : persoSubjects;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
