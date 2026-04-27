@@ -4,9 +4,11 @@ import {
   BookOpen, Layers, Stethoscope, PlusCircle, X, CheckCircle, XCircle,
   Trash2, Eye, EyeOff, GraduationCap, AlertCircle, AlertTriangle,
   CheckCircle2, Zap, Trophy, Clock, Brain, RotateCcw,
+  Folder, FolderPlus, MoreVertical, Pencil, FolderInput, Inbox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -14,7 +16,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -22,8 +24,13 @@ import {
   AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   useMedicalErrorBook,
   type MedicalError,
+  type ErrorFolder,
   type Difficulty,
 } from "@/hooks/useMedicalErrorBook";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,8 +42,14 @@ type SubjectSource = "prepa" | "perso";
 // ============== FORMULAIRE D'AJOUT ==============
 function ErrorForm({
   onAdd,
+  folders,
+  onCreateFolder,
+  defaultFolderId,
 }: {
-  onAdd: (input: { subject: string; question: string; explanation: string; isTrue: boolean }) => void;
+  onAdd: (input: { subject: string; question: string; explanation: string; isTrue: boolean; folderId: string | null }) => void;
+  folders: ErrorFolder[];
+  onCreateFolder: (name: string) => Promise<ErrorFolder | null>;
+  defaultFolderId: string | null;
 }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -46,9 +59,16 @@ function ErrorForm({
   const [question, setQuestion] = useState("");
   const [explanation, setExplanation] = useState("");
   const [isTrue, setIsTrue] = useState(false);
+  const [folderId, setFolderId] = useState<string | null>(defaultFolderId);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const [prepaSubjects, setPrepaSubjects] = useState<string[]>([]);
   const [persoSubjects, setPersoSubjects] = useState<string[]>([]);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
+
+  useEffect(() => {
+    setFolderId(defaultFolderId);
+  }, [defaultFolderId, open]);
 
   useEffect(() => {
     if (!open || !user) return;
@@ -80,6 +100,8 @@ function ErrorForm({
     setQuestion("");
     setExplanation("");
     setIsTrue(false);
+    setFolderId(defaultFolderId);
+    setNewFolderName("");
   };
 
   const handleOpenChange = (v: boolean) => {
@@ -90,9 +112,26 @@ function ErrorForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject || !question.trim() || !explanation.trim()) return;
-    onAdd({ subject, question: question.trim(), explanation: explanation.trim(), isTrue });
+    onAdd({
+      subject,
+      question: question.trim(),
+      explanation: explanation.trim(),
+      isTrue,
+      folderId,
+    });
     reset();
     setOpen(false);
+  };
+
+  const handleCreateFolderInline = async () => {
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+    const f = await onCreateFolder(newFolderName.trim());
+    setCreatingFolder(false);
+    if (f) {
+      setFolderId(f.id);
+      setNewFolderName("");
+    }
   };
 
   const currentList = source === "prepa" ? prepaSubjects : persoSubjects;
@@ -105,7 +144,7 @@ function ErrorForm({
           Nouvelle erreur
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {step !== "source" && (
@@ -125,16 +164,13 @@ function ErrorForm({
           </DialogTitle>
         </DialogHeader>
 
-        {/* STEP 1 : source */}
+        {/* STEP 1 */}
         {step === "source" && (
           <div className="space-y-3 mt-2">
             <p className="text-sm text-muted-foreground">D'où vient cette erreur ?</p>
             <button
               type="button"
-              onClick={() => {
-                setSource("prepa");
-                setStep("subject");
-              }}
+              onClick={() => { setSource("prepa"); setStep("subject"); }}
               className="w-full flex items-center gap-3 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left"
             >
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -147,10 +183,7 @@ function ErrorForm({
             </button>
             <button
               type="button"
-              onClick={() => {
-                setSource("perso");
-                setStep("subject");
-              }}
+              onClick={() => { setSource("perso"); setStep("subject"); }}
               className="w-full flex items-center gap-3 p-4 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left"
             >
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -167,7 +200,7 @@ function ErrorForm({
           </div>
         )}
 
-        {/* STEP 2 : choix matière */}
+        {/* STEP 2 */}
         {step === "subject" && (
           <div className="space-y-2 mt-2">
             {loadingSubjects ? (
@@ -184,10 +217,7 @@ function ErrorForm({
                   <button
                     key={s}
                     type="button"
-                    onClick={() => {
-                      setSubject(s);
-                      setStep("details");
-                    }}
+                    onClick={() => { setSubject(s); setStep("details"); }}
                     className="w-full text-left px-4 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-sm font-medium text-foreground"
                   >
                     {s}
@@ -198,7 +228,7 @@ function ErrorForm({
           </div>
         )}
 
-        {/* STEP 3 : détails */}
+        {/* STEP 3 */}
         {step === "details" && (
           <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div className="flex items-center gap-2 text-sm">
@@ -206,6 +236,50 @@ function ErrorForm({
               <span className="text-xs text-muted-foreground">
                 ({source === "prepa" ? "Prépa du Peuple" : "Mes matières"})
               </span>
+            </div>
+
+            {/* Dossier */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Folder className="h-3.5 w-3.5" /> Ranger dans un dossier (optionnel)
+              </Label>
+              <Select
+                value={folderId ?? "__none__"}
+                onValueChange={(v) => setFolderId(v === "__none__" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Aucun dossier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Aucun dossier</SelectItem>
+                  {folders.map((f) => (
+                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Créer un nouveau dossier..."
+                  className="flex-1 h-9 text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateFolderInline();
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCreateFolderInline}
+                  disabled={!newFolderName.trim() || creatingFolder}
+                >
+                  <FolderPlus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -264,11 +338,7 @@ function ErrorForm({
               <Button type="button" variant="outline" onClick={() => handleOpenChange(false)} className="flex-1">
                 <X className="h-4 w-4 mr-1" /> Annuler
               </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={!subject || !question.trim() || !explanation.trim()}
-              >
+              <Button type="submit" className="flex-1" disabled={!subject || !question.trim() || !explanation.trim()}>
                 <PlusCircle className="h-4 w-4 mr-1" /> Ajouter
               </Button>
             </div>
@@ -279,9 +349,183 @@ function ErrorForm({
   );
 }
 
+// ============== BARRE DE DOSSIERS ==============
+function FolderBar({
+  folders, activeFolder, setActiveFolder, folderCounts,
+  onCreateFolder, onRenameFolder, onDeleteFolder,
+}: {
+  folders: ErrorFolder[];
+  activeFolder: string;
+  setActiveFolder: (v: string) => void;
+  folderCounts: Record<string, number>;
+  onCreateFolder: (name: string) => Promise<ErrorFolder | null>;
+  onRenameFolder: (id: string, name: string) => void;
+  onDeleteFolder: (id: string) => void;
+}) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [renaming, setRenaming] = useState<ErrorFolder | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    const f = await onCreateFolder(newName.trim());
+    if (f) {
+      setNewName("");
+      setCreateOpen(false);
+      setActiveFolder(f.id);
+    }
+  };
+
+  const FolderChip = ({
+    id, label, count, icon: Icon, folder,
+  }: {
+    id: string; label: string; count: number; icon: any; folder?: ErrorFolder;
+  }) => {
+    const active = activeFolder === id;
+    return (
+      <div
+        className={`group flex items-center gap-1 rounded-full border transition-all ${
+          active
+            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+            : "bg-card border-border text-foreground hover:border-primary/40"
+        }`}
+      >
+        <button
+          onClick={() => setActiveFolder(id)}
+          className="flex items-center gap-2 pl-3 pr-2 py-1.5 text-sm font-medium"
+        >
+          <Icon className="h-3.5 w-3.5" />
+          <span>{label}</span>
+          <span className={`text-xs ${active ? "opacity-90" : "text-muted-foreground"}`}>
+            {count}
+          </span>
+        </button>
+        {folder && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`p-1 mr-0.5 rounded-full hover:bg-black/10 ${active ? "text-primary-foreground" : "text-muted-foreground"}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => { setRenaming(folder); setRenameValue(folder.name); }}>
+                <Pencil className="h-3.5 w-3.5 mr-2" /> Renommer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={() => onDeleteFolder(folder.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        <FolderChip id="all" label="Tous" count={folderCounts.all || 0} icon={Layers} />
+        <FolderChip id="none" label="Sans dossier" count={folderCounts.none || 0} icon={Inbox} />
+        {folders.map((f) => (
+          <FolderChip
+            key={f.id}
+            id={f.id}
+            label={f.name}
+            count={folderCounts[f.id] || 0}
+            icon={Folder}
+            folder={f}
+          />
+        ))}
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogTrigger asChild>
+            <button className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border border-dashed border-border hover:border-primary hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all">
+              <FolderPlus className="h-3.5 w-3.5" />
+              Nouveau dossier
+            </button>
+          </DialogTrigger>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderPlus className="h-5 w-5 text-primary" /> Créer un dossier
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="folder-name">Nom du dossier</Label>
+              <Input
+                id="folder-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Ex: À revoir avant la kholle"
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler</Button>
+              <Button onClick={handleCreate} disabled={!newName.trim()}>Créer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Rename dialog */}
+      <Dialog open={!!renaming} onOpenChange={(v) => !v && setRenaming(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" /> Renommer le dossier
+            </DialogTitle>
+          </DialogHeader>
+          <Input
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && renaming && renameValue.trim()) {
+                onRenameFolder(renaming.id, renameValue.trim());
+                setRenaming(null);
+              }
+            }}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenaming(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (renaming && renameValue.trim()) {
+                  onRenameFolder(renaming.id, renameValue.trim());
+                  setRenaming(null);
+                }
+              }}
+              disabled={!renameValue.trim()}
+            >
+              Enregistrer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ============== VUE CAHIER ==============
-function ErrorPage({ error, onDelete }: { error: MedicalError; onDelete: (id: string) => void }) {
+function ErrorPage({
+  error, folders, onDelete, onMove,
+}: {
+  error: MedicalError;
+  folders: ErrorFolder[];
+  onDelete: (id: string) => void;
+  onMove: (id: string, folderId: string | null) => void;
+}) {
   const [revealed, setRevealed] = useState(false);
+  const folderName = folders.find((f) => f.id === error.folderId)?.name;
 
   return (
     <motion.div
@@ -292,9 +536,14 @@ function ErrorPage({ error, onDelete }: { error: MedicalError; onDelete: (id: st
       className="rounded-lg overflow-hidden border border-border bg-card shadow-sm"
     >
       <div className="flex flex-col md:flex-row min-h-[280px]">
-        {/* Question side */}
+        {/* Question */}
         <div className="flex-1 p-6 md:p-8 relative border-b md:border-b-0 md:border-r border-border">
-          <div className="absolute top-4 right-4">
+          <div className="absolute top-4 right-4 flex items-center gap-1.5 flex-wrap justify-end max-w-[60%]">
+            {folderName && (
+              <Badge variant="outline" className="text-[10px] gap-1">
+                <Folder className="h-3 w-3" /> {folderName}
+              </Badge>
+            )}
             <Badge variant="secondary" className="text-xs">{error.subject}</Badge>
           </div>
           <div className="mt-2">
@@ -313,7 +562,7 @@ function ErrorPage({ error, onDelete }: { error: MedicalError; onDelete: (id: st
           </div>
         </div>
 
-        {/* Answer side */}
+        {/* Réponse */}
         <div
           className="flex-1 p-6 md:p-8 relative bg-muted/30 cursor-pointer group"
           onClick={() => setRevealed(!revealed)}
@@ -351,7 +600,39 @@ function ErrorPage({ error, onDelete }: { error: MedicalError; onDelete: (id: st
             </motion.div>
           )}
 
-          <div className="absolute bottom-4 right-6 md:right-8" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute bottom-4 right-6 md:right-8 flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            {/* Move */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="Déplacer dans un dossier"
+                >
+                  <FolderInput className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Déplacer vers</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onMove(error.id, null)}>
+                  <Inbox className="h-3.5 w-3.5 mr-2" /> Sans dossier
+                  {error.folderId === null && <CheckCircle className="h-3.5 w-3.5 ml-auto text-primary" />}
+                </DropdownMenuItem>
+                {folders.length > 0 && <DropdownMenuSeparator />}
+                {folders.map((f) => (
+                  <DropdownMenuItem key={f.id} onClick={() => onMove(error.id, f.id)}>
+                    <Folder className="h-3.5 w-3.5 mr-2" /> {f.name}
+                    {error.folderId === f.id && <CheckCircle className="h-3.5 w-3.5 ml-auto text-primary" />}
+                  </DropdownMenuItem>
+                ))}
+                {folders.length === 0 && (
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    Aucun dossier. Créez-en un depuis la barre de filtres.
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <button className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
@@ -387,21 +668,23 @@ function ErrorPage({ error, onDelete }: { error: MedicalError; onDelete: (id: st
 }
 
 function NotebookView({
-  errors, subjects, activeSubject, setActiveSubject, onDelete,
+  errors, subjects, activeSubject, setActiveSubject, folders, onDelete, onMove,
 }: {
   errors: MedicalError[];
   subjects: string[];
   activeSubject: string;
   setActiveSubject: (s: string) => void;
+  folders: ErrorFolder[];
   onDelete: (id: string) => void;
+  onMove: (id: string, folderId: string | null) => void;
 }) {
   if (errors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <BookOpen className="h-16 w-16 text-muted-foreground/40 mb-4" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">Votre cahier est vide</h3>
+        <h3 className="text-lg font-semibold text-foreground mb-2">Aucune erreur ici</h3>
         <p className="text-muted-foreground max-w-md">
-          Commencez à ajouter vos erreurs pour créer votre propre base de révision personnalisée.
+          Ajoutez une erreur ou changez de filtre pour voir vos cartes.
         </p>
       </div>
     );
@@ -431,7 +714,13 @@ function NotebookView({
       <AnimatePresence mode="popLayout">
         <div className="space-y-6">
           {errors.map((error) => (
-            <ErrorPage key={error.id} error={error} onDelete={onDelete} />
+            <ErrorPage
+              key={error.id}
+              error={error}
+              folders={folders}
+              onDelete={onDelete}
+              onMove={onMove}
+            />
           ))}
         </div>
       </AnimatePresence>
@@ -501,10 +790,8 @@ function FlashcardView({
         </div>
         <h3 className="text-2xl font-bold text-foreground mb-3">Tout est révisé !</h3>
         <p className="text-muted-foreground max-w-md mb-6">
-          Vous avez terminé toutes les cartes dues pour aujourd'hui. Revenez plus tard pour
-          consolider votre mémoire à long terme.
+          Vous avez terminé toutes les cartes dues pour aujourd'hui.
         </p>
-
         {Object.values(sessionStats).some((v) => v > 0) && (
           <div className="bg-card rounded-xl p-4 border border-border shadow-sm">
             <p className="text-sm font-medium text-foreground mb-3">Session actuelle</p>
@@ -522,7 +809,6 @@ function FlashcardView({
 
   return (
     <div className="max-w-3xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
         <Select value={activeSubject} onValueChange={setActiveSubject}>
           <SelectTrigger className="w-[220px]">
@@ -545,7 +831,6 @@ function FlashcardView({
         </div>
       </div>
 
-      {/* Flashcard */}
       <div className="mb-8">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
@@ -562,7 +847,6 @@ function FlashcardView({
               onClick={() => setFlipped(!flipped)}
             >
               <div className="flip-card-inner">
-                {/* Front */}
                 <div className="flip-card-front">
                   <div className="h-full w-full bg-card border border-border rounded-xl p-8 flex flex-col relative cursor-pointer hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between mb-6">
@@ -584,7 +868,6 @@ function FlashcardView({
                   </div>
                 </div>
 
-                {/* Back */}
                 <div className="flip-card-back">
                   <div className="h-full w-full rounded-xl p-8 flex flex-col relative cursor-pointer bg-muted/40 border border-border shadow-lg">
                     <div className="flex items-center justify-between mb-6">
@@ -622,41 +905,28 @@ function FlashcardView({
         </AnimatePresence>
       </div>
 
-      {/* Difficulty buttons */}
       <div className="grid grid-cols-5 gap-2">
         <Button variant="outline" onClick={handleSkip} className="flex flex-col items-center gap-1 h-auto py-3">
           <span className="text-xs">Passer</span>
         </Button>
-        <Button
-          onClick={() => handleDifficulty("again")}
-          className="flex flex-col items-center gap-1 h-auto py-3 bg-red-500 hover:bg-red-600 text-white"
-        >
+        <Button onClick={() => handleDifficulty("again")} className="flex flex-col items-center gap-1 h-auto py-3 bg-red-500 hover:bg-red-600 text-white">
           <XCircle className="h-4 w-4" />
           <span className="text-xs font-semibold">Encore</span>
           <span className="text-[10px] opacity-80">&lt; 1 min</span>
         </Button>
-        <Button
-          onClick={() => handleDifficulty("hard")}
-          className="flex flex-col items-center gap-1 h-auto py-3 bg-orange-500 hover:bg-orange-600 text-white"
-        >
+        <Button onClick={() => handleDifficulty("hard")} className="flex flex-col items-center gap-1 h-auto py-3 bg-orange-500 hover:bg-orange-600 text-white">
           <AlertTriangle className="h-4 w-4" />
           <span className="text-xs font-semibold">Difficile</span>
           <span className="text-[10px] opacity-80">1 jour</span>
         </Button>
-        <Button
-          onClick={() => handleDifficulty("good")}
-          className="flex flex-col items-center gap-1 h-auto py-3 bg-blue-500 hover:bg-blue-600 text-white"
-        >
+        <Button onClick={() => handleDifficulty("good")} className="flex flex-col items-center gap-1 h-auto py-3 bg-blue-500 hover:bg-blue-600 text-white">
           <CheckCircle2 className="h-4 w-4" />
           <span className="text-xs font-semibold">Bon</span>
           <span className="text-[10px] opacity-80">
             {Math.max(2, Math.round(currentCard.interval * currentCard.easeFactor))} j
           </span>
         </Button>
-        <Button
-          onClick={() => handleDifficulty("easy")}
-          className="flex flex-col items-center gap-1 h-auto py-3 bg-emerald-500 hover:bg-emerald-600 text-white"
-        >
+        <Button onClick={() => handleDifficulty("easy")} className="flex flex-col items-center gap-1 h-auto py-3 bg-emerald-500 hover:bg-emerald-600 text-white">
           <Zap className="h-4 w-4" />
           <span className="text-xs font-semibold">Facile</span>
           <span className="text-[10px] opacity-80">
@@ -681,13 +951,18 @@ function FlashcardView({
 export default function ErrorNotebook() {
   const [mode, setMode] = useState<"notebook" | "flashcard">("notebook");
   const {
-    filteredErrors, dueErrors, subjects, activeSubject, setActiveSubject,
-    addError, deleteError, updateReview, loading,
+    filteredErrors, dueErrors, subjects, folders, activeSubject, setActiveSubject,
+    activeFolder, setActiveFolder, folderCounts,
+    addError, deleteError, moveError, updateReview, loading,
+    createFolder, renameFolder, deleteFolder,
   } = useMedicalErrorBook();
+
+  // Si on est dans un dossier précis, le proposer par défaut au formulaire
+  const defaultFolderForForm =
+    activeFolder !== "all" && activeFolder !== "none" ? activeFolder : null;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-sm">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
@@ -704,9 +979,7 @@ export default function ErrorNotebook() {
             <button
               onClick={() => setMode("notebook")}
               className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
-                mode === "notebook"
-                  ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                mode === "notebook" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <BookOpen className="h-4 w-4" />
@@ -715,9 +988,7 @@ export default function ErrorNotebook() {
             <button
               onClick={() => setMode("flashcard")}
               className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
-                mode === "flashcard"
-                  ? "bg-card text-primary shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
+                mode === "flashcard" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"
               }`}
             >
               <Layers className="h-4 w-4" />
@@ -732,20 +1003,36 @@ export default function ErrorNotebook() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+      <main className="mx-auto max-w-5xl px-4 py-8 space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
             <h2 className="text-2xl font-bold text-foreground">
               {mode === "notebook" ? "Mon Cahier d'Erreurs" : "Mode Flashcard"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
               {mode === "notebook"
-                ? `${filteredErrors.length} erreur${filteredErrors.length > 1 ? "s" : ""} enregistrée${filteredErrors.length > 1 ? "s" : ""}`
-                : `${dueErrors.length} carte${dueErrors.length > 1 ? "s" : ""} à réviser aujourd'hui`}
+                ? `${filteredErrors.length} erreur${filteredErrors.length > 1 ? "s" : ""} affichée${filteredErrors.length > 1 ? "s" : ""}`
+                : `${dueErrors.length} carte${dueErrors.length > 1 ? "s" : ""} à réviser`}
             </p>
           </div>
-          <ErrorForm onAdd={addError} />
+          <ErrorForm
+            onAdd={addError}
+            folders={folders}
+            onCreateFolder={createFolder}
+            defaultFolderId={defaultFolderForForm}
+          />
         </div>
+
+        {/* Barre de dossiers — visible dans les deux modes pour cohérence */}
+        <FolderBar
+          folders={folders}
+          activeFolder={activeFolder}
+          setActiveFolder={setActiveFolder}
+          folderCounts={folderCounts}
+          onCreateFolder={createFolder}
+          onRenameFolder={renameFolder}
+          onDeleteFolder={deleteFolder}
+        />
 
         {loading ? (
           <div className="text-center text-muted-foreground py-20">Chargement...</div>
@@ -764,7 +1051,9 @@ export default function ErrorNotebook() {
                   subjects={subjects}
                   activeSubject={activeSubject}
                   setActiveSubject={setActiveSubject}
+                  folders={folders}
                   onDelete={deleteError}
+                  onMove={moveError}
                 />
               ) : (
                 <FlashcardView
