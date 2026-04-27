@@ -173,25 +173,6 @@ export default function Flashcards() {
     });
   }, []);
 
-  // Fetch counts for auto sources
-  useEffect(() => {
-    if (!user) return;
-    supabase
-      .from("errors")
-      .select("source")
-      .eq("user_id", user.id)
-      .in("source", ["kholle", "annale", "exam", "exam_blanc"])
-      .limit(1000)
-      .then(({ data }) => {
-        const counts: Record<AutoSourceKey, number> = { kholle: 0, annale: 0, exam: 0 };
-        for (const r of data || []) {
-          if (r.source === "kholle") counts.kholle++;
-          else if (r.source === "annale") counts.annale++;
-          else if (r.source === "exam" || r.source === "exam_blanc") counts.exam++;
-        }
-        setAutoCounts(counts);
-      });
-  }, [user, source]);
 
   // ─── Fetch cards for a deck ──────────────────────
   const fetchCards = async (deckId: string) => {
