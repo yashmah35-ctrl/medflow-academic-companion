@@ -98,7 +98,7 @@ export function getButtonPreviews(level: number) {
     const isAgain = r === "again";
     return {
       rating: r,
-      label: r === "again" ? "À revoir" : r === "hard" ? "Difficile" : r === "good" ? "Correct" : "Facile",
+      label: r === "again" ? "À revoir" : r === "hard" ? "Difficile" : r === "good" ? "Moyen" : "Facile",
       sub: isAgain ? "Prochaine session" : formatInterval(t),
     };
   });
