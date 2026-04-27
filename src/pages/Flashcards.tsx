@@ -69,6 +69,7 @@ function parseCloze(text: string): { question: string; answer: string }[] {
 
 export default function Flashcards() {
   const { user } = useAuth();
+  const [source, setSource] = useState<"home" | AutoSourceKey | "manual">("home");
   const [view, setView] = useState<View>("decks");
   const [decks, setDecks] = useState<Deck[]>([]);
   const [subjects, setSubjects] = useState<{ id: string; name: string; icon: string }[]>([]);
@@ -76,6 +77,7 @@ export default function Flashcards() {
   const [cards, setCards] = useState<Card[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [autoCounts, setAutoCounts] = useState<Record<AutoSourceKey, number>>({ kholle: 0, annale: 0, exam: 0 });
 
   // Create deck dialog
   const [showCreateDeck, setShowCreateDeck] = useState(false);
