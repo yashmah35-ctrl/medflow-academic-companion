@@ -917,21 +917,17 @@ function FlashcardView({
         <Button onClick={() => handleDifficulty("hard")} className="flex flex-col items-center gap-1 h-auto py-3 bg-orange-500 hover:bg-orange-600 text-white">
           <AlertTriangle className="h-4 w-4" />
           <span className="text-xs font-semibold">Difficile</span>
-          <span className="text-[10px] opacity-80">1 jour</span>
+          <span className="text-[10px] opacity-80">5 min</span>
         </Button>
         <Button onClick={() => handleDifficulty("good")} className="flex flex-col items-center gap-1 h-auto py-3 bg-blue-500 hover:bg-blue-600 text-white">
           <CheckCircle2 className="h-4 w-4" />
           <span className="text-xs font-semibold">Bon</span>
-          <span className="text-[10px] opacity-80">
-            {Math.max(2, Math.round(currentCard.interval * currentCard.easeFactor))} j
-          </span>
+          <span className="text-[10px] opacity-80">10 min</span>
         </Button>
         <Button onClick={() => handleDifficulty("easy")} className="flex flex-col items-center gap-1 h-auto py-3 bg-emerald-500 hover:bg-emerald-600 text-white">
           <Zap className="h-4 w-4" />
           <span className="text-xs font-semibold">Facile</span>
-          <span className="text-[10px] opacity-80">
-            {Math.max(4, Math.round(currentCard.interval * currentCard.easeFactor * 1.3))} j
-          </span>
+          <span className="text-[10px] opacity-80">25 min</span>
         </Button>
       </div>
 

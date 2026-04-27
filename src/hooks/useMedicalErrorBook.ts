@@ -74,23 +74,26 @@ const folderFromDB = (f: DBFolder): ErrorFolder => ({
 function calculateNextReview(error: MedicalError, difficulty: Difficulty) {
   let { interval, repetitions, easeFactor } = error;
 
+  // Intervalle en minutes pour cette révision (utilisé pour calculer next_review)
+  let intervalMinutes = interval * 24 * 60;
+
   if (difficulty === "again") {
     repetitions = 0;
-    interval = 1;
+    interval = 0;
+    intervalMinutes = 1; // < 1 min
     easeFactor = Math.max(1.3, easeFactor - 0.2);
   } else {
     if (difficulty === "hard") {
       easeFactor = Math.max(1.3, easeFactor - 0.15);
-      interval = Math.max(1, Math.round(interval * 1.3));
+      interval = 0;
+      intervalMinutes = 5; // 5 min
     } else if (difficulty === "good") {
-      if (repetitions === 0) interval = 1;
-      else if (repetitions === 1) interval = 3;
-      else interval = Math.round(interval * easeFactor);
+      interval = 0;
+      intervalMinutes = 10; // 10 min
     } else if (difficulty === "easy") {
       easeFactor += 0.15;
-      if (repetitions === 0) interval = 2;
-      else if (repetitions === 1) interval = 4;
-      else interval = Math.round(interval * easeFactor * 1.3);
+      interval = 0;
+      intervalMinutes = 25; // 25 min
     }
     repetitions += 1;
   }
@@ -99,7 +102,7 @@ function calculateNextReview(error: MedicalError, difficulty: Difficulty) {
     interval_days: interval,
     repetitions,
     ease_factor: Math.round(easeFactor * 100) / 100,
-    next_review: new Date(Date.now() + interval * 24 * 60 * 60 * 1000).toISOString(),
+    next_review: new Date(Date.now() + intervalMinutes * 60 * 1000).toISOString(),
     last_reviewed: new Date().toISOString(),
   };
 }
