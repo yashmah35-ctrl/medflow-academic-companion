@@ -892,16 +892,9 @@ export default function ExamsBlancs() {
           <div className="space-y-4">
             <div>
               <Label>Matière</Label>
-              <Select value={newSubjectId} onValueChange={setNewSubjectId}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Choisir une matière" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="mt-2">
+                <SubjectSourceSelector value={newSubject} onChange={setNewSubject} />
+              </div>
             </div>
             <div>
               <Label>Format</Label>
