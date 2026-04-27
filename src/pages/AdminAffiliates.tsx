@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Plus, Trash2, Users, DollarSign, CheckCircle2, Clock, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, Users, DollarSign, CheckCircle2, Clock, ToggleLeft, ToggleRight, Star, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,7 @@ interface Affiliate {
   total_subscribers: number;
   total_commission_earned: number;
   is_active: boolean;
+  affiliate_type: string;
   created_at: string;
 }
 
@@ -32,10 +34,13 @@ interface AffiliateSub {
   is_paid: boolean;
 }
 
+type FilterType = "influencer" | "user" | "all";
+
 export default function AdminAffiliates() {
   const [affiliates, setAffiliates] = useState<Affiliate[]>([]);
   const [subs, setSubs] = useState<AffiliateSub[]>([]);
   const [selectedAffiliate, setSelectedAffiliate] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterType>("influencer");
   const [createOpen, setCreateOpen] = useState(false);
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
@@ -47,7 +52,12 @@ export default function AdminAffiliates() {
   useEffect(() => { fetchAffiliates(); }, []);
 
   const fetchAffiliates = async () => {
-    const { data } = await supabase.from("affiliates").select("*").order("created_at", { ascending: false }) as { data: Affiliate[] | null };
+    const { data, error } = await supabase.from("affiliates").select("*").order("created_at", { ascending: false }) as { data: Affiliate[] | null; error: any };
+    if (error) {
+      console.error("Fetch affiliates error:", error);
+      toast.error(`Lecture impossible: ${error.message}`);
+      return;
+    }
     if (data) setAffiliates(data);
   };
 
@@ -67,27 +77,41 @@ export default function AdminAffiliates() {
       return;
     }
     setCreating(true);
-    const { error } = await supabase.from("affiliates").insert({
+    const payload = {
       code: newCode.toUpperCase().trim(),
       influencer_name: newName.trim(),
       influencer_email: newEmail.trim() || null,
       discount_amount: parseFloat(newDiscount) || 0,
       commission_per_subscriber: parseFloat(newCommission) || 0,
-    });
+      affiliate_type: "influencer",
+      is_active: true,
+    };
+    console.log("[ADMIN] Creating affiliate:", payload);
+    const { data, error } = await supabase.from("affiliates").insert(payload).select().single();
     if (error) {
       console.error("Affiliate creation error:", error);
-      toast.error(error.message.includes("duplicate") ? "Ce code existe déjà" : `Erreur: ${error.message}`);
+      const msg = error.message || "Erreur inconnue";
+      if (msg.toLowerCase().includes("duplicate") || msg.includes("unique")) {
+        toast.error("Ce code existe déjà");
+      } else if (msg.toLowerCase().includes("row-level") || msg.toLowerCase().includes("policy")) {
+        toast.error("Permission refusée — assure-toi d'être connecté en admin");
+      } else {
+        toast.error(`Erreur: ${msg}`);
+      }
     } else {
+      console.log("[ADMIN] Affiliate created:", data);
       toast.success(`Code ${newCode.toUpperCase()} créé !`);
       setCreateOpen(false);
       setNewCode(""); setNewName(""); setNewEmail(""); setNewDiscount("2"); setNewCommission("4");
+      setFilter("influencer");
       fetchAffiliates();
     }
     setCreating(false);
   };
 
   const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from("affiliates").update({ is_active: !current }).eq("id", id);
+    const { error } = await supabase.from("affiliates").update({ is_active: !current }).eq("id", id);
+    if (error) toast.error(error.message);
     fetchAffiliates();
   };
 
@@ -98,7 +122,11 @@ export default function AdminAffiliates() {
 
   const deleteAffiliate = async (id: string) => {
     if (!confirm("Supprimer cet affilié et toutes ses données ?")) return;
-    await supabase.from("affiliates").delete().eq("id", id);
+    const { error } = await supabase.from("affiliates").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Affilié supprimé");
     fetchAffiliates();
     if (selectedAffiliate) { setSelectedAffiliate(null); setSubs([]); }
@@ -108,6 +136,17 @@ export default function AdminAffiliates() {
     try { return new Date(d).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }); }
     catch { return d; }
   };
+
+  const counts = useMemo(() => ({
+    influencer: affiliates.filter(a => a.affiliate_type === "influencer").length,
+    user: affiliates.filter(a => a.affiliate_type === "user").length,
+    all: affiliates.length,
+  }), [affiliates]);
+
+  const filtered = useMemo(() => {
+    if (filter === "all") return affiliates;
+    return affiliates.filter(a => a.affiliate_type === filter);
+  }, [affiliates, filter]);
 
   return (
     <div className="space-y-6">
@@ -127,11 +166,15 @@ export default function AdminAffiliates() {
 
           <Dialog open={createOpen} onOpenChange={setCreateOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" /> Nouveau code</Button>
+              <Button><Plus className="h-4 w-4 mr-2" /> Nouveau code influenceur</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Créer un code affilié</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>Créer un code influenceur</DialogTitle></DialogHeader>
               <div className="space-y-4 pt-2">
+                <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 p-3 text-xs text-amber-700 dark:text-amber-400">
+                  ⭐ Code <strong>Influenceur</strong> créé manuellement (réduction et commission personnalisées).
+                  À distinguer des codes auto-générés par les utilisateurs (0,50 € / 0,50 €).
+                </div>
                 <div><Label>Code promo</Label><Input placeholder="ALEX50" value={newCode} onChange={e => setNewCode(e.target.value)} /></div>
                 <div><Label>Nom influenceur</Label><Input placeholder="Alex Dupont" value={newName} onChange={e => setNewName(e.target.value)} /></div>
                 <div><Label>Email (optionnel)</Label><Input placeholder="alex@email.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} /></div>
@@ -146,6 +189,19 @@ export default function AdminAffiliates() {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Filter tabs */}
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterType)} className="mt-6">
+          <TabsList>
+            <TabsTrigger value="influencer" className="gap-2">
+              <Star className="h-3.5 w-3.5" /> Influenceurs <Badge variant="secondary" className="ml-1">{counts.influencer}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="user" className="gap-2">
+              <UserCircle2 className="h-3.5 w-3.5" /> Utilisateurs (auto) <Badge variant="secondary" className="ml-1">{counts.user}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="all">Tous <Badge variant="secondary" className="ml-1">{counts.all}</Badge></TabsTrigger>
+          </TabsList>
+        </Tabs>
       </motion.div>
 
       {/* Affiliates Table */}
@@ -154,6 +210,7 @@ export default function AdminAffiliates() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Type</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Influenceur</TableHead>
               <TableHead className="text-center">Réduction</TableHead>
@@ -165,34 +222,48 @@ export default function AdminAffiliates() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {affiliates.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Aucun code affilié</TableCell></TableRow>
+            {filtered.length === 0 && (
+              <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Aucun code dans cette catégorie</TableCell></TableRow>
             )}
-            {affiliates.map(a => (
-              <TableRow key={a.id} className="cursor-pointer" onClick={() => fetchSubs(a.code)}>
-                <TableCell>
-                  <Badge variant="outline" className="font-mono font-bold">{a.code}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="text-sm font-medium">{a.influencer_name}</div>
-                  {a.influencer_email && <div className="text-xs text-muted-foreground">{a.influencer_email}</div>}
-                </TableCell>
-                <TableCell className="text-center">{a.discount_amount}€</TableCell>
-                <TableCell className="text-center">{a.commission_per_subscriber}€</TableCell>
-                <TableCell className="text-center font-semibold">{a.total_subscribers}</TableCell>
-                <TableCell className="text-center font-semibold text-emerald-500">{a.total_commission_earned}€</TableCell>
-                <TableCell className="text-center">
-                  <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); toggleActive(a.id, a.is_active); }}>
-                    {a.is_active ? <ToggleRight className="h-5 w-5 text-emerald-500" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="sm" className="text-destructive" onClick={e => { e.stopPropagation(); deleteAffiliate(a.id); }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {filtered.map(a => {
+              const isInfluencer = a.affiliate_type === "influencer";
+              return (
+                <TableRow key={a.id} className="cursor-pointer" onClick={() => fetchSubs(a.code)}>
+                  <TableCell>
+                    {isInfluencer ? (
+                      <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 gap-1">
+                        <Star className="h-3 w-3" /> Influenceur
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="gap-1 text-muted-foreground">
+                        <UserCircle2 className="h-3 w-3" /> Auto
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="font-mono font-bold">{a.code}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm font-medium">{a.influencer_name}</div>
+                    {a.influencer_email && <div className="text-xs text-muted-foreground">{a.influencer_email}</div>}
+                  </TableCell>
+                  <TableCell className="text-center">{a.discount_amount}€</TableCell>
+                  <TableCell className="text-center">{a.commission_per_subscriber}€</TableCell>
+                  <TableCell className="text-center font-semibold">{a.total_subscribers}</TableCell>
+                  <TableCell className="text-center font-semibold text-emerald-500">{a.total_commission_earned}€</TableCell>
+                  <TableCell className="text-center">
+                    <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); toggleActive(a.id, a.is_active); }}>
+                      {a.is_active ? <ToggleRight className="h-5 w-5 text-emerald-500" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
+                    </Button>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" className="text-destructive" onClick={e => { e.stopPropagation(); deleteAffiliate(a.id); }}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </motion.div>
