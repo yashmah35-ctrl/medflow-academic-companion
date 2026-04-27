@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ArrowLeft, GraduationCap as GradIcon, FolderOpen, Sparkles } from "lucide-react";
 import AutoErrorsView from "@/components/error-notebook/AutoErrorsView";
+import FlashcardsHubView from "@/components/error-notebook/FlashcardsHubView";
 
 type SubjectSource = "prepa" | "perso";
 
