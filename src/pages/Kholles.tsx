@@ -61,7 +61,7 @@ export default function Kholles() {
 
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
-  const [newSubjectId, setNewSubjectId] = useState("");
+  const [newSubject, setNewSubject] = useState<SubjectSelection | null>(null);
   const [newFormat, setNewFormat] = useState<"QIM" | "QCM">("QCM");
 
   // Add question dialog
