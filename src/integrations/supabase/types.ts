@@ -863,6 +863,54 @@ export type Database = {
           },
         ]
       }
+      medical_errors: {
+        Row: {
+          created_at: string
+          ease_factor: number
+          explanation: string
+          id: string
+          interval_days: number
+          is_true: boolean
+          last_reviewed: string | null
+          next_review: string
+          question: string
+          repetitions: number
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ease_factor?: number
+          explanation: string
+          id?: string
+          interval_days?: number
+          is_true?: boolean
+          last_reviewed?: string | null
+          next_review?: string
+          question: string
+          repetitions?: number
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ease_factor?: number
+          explanation?: string
+          id?: string
+          interval_days?: number
+          is_true?: boolean
+          last_reviewed?: string | null
+          next_review?: string
+          question?: string
+          repetitions?: number
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mentor_badges: {
         Row: {
           badge_icon: string | null

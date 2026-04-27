@@ -1,1278 +1,655 @@
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { subjectColorMap, type SubjectColor } from "@/data/mockData";
 import {
-  AlertTriangle, ArrowLeft, BookOpen, Brain, Calendar, CheckCircle2,
-  Filter, Flame, Search, Sparkles, Target,
-  TrendingUp, X, Zap, Clock, ChevronRight, Play,
-  Timer, Trophy, BarChart3, ShieldAlert, Eye, FolderOpen, PieChart
+  BookOpen, Layers, Stethoscope, PlusCircle, X, CheckCircle, XCircle,
+  Trash2, Eye, EyeOff, GraduationCap, AlertCircle, AlertTriangle,
+  CheckCircle2, Zap, Trophy, Clock, Brain, RotateCcw,
 } from "lucide-react";
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  PieChart as RechartsPie, Pie, RadialBarChart, RadialBar, Legend
-} from "recharts";
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  useMedicalErrorBook,
+  SUBJECTS,
+  type MedicalError,
+  type Difficulty,
+} from "@/hooks/useMedicalErrorBook";
 
-// ===================== TYPES =====================
-interface DBError {
-  id: string;
-  question: string;
-  wrong_answer: string;
-  correct_answer: string;
-  occurrence_count: number;
-  last_seen: string;
-  created_at: string;
-  subject_name: string | null;
-  course_id: string | null;
-  error_type: string | null;
-  personal_notes: string | null;
-  mastered: boolean;
-  next_review: string | null;
-  correction_count: number;
-  source: string;
-  mastery_score: number;
-  consecutive_wrong: number;
-  total_attempts: number;
-  last_response_time_ms: number | null;
-  is_critical: boolean;
-  propositions_json: { id: string; text: string; isCorrect: boolean }[] | null;
-}
+// ============== FORMULAIRE D'AJOUT ==============
+function ErrorForm({
+  onAdd,
+}: {
+  onAdd: (input: { subject: string; question: string; explanation: string; isTrue: boolean }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [question, setQuestion] = useState("");
+  const [explanation, setExplanation] = useState("");
+  const [isTrue, setIsTrue] = useState(false);
 
-interface SubjectGroup {
-  name: string;
-  color: SubjectColor;
-  errors: DBError[];
-  criticalCount: number;
-  masteredCount: number;
-  bySource: { kholle: DBError[]; exam: DBError[]; annale: DBError[] };
-}
-
-interface ChapterInfo {
-  courseId: string;
-  courseName: string;
-  folderName: string;
-  errors: DBError[];
-}
-
-// ===================== CONSTANTS =====================
-const errorReasons = [
-  { id: "comprehension", label: "Mauvaise compréhension", icon: "🧠" },
-  { id: "memorisation", label: "Manque de mémorisation", icon: "📚" },
-  { id: "piege", label: "Piège de formulation", icon: "🪤" },
-  { id: "inattention", label: "Erreur d'inattention", icon: "👀" },
-];
-
-function getMasteryStatus(err: DBError): "new" | "learning" | "mastered" {
-  if (err.mastery_score >= 85 || err.mastered) return "mastered";
-  if (err.total_attempts > 0) return "learning";
-  return "new";
-}
-
-function getMasteryColor(score: number): string {
-  if (score >= 85) return "text-success";
-  if (score >= 50) return "text-warning";
-  return "text-destructive";
-}
-
-function getIntervalLabel(score: number): string {
-  if (score < 30) return "1 min";
-  if (score < 50) return "5 min";
-  if (score < 70) return "10 min";
-  if (score < 85) return "1 jour";
-  return "3 jours";
-}
-
-function getSeverity(err: DBError): "critical" | "medium" | "light" | "mastered" {
-  if (err.mastered || err.mastery_score >= 85) return "mastered";
-  if (err.is_critical || err.consecutive_wrong >= 3 || (err.mastery_score < 30 && err.total_attempts >= 5)) return "critical";
-  if (err.occurrence_count >= 2 || err.mastery_score < 50) return "medium";
-  return "light";
-}
-
-const severityConfig = {
-  critical: { color: "bg-destructive/10 border-destructive/30 text-destructive", dot: "bg-destructive", label: "Critique" },
-  medium: { color: "bg-warning/10 border-warning/30 text-warning", dot: "bg-warning", label: "Moyenne" },
-  light: { color: "bg-info/10 border-info/30 text-info", dot: "bg-info", label: "Légère" },
-  mastered: { color: "bg-success/10 border-success/30 text-success", dot: "bg-success", label: "Maîtrisée" },
-};
-
-const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
-const item = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
-
-const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--destructive))",
-  "hsl(var(--warning))",
-  "hsl(var(--success))",
-  "hsl(210, 60%, 55%)",
-  "hsl(280, 50%, 55%)",
-  "hsl(30, 70%, 55%)",
-  "hsl(160, 50%, 45%)",
-];
-
-// ===================== HELPERS =====================
-function guessSubjectColor(name: string | null): SubjectColor {
-  if (!name) return "chemistry";
-  const n = name.toLowerCase();
-  if (n.includes("chimie") || n.includes("biochimie")) return "chemistry";
-  if (n.includes("bio cell") || n.includes("biologie cellulaire")) return "cellbio";
-  if (n.includes("biophysique")) return "biophysics";
-  if (n.includes("anatomie")) return "anatomy";
-  if (n.includes("histologie") || n.includes("embryologie")) return "histology";
-  if (n.includes("physiologie")) return "physiology";
-  if (n.includes("pharmacologie")) return "pharmacology";
-  if (n.includes("bio mol") || n.includes("biologie moléculaire") || n.includes("génétique")) return "biomolgen";
-  if (n.includes("shs")) return "shs";
-  if (n.includes("biostatistique")) return "biostatistique";
-  if (n.includes("médicament")) return "medicament";
-  if (n.includes("santé publique")) return "santepublique";
-  if (n.includes("microbiologie")) return "microbiologie";
-  if (n.includes("spécialité")) return "specialite";
-  return "chemistry";
-}
-
-function normalizeSubjectName(name: string, subjectNames: string[]): string {
-  if (subjectNames.includes(name)) return name;
-  const n = name.toLowerCase();
-  for (const sn of subjectNames) { if (sn.toLowerCase() === n) return sn; }
-  const keywordMap: { keywords: string[]; suffix?: string }[] = [
-    { keywords: ["chimie", "biochimie"], suffix: "Chimie / Biochimie OS" },
-    { keywords: ["biologie cellulaire", "bio cell"], suffix: "Biologie Cellulaire OS" },
-    { keywords: ["biophysique"], suffix: "Biophysique OS" },
-    { keywords: ["anatomie"], suffix: "Anatomie OS" },
-    { keywords: ["histologie", "embryologie"], suffix: "Histologie - Embryologie TC" },
-    { keywords: ["physiologie"], suffix: "Physiologie TC" },
-    { keywords: ["biologie moléculaire", "bio mol"], suffix: "Biologie Moléculaire Génétique TC" },
-    { keywords: ["shs"], suffix: "SHS TC" },
-    { keywords: ["biostatistique"], suffix: "Biostatistique OS" },
-    { keywords: ["médicament"], suffix: "Médicament OS" },
-    { keywords: ["santé publique"], suffix: "Santé Publique OS" },
-    { keywords: ["microbiologie"], suffix: "Microbiologie TC" },
-    { keywords: ["spécialité"], suffix: "Spécialité Médecine" },
-  ];
-  for (const mapping of keywordMap) {
-    if (mapping.keywords.some((kw) => n.includes(kw))) {
-      const match = subjectNames.find((sn) => sn === mapping.suffix);
-      if (match) return match;
-      const fallback = subjectNames.find((sn) => mapping.keywords.some((kw) => sn.toLowerCase().includes(kw)));
-      if (fallback) return fallback;
-    }
-  }
-  return name;
-}
-
-// ===================== MAIN COMPONENT =====================
-export default function ErrorNotebook() {
-  const { user } = useAuth();
-  const [errors, setErrors] = useState<DBError[]>([]);
-  const [subjectNames, setSubjectNames] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
-  const [tab, setTab] = useState("active");
-  const [filterType, setFilterType] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "kholle" | "exam" | "annale">("all");
-  const [mainView, setMainView] = useState<"subjects" | "stats" | "chapters">("subjects");
-
-  // Chapter data
-  const [courseMap, setCourseMap] = useState<Record<string, { title: string; folderName: string }>>({});
-
-  // Review session state
-  const [reviewMode, setReviewMode] = useState(false);
-  const [reviewCards, setReviewCards] = useState<DBError[]>([]);
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [checkedProps, setCheckedProps] = useState<Record<string, boolean>>({});
-  const [parsedPropositions, setParsedPropositions] = useState<{ id: string; text: string; isCorrect: boolean }[]>([]);
-  const [sessionStartTime, setSessionStartTime] = useState<number>(0);
-  const [cardStartTime, setCardStartTime] = useState<number>(0);
-  const [sessionResults, setSessionResults] = useState<{ correct: number; wrong: number; total: number } | null>(null);
-  const [sessionCorrectCount, setSessionCorrectCount] = useState(0);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-
-  // Timer for session
-  useEffect(() => {
-    if (!reviewMode || sessionResults) return;
-    const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - sessionStartTime) / 1000));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [reviewMode, sessionStartTime, sessionResults]);
-
-  // Fetch subjects
-  useEffect(() => {
-    const fetchSubjects = async () => {
-      const { data } = await supabase.from("subjects").select("name").order("name");
-      if (data) setSubjectNames(data.map((s) => s.name));
-    };
-    fetchSubjects();
-  }, []);
-
-  // Fetch errors
-  useEffect(() => {
-    if (!user) return;
-    const fetchErrors = async () => {
-      const { data, error } = await supabase
-        .from("errors")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("last_seen", { ascending: false });
-      if (data) setErrors(data as unknown as DBError[]);
-      if (error) console.error(error);
-      setLoading(false);
-    };
-    fetchErrors();
-  }, [user]);
-
-  // Fetch course/folder data for chapter grouping
-  useEffect(() => {
-    const fetchCourses = async () => {
-      const { data: courses } = await supabase
-        .from("courses")
-        .select("id, title, folder_id");
-      if (!courses || courses.length === 0) return;
-
-      const folderIds = [...new Set(courses.map(c => c.folder_id))];
-      const { data: folders } = await supabase
-        .from("folders")
-        .select("id, name")
-        .in("id", folderIds);
-
-      const folderMap: Record<string, string> = {};
-      folders?.forEach(f => { folderMap[f.id] = f.name; });
-
-      const map: Record<string, { title: string; folderName: string }> = {};
-      courses.forEach(c => {
-        map[c.id] = { title: c.title, folderName: folderMap[c.folder_id] || "Sans dossier" };
-      });
-      setCourseMap(map);
-    };
-    fetchCourses();
-  }, []);
-
-  // Group errors by subject
-  const subjectGroups = useMemo(() => {
-    const groups: Record<string, SubjectGroup> = {};
-    subjectNames.forEach((sn) => {
-      groups[sn] = { name: sn, color: guessSubjectColor(sn), errors: [], criticalCount: 0, masteredCount: 0, bySource: { kholle: [], exam: [], annale: [] } };
-    });
-    errors.forEach((err) => {
-      const name = normalizeSubjectName(err.subject_name || "Autre", subjectNames);
-      if (!groups[name]) {
-        groups[name] = { name, color: guessSubjectColor(name), errors: [], criticalCount: 0, masteredCount: 0, bySource: { kholle: [], exam: [], annale: [] } };
-      }
-      groups[name].errors.push(err);
-      if (err.is_critical || err.consecutive_wrong >= 3) groups[name].criticalCount++;
-      if (err.mastered || err.mastery_score >= 85) groups[name].masteredCount++;
-      const source = err.source || "kholle";
-      if (source === "exam") groups[name].bySource.exam.push(err);
-      else if (source === "annale") groups[name].bySource.annale.push(err);
-      else groups[name].bySource.kholle.push(err);
-    });
-    return Object.values(groups).sort((a, b) => {
-      if (b.errors.length !== a.errors.length) return b.errors.length - a.errors.length;
-      return a.name.localeCompare(b.name);
-    });
-  }, [errors, subjectNames]);
-
-  // Chapter grouping
-  const chapterGroups = useMemo(() => {
-    const chapters: Record<string, ChapterInfo> = {};
-    const noChapter: DBError[] = [];
-
-    errors.forEach(err => {
-      if (err.course_id && courseMap[err.course_id]) {
-        const info = courseMap[err.course_id];
-        const key = err.course_id;
-        if (!chapters[key]) {
-          chapters[key] = { courseId: key, courseName: info.title, folderName: info.folderName, errors: [] };
-        }
-        chapters[key].errors.push(err);
-      } else {
-        noChapter.push(err);
-      }
-    });
-
-    const sorted = Object.values(chapters).sort((a, b) => b.errors.length - a.errors.length);
-    if (noChapter.length > 0) {
-      sorted.push({ courseId: "none", courseName: "Non classé", folderName: "—", errors: noChapter });
-    }
-    return sorted;
-  }, [errors, courseMap]);
-
-  // Stats
-  const totalErrors = errors.length;
-  const criticalErrors = errors.filter((e) => e.is_critical || e.consecutive_wrong >= 3).length;
-  const masteredErrors = errors.filter((e) => e.mastered || e.mastery_score >= 85).length;
-  const todayReview = errors.filter((e) => {
-    if (e.mastered || e.mastery_score >= 85) return false;
-    if (!e.next_review) return e.total_attempts === 0 || e.mastery_score < 70;
-    return new Date(e.next_review) <= new Date();
-  }).length;
-  const correctionRate = totalErrors > 0 ? Math.round((masteredErrors / totalErrors) * 100) : 0;
-  const weakSubjects = subjectGroups.filter((g) => g.errors.length > 2 && g.masteredCount / g.errors.length < 0.5).slice(0, 3).map((g) => g.name);
-
-  // Smart review: pick errors across all subjects, prioritizing critical + due
-  const smartReviewErrors = useMemo(() => {
-    return [...errors]
-      .filter(e => !e.mastered && e.mastery_score < 85)
-      .sort((a, b) => {
-        // Critical first
-        const aCrit = a.is_critical || a.consecutive_wrong >= 3 ? 0 : 1;
-        const bCrit = b.is_critical || b.consecutive_wrong >= 3 ? 0 : 1;
-        if (aCrit !== bCrit) return aCrit - bCrit;
-        // Due for review next
-        const aDue = !a.next_review || new Date(a.next_review) <= new Date() ? 0 : 1;
-        const bDue = !b.next_review || new Date(b.next_review) <= new Date() ? 0 : 1;
-        if (aDue !== bDue) return aDue - bDue;
-        // Lowest mastery score
-        return a.mastery_score - b.mastery_score;
-      });
-  }, [errors]);
-
-  // Stats data for charts
-  const subjectChartData = useMemo(() => {
-    return subjectGroups
-      .filter(g => g.errors.length > 0)
-      .map(g => ({
-        name: g.name.length > 15 ? g.name.slice(0, 13) + "…" : g.name,
-        fullName: g.name,
-        total: g.errors.length,
-        mastered: g.masteredCount,
-        critical: g.criticalCount,
-        rate: g.errors.length > 0 ? Math.round((g.masteredCount / g.errors.length) * 100) : 0,
-      }));
-  }, [subjectGroups]);
-
-  const errorTypeData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    errors.forEach(e => {
-      const type = e.error_type || "non_classé";
-      counts[type] = (counts[type] || 0) + 1;
-    });
-    return Object.entries(counts).map(([key, value]) => {
-      const reason = errorReasons.find(r => r.id === key);
-      return { name: reason ? `${reason.icon} ${reason.label}` : "📎 Non classé", value, key };
-    });
-  }, [errors]);
-
-  const topRecurring = useMemo(() => {
-    return [...errors]
-      .filter(e => e.occurrence_count >= 2)
-      .sort((a, b) => b.occurrence_count - a.occurrence_count)
-      .slice(0, 8);
-  }, [errors]);
-
-  const patternAnalysis = useMemo(() => {
-    const alwaysWrong = errors.filter(e => e.total_attempts >= 3 && e.mastery_score === 0).length;
-    const improving = errors.filter(e => e.total_attempts >= 2 && e.mastery_score > 0 && e.mastery_score < 85).length;
-    const quickMastery = errors.filter(e => e.total_attempts <= 2 && e.mastery_score >= 85).length;
-    const oscillating = errors.filter(e => e.total_attempts >= 4 && e.mastery_score > 20 && e.mastery_score < 60 && e.consecutive_wrong >= 1).length;
-    return { alwaysWrong, improving, quickMastery, oscillating };
-  }, [errors]);
-
-  // Filtered errors for subject detail
-  const filteredErrors = useMemo(() => {
-    if (!selectedSubject) return [];
-    const group = subjectGroups.find((g) => g.name === selectedSubject);
-    if (!group) return [];
-    let list = sourceFilter === "all" ? group.errors : sourceFilter === "kholle" ? group.bySource.kholle : sourceFilter === "exam" ? group.bySource.exam : group.bySource.annale;
-    if (tab === "active") list = list.filter((e) => !e.mastered && e.mastery_score < 85);
-    else if (tab === "review") list = list.filter((e) => {
-      if (e.mastered || e.mastery_score >= 85) return false;
-      if (!e.next_review) return true;
-      return new Date(e.next_review) <= new Date();
-    });
-    else if (tab === "mastered") list = list.filter((e) => e.mastered || e.mastery_score >= 85);
-    if (filterType !== "all") list = list.filter((e) => e.error_type === filterType);
-    if (search) list = list.filter((e) => e.question.toLowerCase().includes(search.toLowerCase()));
-    return list;
-  }, [selectedSubject, subjectGroups, tab, filterType, search, sourceFilter]);
-
-  // ==================== ACTIONS ====================
-  const updateError = async (errId: string, updates: Partial<DBError>) => {
-    await supabase.from("errors").update(updates as any).eq("id", errId);
-    setErrors((prev) => prev.map((e) => (e.id === errId ? { ...e, ...updates } : e)));
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subject || !question.trim() || !explanation.trim()) return;
+    onAdd({ subject, question: question.trim(), explanation: explanation.trim(), isTrue });
+    setSubject("");
+    setQuestion("");
+    setExplanation("");
+    setIsTrue(false);
+    setOpen(false);
   };
 
-  const openError = (err: DBError) => {
-    startReviewSession([err], 1);
-  };
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button className="gap-2">
+          <PlusCircle className="h-4 w-4" />
+          Nouvelle erreur
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <PlusCircle className="h-5 w-5 text-primary" />
+            Ajouter une erreur au cahier
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          <div className="space-y-2">
+            <Label htmlFor="subject">Matière</Label>
+            <Select value={subject} onValueChange={setSubject} required>
+              <SelectTrigger><SelectValue placeholder="Choisir une matière..." /></SelectTrigger>
+              <SelectContent>
+                {SUBJECTS.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-  const loadPropositionsForCard = (card: DBError) => {
-    if (card.propositions_json && Array.isArray(card.propositions_json) && card.propositions_json.length > 0) {
-      setParsedPropositions(card.propositions_json);
-    } else {
-      const parseItems = (text: string, isCorrect: boolean) => {
-        if (!text || text === "Réponse incorrecte") return [];
-        const items = text.split(/,\s*(?=[A-Z]\.\s)/).map(s => s.trim()).filter(Boolean);
-        return items.map(item => {
-          const match = item.match(/^([A-Z])\.\s*(.+)$/);
-          return { id: match ? match[1] : item.slice(0, 3), text: match ? match[2] : item, isCorrect };
-        });
-      };
-      const correct = parseItems(card.correct_answer, true);
-      const wrong = parseItems(card.wrong_answer, false);
-      const all = [...correct, ...wrong].sort((a, b) => a.id.localeCompare(b.id));
-      setParsedPropositions(all);
-    }
-    setCheckedProps({});
-  };
+          <div className="space-y-2">
+            <Label htmlFor="question">Question / Énoncé</Label>
+            <Textarea
+              id="question"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Ex: Le traitement de première intention de la FA est..."
+              className="min-h-[80px] resize-none"
+              required
+            />
+          </div>
 
-  const startReviewSession = (errs: DBError[], maxCards = 10) => {
-    const sorted = [...errs]
-      .filter(e => !e.mastered && e.mastery_score < 85)
-      .sort((a, b) => {
-        if (a.is_critical !== b.is_critical) return a.is_critical ? -1 : 1;
-        return a.mastery_score - b.mastery_score;
-      })
-      .slice(0, maxCards);
-    if (sorted.length === 0) { toast.info("Aucune carte à réviser !"); return; }
-    setReviewCards(sorted);
-    setCurrentCardIndex(0);
-    setShowAnswer(false);
-    setCheckedProps({});
-    setSessionResults(null);
-    setSessionCorrectCount(0);
-    setSessionStartTime(Date.now());
-    setCardStartTime(Date.now());
-    setElapsedSeconds(0);
-    setReviewMode(true);
-    loadPropositionsForCard(sorted[0]);
-  };
+          <div className="space-y-2">
+            <Label htmlFor="explanation">Explication / Réponse</Label>
+            <Textarea
+              id="explanation"
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              placeholder="Ex: Faux. Le traitement de première intention est..."
+              className="min-h-[100px] resize-none"
+              required
+            />
+          </div>
 
-  const handleRevealAnswer = async () => {
-    const card = reviewCards[currentCardIndex];
-    const responseTime = Date.now() - cardStartTime;
-    const allCorrect = parsedPropositions.every(p => !!checkedProps[p.id] === p.isCorrect);
-
-    setShowAnswer(true);
-
-    let scoreDelta = !allCorrect ? -20 : responseTime < 5000 ? 15 : responseTime > 10000 ? 8 : 5;
-    const newScore = Math.max(0, Math.min(100, card.mastery_score + scoreDelta));
-    const newConsWrong = allCorrect ? 0 : card.consecutive_wrong + 1;
-    const newAttempts = card.total_attempts + 1;
-    const isCritical = newConsWrong >= 3 || (newScore < 30 && newAttempts >= 5);
-    const isMastered = newScore >= 85;
-
-    let nextReviewMs = 60000;
-    if (newScore >= 30) nextReviewMs = 5 * 60000;
-    if (newScore >= 50) nextReviewMs = 10 * 60000;
-    if (newScore >= 70) nextReviewMs = 24 * 3600000;
-    if (newScore >= 85) nextReviewMs = 3 * 24 * 3600000;
-
-    await updateError(card.id, {
-      mastery_score: newScore, consecutive_wrong: newConsWrong, total_attempts: newAttempts,
-      last_response_time_ms: responseTime, is_critical: isCritical, mastered: isMastered,
-      next_review: new Date(Date.now() + nextReviewMs).toISOString(), last_seen: new Date().toISOString(),
-    });
-
-    setReviewCards(prev => prev.map((c, i) => i === currentCardIndex ? { ...c, mastery_score: newScore, consecutive_wrong: newConsWrong, total_attempts: newAttempts, is_critical: isCritical, mastered: isMastered } : c));
-    if (allCorrect) setSessionCorrectCount(prev => prev + 1);
-  };
-
-  const goToNextCard = () => {
-    if (currentCardIndex < reviewCards.length - 1) {
-      const nextIdx = currentCardIndex + 1;
-      setCurrentCardIndex(nextIdx);
-      setShowAnswer(false);
-      setCheckedProps({});
-      setCardStartTime(Date.now());
-      loadPropositionsForCard(reviewCards[nextIdx]);
-    } else {
-      setSessionResults({ correct: sessionCorrectCount, wrong: reviewCards.length - sessionCorrectCount, total: reviewCards.length });
-    }
-  };
-
-  const exitReviewMode = () => {
-    setReviewMode(false); setReviewCards([]); setCurrentCardIndex(0);
-    setShowAnswer(false); setCheckedProps({}); setSessionResults(null); setSessionCorrectCount(0);
-  };
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  // ==================== REVIEW SESSION MODE ====================
-  if (reviewMode) {
-    if (sessionResults) {
-      return (
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-lg mx-auto text-center space-y-6 py-12">
-          <Trophy className="h-16 w-16 text-warning mx-auto" />
-          <h2 className="text-2xl font-bold text-foreground">Session terminée !</h2>
-          <p className="text-muted-foreground">Tu as révisé {reviewCards.length} carte{reviewCards.length > 1 ? "s" : ""} en {formatTime(elapsedSeconds)}</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-2xl font-bold text-success">{sessionResults.correct}</p>
-              <p className="text-xs text-muted-foreground">Correctes</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-2xl font-bold text-destructive">{sessionResults.wrong}</p>
-              <p className="text-xs text-muted-foreground">Incorrectes</p>
-            </div>
-            <div className="rounded-2xl border border-border bg-card p-4">
-              <p className="text-2xl font-bold text-primary">{reviewCards.filter(c => c.mastered).length}</p>
-              <p className="text-xs text-muted-foreground">Maîtrisées</p>
+          <div className="space-y-2">
+            <Label>L'énoncé est-il vrai ou faux ?</Label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsTrue(true)}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
+                  isTrue
+                    ? "bg-emerald-50 border-emerald-400 text-emerald-700 dark:bg-emerald-950/30"
+                    : "bg-card border-border text-muted-foreground hover:border-emerald-300"
+                }`}
+              >
+                <CheckCircle className="h-4 w-4" /> Vrai
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsTrue(false)}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg border transition-all ${
+                  !isTrue
+                    ? "bg-red-50 border-red-400 text-red-700 dark:bg-red-950/30"
+                    : "bg-card border-border text-muted-foreground hover:border-red-300"
+                }`}
+              >
+                <XCircle className="h-4 w-4" /> Faux
+              </button>
             </div>
           </div>
-          <Button onClick={exitReviewMode} className="rounded-xl px-8">Fermer</Button>
-        </motion.div>
-      );
-    }
 
-    const card = reviewCards[currentCardIndex];
-    const severity = getSeverity(card);
-    const config = severityConfig[severity];
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="flex-1">
+              <X className="h-4 w-4 mr-1" /> Annuler
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={!subject || !question.trim() || !explanation.trim()}
+            >
+              <PlusCircle className="h-4 w-4 mr-1" /> Ajouter
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-2xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={exitReviewMode} className="gap-1.5">
-            <X className="h-4 w-4" /> Quitter
-          </Button>
-          <div className="flex items-center gap-4 text-sm">
-            <span className="flex items-center gap-1.5 text-muted-foreground"><Timer className="h-4 w-4" /> {formatTime(elapsedSeconds)}</span>
-            <span className="text-muted-foreground font-medium">{currentCardIndex + 1} / {reviewCards.length}</span>
+// ============== VUE CAHIER ==============
+function ErrorPage({ error, onDelete }: { error: MedicalError; onDelete: (id: string) => void }) {
+  const [revealed, setRevealed] = useState(false);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="rounded-lg overflow-hidden border border-border bg-card shadow-sm"
+    >
+      <div className="flex flex-col md:flex-row min-h-[280px]">
+        {/* Question side */}
+        <div className="flex-1 p-6 md:p-8 relative border-b md:border-b-0 md:border-r border-border">
+          <div className="absolute top-4 right-4">
+            <Badge variant="secondary" className="text-xs">{error.subject}</Badge>
+          </div>
+          <div className="mt-2">
+            <div className="flex items-center gap-2 mb-3">
+              <GraduationCap className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                Question
+              </span>
+            </div>
+            <p className="text-foreground leading-relaxed text-[15px] font-medium">
+              {error.question}
+            </p>
+          </div>
+          <div className="absolute bottom-4 left-6 md:left-8 text-[10px] text-muted-foreground">
+            Ajouté le {new Date(error.createdAt).toLocaleDateString("fr-FR")}
           </div>
         </div>
 
-        <Progress value={((currentCardIndex + 1) / reviewCards.length) * 100} className="h-2" />
-
-        <motion.div key={card.id + currentCardIndex} initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }}
-          className="rounded-2xl border border-border bg-card p-6 space-y-5 flex flex-col">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge className={`${config.color} border text-xs`} variant="outline">
-              <span className={`h-2 w-2 rounded-full ${config.dot} mr-1.5 inline-block`} />{config.label}
-            </Badge>
-            <Badge variant="secondary" className="text-xs">{card.subject_name || "Autre"}</Badge>
-            {card.occurrence_count > 1 && (
-              <Badge variant="outline" className="text-xs text-warning border-warning/30">×{card.occurrence_count}</Badge>
-            )}
-            {card.error_type && (
-              <span className="text-xs text-muted-foreground">
-                {errorReasons.find(r => r.id === card.error_type)?.icon} {errorReasons.find(r => r.id === card.error_type)?.label}
-              </span>
-            )}
-          </div>
-
-          <p className="text-lg font-semibold text-foreground">{card.question}</p>
-
-          {!showAnswer ? (
-            <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">Propositions (coche les réponses correctes)</p>
-              {parsedPropositions.map((prop) => (
-                <label key={prop.id}
-                  className={`flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all ${checkedProps[prop.id] ? "border-primary bg-primary/5" : "border-border bg-muted/20 hover:bg-muted/40"}`}>
-                  <input type="checkbox" checked={!!checkedProps[prop.id]}
-                    onChange={() => setCheckedProps(prev => ({ ...prev, [prop.id]: !prev[prop.id] }))}
-                    className="mt-0.5 h-4 w-4 rounded border-border accent-primary" />
-                  <span className="text-muted-foreground font-bold text-sm mr-1">{prop.id}.</span>
-                  <span className="text-sm text-foreground flex-1">{prop.text}</span>
-                </label>
-              ))}
+        {/* Answer side */}
+        <div
+          className="flex-1 p-6 md:p-8 relative bg-muted/30 cursor-pointer group"
+          onClick={() => setRevealed(!revealed)}
+        >
+          {!revealed ? (
+            <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-3">
+              <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <Eye className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground font-medium">
+                Cliquer pour révéler la réponse
+              </p>
             </div>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><X className="h-3 w-3 text-destructive" /> Ta réponse</p>
-                  <div className="rounded-xl bg-muted/20 border border-border p-3 space-y-2">
-                    {parsedPropositions.filter(p => checkedProps[p.id]).map(prop => (
-                      <div key={prop.id} className={`flex items-start gap-2 text-sm ${prop.isCorrect ? "text-success" : "text-destructive"}`}>
-                        {prop.isCorrect ? <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" /> : <X className="h-3.5 w-3.5 mt-0.5 shrink-0" />}
-                        <span><span className="font-bold">{prop.id}.</span> {prop.text}</span>
-                      </div>
-                    ))}
-                    {parsedPropositions.every(p => !checkedProps[p.id]) && <p className="text-sm text-muted-foreground italic">Aucune sélection</p>}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-success" /> Bonne réponse</p>
-                  <div className="rounded-xl bg-success/5 border border-success/15 p-3 space-y-2">
-                    {parsedPropositions.filter(p => p.isCorrect).map(prop => (
-                      <div key={prop.id} className="flex items-start gap-2 text-sm text-success">
-                        <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                        <span><span className="font-bold">{prop.id}.</span> {prop.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-emerald-600">
+                  Réponse
+                </span>
+                <Badge
+                  className={`ml-auto text-xs ${
+                    error.isTrue
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50"
+                      : "bg-red-100 text-red-700 hover:bg-red-100 dark:bg-red-950/50"
+                  }`}
+                >
+                  {error.isTrue ? "VRAI" : "FAUX"}
+                </Badge>
               </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground">Détail par proposition</p>
-                {parsedPropositions.map(prop => {
-                  const checked = !!checkedProps[prop.id];
-                  const isRight = checked === prop.isCorrect;
-                  return (
-                    <div key={prop.id} className={`rounded-xl border p-3 ${isRight ? "border-success/20 bg-success/5" : "border-destructive/20 bg-destructive/5"}`}>
-                      <div className="flex items-start gap-2">
-                        {isRight ? <CheckCircle2 className="h-4 w-4 text-success mt-0.5 shrink-0" /> : <X className="h-4 w-4 text-destructive mt-0.5 shrink-0" />}
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground"><span className="font-bold">{prop.id}.</span> {prop.text}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {prop.isCorrect
-                              ? (checked ? "✅ Correct — Tu as bien identifié cette proposition comme vraie." : "❌ Tu aurais dû cocher cette proposition — elle est vraie.")
-                              : (checked ? "❌ Cette proposition est fausse — tu n'aurais pas dû la cocher." : "✅ Correct — tu as bien ignoré cette proposition fausse.")}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <p className="text-foreground leading-relaxed text-[15px]">{error.explanation}</p>
+              <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                <EyeOff className="h-3 w-3" /> Cliquer pour masquer
               </div>
-
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span>Score maîtrise : <span className={`font-bold ${getMasteryColor(card.mastery_score)}`}>{card.mastery_score}/100</span></span>
-                <span>·</span>
-                <span>Prochaine révision : {getIntervalLabel(card.mastery_score)}</span>
-              </div>
-
-              <Button onClick={goToNextCard} className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground">
-                {currentCardIndex < reviewCards.length - 1 ? "Carte suivante →" : "Terminer la session"}
-              </Button>
             </motion.div>
           )}
 
-          {!showAnswer && (
-            <Button onClick={handleRevealAnswer} className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-base">
-              <Eye className="h-4 w-4 mr-2" /> Voir la réponse
-            </Button>
-          )}
-        </motion.div>
-      </motion.div>
-    );
-  }
+          <div className="absolute bottom-4 right-6 md:right-8" onClick={(e) => e.stopPropagation()}>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                    Supprimer cette erreur ?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action est irréversible. La carte sera définitivement supprimée de votre cahier.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => onDelete(error.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Supprimer
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
-  // ==================== SUBJECT DETAIL VIEW (DECK STYLE) ====================
-  if (selectedSubject) {
-    const group = subjectGroups.find((g) => g.name === selectedSubject);
-    const colors = group ? subjectColorMap[group.color] : subjectColorMap.chemistry;
-    const subjectTotal = group?.errors.length || 0;
-    const subjectMastered = group?.masteredCount || 0;
-    const subjectRate = subjectTotal > 0 ? Math.round((subjectMastered / subjectTotal) * 100) : 0;
-    const newCards = group?.errors.filter(e => getMasteryStatus(e) === "new").length || 0;
-    const learningCards = group?.errors.filter(e => getMasteryStatus(e) === "learning").length || 0;
-    const masteredCards = group?.errors.filter(e => getMasteryStatus(e) === "mastered").length || 0;
-    const criticalCards = group?.errors.filter(e => e.is_critical || e.consecutive_wrong >= 3).length || 0;
-    const todayCards = group?.errors.filter(e => {
-      if (e.mastered || e.mastery_score >= 85) return false;
-      if (!e.next_review) return true;
-      return new Date(e.next_review) <= new Date();
-    }).length || 0;
-
-    // Chapter breakdown for this subject
-    const subjectChapters = (() => {
-      if (!group) return [];
-      const chapMap: Record<string, { name: string; folder: string; errors: DBError[] }> = {};
-      const uncategorized: DBError[] = [];
-      group.errors.forEach(err => {
-        if (err.course_id && courseMap[err.course_id]) {
-          const info = courseMap[err.course_id];
-          if (!chapMap[err.course_id]) chapMap[err.course_id] = { name: info.title, folder: info.folderName, errors: [] };
-          chapMap[err.course_id].errors.push(err);
-        } else {
-          uncategorized.push(err);
-        }
-      });
-      const result = Object.values(chapMap).sort((a, b) => b.errors.length - a.errors.length);
-      if (uncategorized.length > 0) result.push({ name: "Non classé", folder: "—", errors: uncategorized });
-      return result;
-    })();
-
+function NotebookView({
+  errors, subjects, activeSubject, setActiveSubject, onDelete,
+}: {
+  errors: MedicalError[];
+  subjects: string[];
+  activeSubject: string;
+  setActiveSubject: (s: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (errors.length === 0) {
     return (
-      <div className="space-y-5">
-        <Button variant="ghost" size="sm" onClick={() => { setSelectedSubject(null); setTab("active"); setFilterType("all"); setSearch(""); setSourceFilter("all"); }} className="gap-1.5">
-          <ArrowLeft className="h-4 w-4" /> Retour
-        </Button>
-
-        {/* Subject header */}
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Algorithme d'apprentissage : <span className="text-primary font-medium">Répétition adaptative ⓘ</span></p>
-          
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border border-border bg-card p-6 space-y-4 mt-2">
-            <div className="text-center space-y-1">
-              <p className="text-5xl font-bold text-foreground">{todayCards}</p>
-              <p className="text-sm text-muted-foreground">cartes pour aujourd'hui</p>
-            </div>
-            
-            <div className="flex items-center justify-center gap-6 text-sm">
-              <div className="flex items-center gap-1.5">
-                <div className="h-5 w-5 rounded-md bg-primary/20 flex items-center justify-center"><Zap className="h-3 w-3 text-primary" /></div>
-                <span className="font-bold text-foreground">{newCards}</span>
-                <span className="text-muted-foreground">À étudier</span>
-              </div>
-              <div className="h-5 w-px bg-border" />
-              <div className="flex items-center gap-1.5">
-                <div className="h-5 w-5 rounded-md bg-warning/20 flex items-center justify-center"><Clock className="h-3 w-3 text-warning" /></div>
-                <span className="font-bold text-foreground">{learningCards}</span>
-                <span className="text-muted-foreground">En cours</span>
-              </div>
-              <div className="h-5 w-px bg-border" />
-              <div className="flex items-center gap-1.5">
-                <div className="h-5 w-5 rounded-md bg-success/20 flex items-center justify-center"><CheckCircle2 className="h-3 w-3 text-success" /></div>
-                <span className="font-bold text-foreground">{masteredCards}</span>
-                <span className="text-muted-foreground">Maîtrisées</span>
-              </div>
-            </div>
-
-            <Button 
-              onClick={() => group && startReviewSession(group.errors)} 
-              className="w-full rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-base font-semibold"
-              disabled={todayCards === 0}
-            >
-              <Play className="h-5 w-5 mr-2" /> Étudier les cartes
-            </Button>
-          </motion.div>
-        </div>
-
-        {/* Critical errors CTA */}
-        {criticalCards > 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="h-5 w-5 text-destructive" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">{criticalCards} erreur{criticalCards > 1 ? "s" : ""} critique{criticalCards > 1 ? "s" : ""}</p>
-                <p className="text-xs text-muted-foreground">Session rapide 5-7 min recommandée</p>
-              </div>
-            </div>
-            <Button size="sm" variant="outline" className="rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10"
-              onClick={() => group && startReviewSession(group.errors.filter(e => e.is_critical || e.consecutive_wrong >= 3), 10)}>
-              <Flame className="h-4 w-4 mr-1.5" /> Corriger maintenant
-            </Button>
-          </motion.div>
-        )}
-
-        {/* Chapter breakdown */}
-        {subjectChapters.length > 1 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-border bg-card p-5 space-y-3">
-            <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><FolderOpen className="h-4 w-4 text-primary" /> Par chapitre</h3>
-            <div className="space-y-2">
-              {subjectChapters.map((ch, idx) => {
-                const chMastered = ch.errors.filter(e => e.mastered || e.mastery_score >= 85).length;
-                const chRate = ch.errors.length > 0 ? Math.round((chMastered / ch.errors.length) * 100) : 0;
-                return (
-                  <div key={idx} className="rounded-xl border border-border bg-muted/10 p-3 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{ch.name}</p>
-                        {ch.folder !== "—" && <p className="text-[10px] text-muted-foreground">{ch.folder}</p>}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs shrink-0">
-                        <span className="text-muted-foreground">{ch.errors.length} err.</span>
-                        <span className={`font-bold ${chRate >= 80 ? "text-success" : chRate >= 40 ? "text-warning" : "text-destructive"}`}>{chRate}%</span>
-                      </div>
-                    </div>
-                    <Progress value={chRate} className="h-1" />
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Cards list */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-foreground">Cartes du paquet ({subjectTotal})</h3>
-          </div>
-          {subjectTotal > 0 && (
-            <div className="space-y-1.5">
-              <div className="h-2.5 rounded-full bg-muted overflow-hidden flex">
-                {newCards > 0 && <div className="h-full bg-muted-foreground/30" style={{ width: `${(newCards / subjectTotal) * 100}%` }} />}
-                {learningCards > 0 && <div className="h-full bg-warning" style={{ width: `${(learningCards / subjectTotal) * 100}%` }} />}
-                {masteredCards > 0 && <div className="h-full bg-success" style={{ width: `${(masteredCards / subjectTotal) * 100}%` }} />}
-              </div>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-muted-foreground/30" />{newCards} À étudier</span>
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-warning" />{learningCards} En cours</span>
-                <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-success" />{masteredCards} Maîtrisées</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Source filter */}
-        <div className="flex gap-2 flex-wrap">
-          {[
-            { value: "all" as const, label: "Toutes", count: group?.errors.length || 0 },
-            { value: "kholle" as const, label: "Khôlles / Tutorat", count: group?.bySource.kholle.length || 0 },
-            { value: "exam" as const, label: "Examens Blancs", count: group?.bySource.exam.length || 0 },
-            { value: "annale" as const, label: "Annales", count: group?.bySource.annale.length || 0 },
-          ].map((s) => (
-            <button key={s.value} onClick={() => setSourceFilter(s.value)}
-              className={`rounded-xl border px-3 py-1.5 text-xs font-medium transition-all ${sourceFilter === s.value ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>
-              {s.label} ({s.count})
-            </button>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="bg-muted/50 rounded-xl">
-            <TabsTrigger value="active" className="rounded-lg text-xs">Erreurs actives</TabsTrigger>
-            <TabsTrigger value="review" className="rounded-lg text-xs">À revoir aujourd'hui</TabsTrigger>
-            <TabsTrigger value="mastered" className="rounded-lg text-xs">Maîtrisées</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* Search & Filter */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Rechercher une erreur…" className="pl-9 rounded-xl" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-[180px] rounded-xl">
-              <Filter className="h-3.5 w-3.5 mr-1.5" />
-              <SelectValue placeholder="Type d'erreur" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous les types</SelectItem>
-              {errorReasons.map((r) => (<SelectItem key={r.id} value={r.id}>{r.icon} {r.label}</SelectItem>))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Error cards grid */}
-        <motion.div className="grid grid-cols-1 md:grid-cols-2 gap-3" variants={container} initial="hidden" animate="show">
-          {filteredErrors.map((err) => {
-            const severity = getSeverity(err);
-            const config = severityConfig[severity];
-
-            return (
-              <motion.div key={err.id} variants={item} onClick={() => openError(err)}
-                className="rounded-2xl border border-border bg-card hover:bg-card/80 p-4 space-y-3 cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5 transition-all duration-200">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`h-2.5 w-2.5 rounded-full ${config.dot}`} />
-                    <Badge className={`${config.color} border text-xs`} variant="outline">{config.label}</Badge>
-                    {err.occurrence_count > 1 && <span className="text-xs font-bold text-warning">×{err.occurrence_count}</span>}
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <p className="font-medium text-foreground text-sm line-clamp-2">{err.question}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {err.error_type && (
-                      <span>{errorReasons.find((r) => r.id === err.error_type)?.icon} {errorReasons.find((r) => r.id === err.error_type)?.label}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
-                      <div className={`h-full rounded-full ${err.mastery_score >= 85 ? "bg-success" : err.mastery_score >= 50 ? "bg-warning" : "bg-destructive"}`} style={{ width: `${err.mastery_score}%` }} />
-                    </div>
-                    <span className={`text-[10px] font-bold ${getMasteryColor(err.mastery_score)}`}>{err.mastery_score}</span>
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-
-        {filteredErrors.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <CheckCircle2 className="h-10 w-10 mx-auto mb-3 text-success/50" />
-            <p className="font-medium">{tab === "mastered" ? "Aucune erreur maîtrisée pour l'instant" : "Aucune erreur dans cette catégorie 🎉"}</p>
-          </div>
-        )}
-
-        {/* Per-subject stats */}
-        {subjectTotal > 0 && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-border bg-card p-5 space-y-4">
-            <h3 className="font-bold text-foreground flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" /> Statistiques</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="rounded-xl bg-muted/30 p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{subjectRate}%</p>
-                <p className="text-xs text-muted-foreground">Taux correction</p>
-              </div>
-              <div className="rounded-xl bg-muted/30 p-3 text-center">
-                <p className="text-2xl font-bold text-destructive">{criticalCards}</p>
-                <p className="text-xs text-muted-foreground">Erreurs critiques</p>
-              </div>
-              <div className="rounded-xl bg-muted/30 p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{subjectTotal}</p>
-                <p className="text-xs text-muted-foreground">Total erreurs</p>
-              </div>
-              <div className="rounded-xl bg-muted/30 p-3 text-center">
-                <p className="text-2xl font-bold text-warning">{group?.errors.reduce((acc, e) => acc + e.total_attempts, 0) || 0}</p>
-                <p className="text-xs text-muted-foreground">Tentatives</p>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">Distribution des scores de maîtrise</p>
-              <div className="grid grid-cols-5 gap-1">
-                {[
-                  { label: "0-20", count: group?.errors.filter(e => e.mastery_score < 20).length || 0, color: "bg-destructive" },
-                  { label: "20-40", count: group?.errors.filter(e => e.mastery_score >= 20 && e.mastery_score < 40).length || 0, color: "bg-destructive/70" },
-                  { label: "40-60", count: group?.errors.filter(e => e.mastery_score >= 40 && e.mastery_score < 60).length || 0, color: "bg-warning" },
-                  { label: "60-80", count: group?.errors.filter(e => e.mastery_score >= 60 && e.mastery_score < 80).length || 0, color: "bg-warning/70" },
-                  { label: "80-100", count: group?.errors.filter(e => e.mastery_score >= 80).length || 0, color: "bg-success" },
-                ].map(b => (
-                  <div key={b.label} className="text-center space-y-1">
-                    <div className="h-16 rounded-lg bg-muted/30 relative overflow-hidden flex items-end justify-center">
-                      <motion.div initial={{ height: 0 }} animate={{ height: `${subjectTotal > 0 ? (b.count / subjectTotal) * 100 : 0}%` }}
-                        transition={{ duration: 0.5 }} className={`w-full rounded-t-md ${b.color}`} />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">{b.label}</p>
-                    <p className="text-[10px] font-bold text-foreground">{b.count}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <BookOpen className="h-16 w-16 text-muted-foreground/40 mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">Votre cahier est vide</h3>
+        <p className="text-muted-foreground max-w-md">
+          Commencez à ajouter vos erreurs pour créer votre propre base de révision personnalisée.
+        </p>
       </div>
     );
   }
 
-  // ==================== MAIN DASHBOARD VIEW ====================
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Mon Cahier d'Erreurs</h1>
-        <p className="text-muted-foreground mt-1">Micro-flashcards adaptatives avec algorithme de maîtrise intelligent.</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Select value={activeSubject} onValueChange={setActiveSubject}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Filtrer par matière" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Toutes">Toutes les matières</SelectItem>
+              {subjects.map((s) => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Badge variant="outline">
+            {errors.length} erreur{errors.length > 1 ? "s" : ""}
+          </Badge>
+        </div>
       </div>
 
-      {/* Stats Bar */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-destructive/10 flex items-center justify-center"><Flame className="h-4 w-4 text-destructive" /></div>
-            <span className="text-xs text-muted-foreground">À revoir aujourd'hui</span>
-          </div>
-          <p className="text-2xl font-bold text-foreground">{todayReview}</p>
+      <AnimatePresence mode="popLayout">
+        <div className="space-y-6">
+          {errors.map((error) => (
+            <ErrorPage key={error.id} error={error} onDelete={onDelete} />
+          ))}
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-success/10 flex items-center justify-center"><TrendingUp className="h-4 w-4 text-success" /></div>
-            <span className="text-xs text-muted-foreground">Taux de correction</span>
-          </div>
-          <p className="text-2xl font-bold text-foreground">{correctionRate}%</p>
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ============== VUE FLASHCARD ==============
+function FlashcardView({
+  dueErrors, subjects, activeSubject, setActiveSubject, onReview, totalErrors,
+}: {
+  dueErrors: MedicalError[];
+  subjects: string[];
+  activeSubject: string;
+  setActiveSubject: (s: string) => void;
+  onReview: (id: string, difficulty: Difficulty) => void;
+  totalErrors: number;
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [direction, setDirection] = useState(0);
+  const [sessionStats, setSessionStats] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
+
+  useEffect(() => {
+    setCurrentIndex(0);
+    setFlipped(false);
+  }, [activeSubject, dueErrors.length]);
+
+  const currentCard = dueErrors[currentIndex];
+  const progress =
+    totalErrors > 0 ? ((totalErrors - dueErrors.length + currentIndex) / totalErrors) * 100 : 0;
+
+  const handleDifficulty = useCallback(
+    (difficulty: Difficulty) => {
+      if (!currentCard) return;
+      onReview(currentCard.id, difficulty);
+      setSessionStats((prev) => ({ ...prev, [difficulty]: prev[difficulty] + 1 }));
+      setDirection(1);
+      setFlipped(false);
+      setTimeout(() => {
+        setCurrentIndex((prev) => prev + 1);
+        setDirection(0);
+      }, 250);
+    },
+    [currentCard, onReview]
+  );
+
+  const handleSkip = useCallback(() => {
+    if (dueErrors.length === 0) return;
+    setDirection(-1);
+    setFlipped(false);
+    setTimeout(() => {
+      setCurrentIndex((prev) => (prev + 1) % dueErrors.length);
+      setDirection(0);
+    }, 250);
+  }, [dueErrors.length]);
+
+  if (dueErrors.length === 0 || !currentCard) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="flex flex-col items-center justify-center py-20 text-center"
+      >
+        <div className="h-24 w-24 rounded-full bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center mb-6">
+          <Trophy className="h-12 w-12 text-emerald-500" />
         </div>
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-warning/10 flex items-center justify-center"><AlertTriangle className="h-4 w-4 text-warning" /></div>
-            <span className="text-xs text-muted-foreground">Erreurs critiques</span>
+        <h3 className="text-2xl font-bold text-foreground mb-3">Tout est révisé !</h3>
+        <p className="text-muted-foreground max-w-md mb-6">
+          Vous avez terminé toutes les cartes dues pour aujourd'hui. Revenez plus tard pour
+          consolider votre mémoire à long terme.
+        </p>
+
+        {Object.values(sessionStats).some((v) => v > 0) && (
+          <div className="bg-card rounded-xl p-4 border border-border shadow-sm">
+            <p className="text-sm font-medium text-foreground mb-3">Session actuelle</p>
+            <div className="flex gap-4 text-sm">
+              <span className="flex items-center gap-1 text-red-500"><XCircle className="h-4 w-4" /> {sessionStats.again}</span>
+              <span className="flex items-center gap-1 text-orange-500"><AlertTriangle className="h-4 w-4" /> {sessionStats.hard}</span>
+              <span className="flex items-center gap-1 text-blue-500"><CheckCircle2 className="h-4 w-4" /> {sessionStats.good}</span>
+              <span className="flex items-center gap-1 text-emerald-500"><Zap className="h-4 w-4" /> {sessionStats.easy}</span>
+            </div>
           </div>
-          <p className="text-2xl font-bold text-foreground">{criticalErrors}</p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center"><Target className="h-4 w-4 text-primary" /></div>
-            <span className="text-xs text-muted-foreground">Points faibles</span>
-          </div>
-          <p className="text-sm font-semibold text-foreground line-clamp-1">{weakSubjects.length > 0 ? weakSubjects.join(", ") : "Aucun 🎉"}</p>
-        </div>
+        )}
       </motion.div>
+    );
+  }
 
-      {/* Smart Review CTA */}
-      {smartReviewErrors.length > 0 && (
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Brain className="h-5 w-5 text-primary shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Révision intelligente</p>
-              <p className="text-xs text-muted-foreground">
-                {smartReviewErrors.filter(e => e.is_critical || e.consecutive_wrong >= 3).length} critiques + {smartReviewErrors.filter(e => !e.next_review || new Date(e.next_review) <= new Date()).length} à revoir · toutes matières
-              </p>
-            </div>
+  return (
+    <div className="max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-8">
+        <Select value={activeSubject} onValueChange={setActiveSubject}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue placeholder="Filtrer par matière" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="Toutes">Toutes les matières</SelectItem>
+            {subjects.map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Layers className="h-4 w-4" />
+            <span>{currentIndex + 1} / {dueErrors.length}</span>
           </div>
-          <Button size="sm" className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shrink-0"
-            onClick={() => startReviewSession(smartReviewErrors, 15)}>
-            <Play className="h-4 w-4 mr-1.5" /> Lancer
-          </Button>
-        </motion.div>
-      )}
-
-      {/* Critical errors CTA */}
-      {criticalErrors > 0 && (
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl bg-gradient-to-r from-destructive/10 to-warning/10 border border-destructive/20 p-4 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Flame className="h-5 w-5 text-destructive shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Corriger mes {Math.min(criticalErrors, 10)} erreurs critiques maintenant</p>
-              <p className="text-xs text-muted-foreground">Session rapide 5-7 min</p>
-            </div>
-          </div>
-          <Button size="sm" className="rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground shrink-0"
-            onClick={() => startReviewSession(errors.filter(e => e.is_critical || e.consecutive_wrong >= 3), 10)}>
-            <Play className="h-4 w-4 mr-1.5" /> Go
-          </Button>
-        </motion.div>
-      )}
-
-      {/* Motivation banner */}
-      {masteredErrors > 0 && (
-        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-          className="rounded-2xl bg-gradient-to-r from-success/10 to-primary/10 border border-success/20 p-4 flex items-center gap-3">
-          <Sparkles className="h-5 w-5 text-success shrink-0" />
-          <p className="text-sm text-foreground">
-            Tu as maîtrisé <span className="font-bold">{masteredErrors} erreur{masteredErrors > 1 ? "s" : ""}</span> 🔥
-            {totalErrors - masteredErrors > 0 && (<> · Encore <span className="font-bold">{totalErrors - masteredErrors}</span> à corriger</>)}
-          </p>
-        </motion.div>
-      )}
-
-      {/* View tabs */}
-      <div className="flex gap-2">
-        {[
-          { key: "subjects" as const, label: "Par matière", icon: BookOpen },
-          { key: "chapters" as const, label: "Par chapitre", icon: FolderOpen },
-          { key: "stats" as const, label: "Statistiques", icon: PieChart },
-        ].map(v => (
-          <button key={v.key} onClick={() => setMainView(v.key)}
-            className={`flex items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-medium transition-all ${mainView === v.key ? "border-primary bg-primary/10 text-primary" : "border-border bg-card text-muted-foreground hover:bg-muted/50"}`}>
-            <v.icon className="h-4 w-4" /> {v.label}
-          </button>
-        ))}
+          <div className="w-32"><Progress value={progress} className="h-2" /></div>
+        </div>
       </div>
 
-      {/* ==================== BY SUBJECT VIEW ==================== */}
-      {mainView === "subjects" && (
-        <div>
-          <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" variants={container} initial="hidden" animate="show">
-            {subjectGroups.map((group) => {
-              const colors = subjectColorMap[group.color] || subjectColorMap.chemistry;
-              const rate = group.errors.length > 0 ? Math.round((group.masteredCount / group.errors.length) * 100) : 0;
-              return (
-                <motion.div key={group.name} variants={item} onClick={() => setSelectedSubject(group.name)}
-                  className={`rounded-2xl border border-border ${colors.light} p-5 cursor-pointer hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 transition-all duration-300 space-y-3`}>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-foreground text-sm">{group.name}</h3>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      {/* Flashcard */}
+      <div className="mb-8">
+        <AnimatePresence mode="wait" custom={direction}>
+          <motion.div
+            key={currentCard.id}
+            custom={direction}
+            initial={{ x: direction * 100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -direction * 100, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          >
+            <div
+              className={`flip-card w-full ${flipped ? "flipped" : ""}`}
+              style={{ height: "400px" }}
+              onClick={() => setFlipped(!flipped)}
+            >
+              <div className="flip-card-inner">
+                {/* Front */}
+                <div className="flip-card-front">
+                  <div className="h-full w-full bg-card border border-border rounded-xl p-8 flex flex-col relative cursor-pointer hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-6">
+                      <Badge>{currentCard.subject}</Badge>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <RotateCcw className="h-3 w-3" />
+                        <span>Cliquer pour retourner</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="text-xl md:text-2xl text-foreground font-medium text-center leading-relaxed max-w-2xl">
+                        {currentCard.question}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mt-4">
+                      <Brain className="h-4 w-4" />
+                      <span>Question {currentIndex + 1} sur {dueErrors.length}</span>
+                    </div>
                   </div>
-                  <div className="space-y-1.5 text-xs text-muted-foreground">
-                    <p>→ {group.errors.length} erreur{group.errors.length > 1 ? "s" : ""}</p>
-                    <p>→ {group.criticalCount} critique{group.criticalCount > 1 ? "s" : ""}</p>
-                    <p>→ {rate}% corrigées</p>
-                  </div>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {group.bySource.kholle.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Khôlles: {group.bySource.kholle.length}</Badge>)}
-                    {group.bySource.exam.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">EB: {group.bySource.exam.length}</Badge>)}
-                    {group.bySource.annale.length > 0 && (<Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Annales: {group.bySource.annale.length}</Badge>)}
-                  </div>
-                  <Progress value={rate} className="h-1.5" />
-                </motion.div>
-              );
-            })}
-          </motion.div>
+                </div>
 
-          {subjectGroups.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <Zap className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="font-medium">Aucune erreur enregistrée</p>
-              <p className="text-sm mt-1">Continue à t'entraîner pour remplir ton cahier d'erreurs !</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ==================== BY CHAPTER VIEW ==================== */}
-      {mainView === "chapters" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-          {chapterGroups.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <FolderOpen className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="font-medium">Aucune erreur liée à un chapitre</p>
-              <p className="text-sm mt-1">Les erreurs seront classées par chapitre quand elles sont liées à un cours.</p>
-            </div>
-          ) : (
-            chapterGroups.map((ch) => {
-              const mastered = ch.errors.filter(e => e.mastered || e.mastery_score >= 85).length;
-              const critical = ch.errors.filter(e => e.is_critical || e.consecutive_wrong >= 3).length;
-              const rate = ch.errors.length > 0 ? Math.round((mastered / ch.errors.length) * 100) : 0;
-              return (
-                <motion.div key={ch.courseId} variants={item}
-                  className="rounded-2xl border border-border bg-card p-4 space-y-3 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-foreground text-sm truncate">{ch.courseName}</p>
-                      <p className="text-xs text-muted-foreground">{ch.folderName}</p>
+                {/* Back */}
+                <div className="flip-card-back">
+                  <div className="h-full w-full rounded-xl p-8 flex flex-col relative cursor-pointer bg-muted/40 border border-border shadow-lg">
+                    <div className="flex items-center justify-between mb-6">
+                      <Badge
+                        className={`${
+                          currentCard.isTrue ? "bg-emerald-500" : "bg-red-500"
+                        } text-white hover:opacity-90`}
+                      >
+                        {currentCard.isTrue ? "VRAI" : "FAUX"}
+                      </Badge>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <RotateCcw className="h-3 w-3" />
+                        <span>Cliquer pour retourner</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 text-xs shrink-0">
-                      <span className="text-muted-foreground">{ch.errors.length} err.</span>
-                      {critical > 0 && <span className="text-destructive font-bold">{critical} crit.</span>}
-                      <span className={`font-bold ${rate >= 80 ? "text-success" : rate >= 40 ? "text-warning" : "text-destructive"}`}>{rate}%</span>
+                    <div className="flex-1 overflow-y-auto">
+                      <p className="text-lg text-foreground leading-relaxed">
+                        {currentCard.explanation}
+                      </p>
                     </div>
-                  </div>
-                  <Progress value={rate} className="h-1.5" />
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1.5 flex-wrap text-[10px]">
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">{mastered}/{ch.errors.length} maîtrisées</Badge>
-                    </div>
-                    {ch.errors.filter(e => !e.mastered && e.mastery_score < 85).length > 0 && (
-                      <Button size="sm" variant="ghost" className="text-xs h-7 gap-1"
-                        onClick={() => startReviewSession(ch.errors, 10)}>
-                        <Play className="h-3 w-3" /> Réviser
-                      </Button>
+                    {currentCard.interval > 0 && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-4 pt-4 border-t border-border">
+                        <Clock className="h-3 w-3" />
+                        <span>
+                          Prochaine révision dans {currentCard.interval} jour
+                          {currentCard.interval > 1 ? "s" : ""}
+                        </span>
+                      </div>
                     )}
                   </div>
-                </motion.div>
-              );
-            })
-          )}
-        </motion.div>
-      )}
-
-      {/* ==================== STATISTICS VIEW ==================== */}
-      {mainView === "stats" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
-          {totalErrors === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <BarChart3 className="h-10 w-10 mx-auto mb-3 text-muted-foreground/30" />
-              <p className="font-medium">Pas encore de données</p>
-              <p className="text-sm mt-1">Entraîne-toi pour voir tes statistiques apparaître !</p>
+                </div>
+              </div>
             </div>
-          ) : (
-            <>
-              {/* Correction rate by subject */}
-              {subjectChartData.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><BarChart3 className="h-4 w-4 text-primary" /> Taux de correction par matière</h3>
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={subjectChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                        <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} domain={[0, 100]} unit="%" />
-                        <Tooltip
-                          contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "12px" }}
-                          formatter={(value: number) => [`${value}%`, "Taux"]}
-                          labelFormatter={(label: string, payload: any[]) => payload?.[0]?.payload?.fullName || label}
-                        />
-                        <Bar dataKey="rate" radius={[6, 6, 0, 0]}>
-                          {subjectChartData.map((_, idx) => (
-                            <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
-              {/* Error count by subject */}
-              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><Target className="h-4 w-4 text-destructive" /> Nombre d'erreurs par matière</h3>
-                <div className="h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={subjectChartData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
-                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "12px" }}
-                        labelFormatter={(label: string, payload: any[]) => payload?.[0]?.payload?.fullName || label}
-                      />
-                      <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="critical" name="Critiques" fill="hsl(var(--destructive))" radius={[6, 6, 0, 0]} />
-                      <Bar dataKey="mastered" name="Maîtrisées" fill="hsl(var(--success))" radius={[6, 6, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
+      {/* Difficulty buttons */}
+      <div className="grid grid-cols-5 gap-2">
+        <Button variant="outline" onClick={handleSkip} className="flex flex-col items-center gap-1 h-auto py-3">
+          <span className="text-xs">Passer</span>
+        </Button>
+        <Button
+          onClick={() => handleDifficulty("again")}
+          className="flex flex-col items-center gap-1 h-auto py-3 bg-red-500 hover:bg-red-600 text-white"
+        >
+          <XCircle className="h-4 w-4" />
+          <span className="text-xs font-semibold">Encore</span>
+          <span className="text-[10px] opacity-80">&lt; 1 min</span>
+        </Button>
+        <Button
+          onClick={() => handleDifficulty("hard")}
+          className="flex flex-col items-center gap-1 h-auto py-3 bg-orange-500 hover:bg-orange-600 text-white"
+        >
+          <AlertTriangle className="h-4 w-4" />
+          <span className="text-xs font-semibold">Difficile</span>
+          <span className="text-[10px] opacity-80">1 jour</span>
+        </Button>
+        <Button
+          onClick={() => handleDifficulty("good")}
+          className="flex flex-col items-center gap-1 h-auto py-3 bg-blue-500 hover:bg-blue-600 text-white"
+        >
+          <CheckCircle2 className="h-4 w-4" />
+          <span className="text-xs font-semibold">Bon</span>
+          <span className="text-[10px] opacity-80">
+            {Math.max(2, Math.round(currentCard.interval * currentCard.easeFactor))} j
+          </span>
+        </Button>
+        <Button
+          onClick={() => handleDifficulty("easy")}
+          className="flex flex-col items-center gap-1 h-auto py-3 bg-emerald-500 hover:bg-emerald-600 text-white"
+        >
+          <Zap className="h-4 w-4" />
+          <span className="text-xs font-semibold">Facile</span>
+          <span className="text-[10px] opacity-80">
+            {Math.max(4, Math.round(currentCard.interval * currentCard.easeFactor * 1.3))} j
+          </span>
+        </Button>
+      </div>
 
-              {/* Error type distribution */}
-              {errorTypeData.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><PieChart className="h-4 w-4 text-warning" /> Types d'erreurs</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="h-48">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPie>
-                          <Pie data={errorTypeData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3}>
-                            {errorTypeData.map((_, idx) => (
-                              <Cell key={idx} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontSize: "12px" }} />
-                        </RechartsPie>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex flex-col justify-center space-y-2">
-                      {errorTypeData.map((d, idx) => (
-                        <div key={d.key} className="flex items-center gap-2 text-sm">
-                          <span className="h-3 w-3 rounded-full shrink-0" style={{ background: CHART_COLORS[idx % CHART_COLORS.length] }} />
-                          <span className="text-foreground flex-1">{d.name}</span>
-                          <span className="font-bold text-foreground">{d.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Pattern analysis */}
-              <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><Brain className="h-4 w-4 text-primary" /> Analyse des patterns</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="rounded-xl bg-destructive/5 border border-destructive/15 p-3 text-center space-y-1">
-                    <p className="text-2xl font-bold text-destructive">{patternAnalysis.alwaysWrong}</p>
-                    <p className="text-[10px] text-muted-foreground">Toujours fausses</p>
-                    <p className="text-[10px] text-destructive/70">≥3 tentatives, score 0</p>
-                  </div>
-                  <div className="rounded-xl bg-warning/5 border border-warning/15 p-3 text-center space-y-1">
-                    <p className="text-2xl font-bold text-warning">{patternAnalysis.oscillating}</p>
-                    <p className="text-[10px] text-muted-foreground">Instables</p>
-                    <p className="text-[10px] text-warning/70">Score entre 20-60</p>
-                  </div>
-                  <div className="rounded-xl bg-primary/5 border border-primary/15 p-3 text-center space-y-1">
-                    <p className="text-2xl font-bold text-primary">{patternAnalysis.improving}</p>
-                    <p className="text-[10px] text-muted-foreground">En progression</p>
-                    <p className="text-[10px] text-primary/70">Score en hausse</p>
-                  </div>
-                  <div className="rounded-xl bg-success/5 border border-success/15 p-3 text-center space-y-1">
-                    <p className="text-2xl font-bold text-success">{patternAnalysis.quickMastery}</p>
-                    <p className="text-[10px] text-muted-foreground">Maîtrise rapide</p>
-                    <p className="text-[10px] text-success/70">≤2 tentatives</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Most recurring errors */}
-              {topRecurring.length > 0 && (
-                <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                  <h3 className="font-bold text-foreground flex items-center gap-2 text-sm"><Flame className="h-4 w-4 text-destructive" /> Erreurs les plus récurrentes</h3>
-                  <div className="space-y-2">
-                    {topRecurring.map((err) => (
-                      <div key={err.id} onClick={() => openError(err)}
-                        className="rounded-xl border border-border bg-muted/10 p-3 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors">
-                        <span className="text-lg font-bold text-warning shrink-0">×{err.occurrence_count}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">{err.question}</p>
-                          <p className="text-[10px] text-muted-foreground">{err.subject_name || "Autre"} · Score: {err.mastery_score}/100</p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </motion.div>
+      {Object.values(sessionStats).some((v) => v > 0) && (
+        <div className="mt-6 flex justify-center gap-6 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1"><XCircle className="h-3 w-3 text-red-500" /> {sessionStats.again}</span>
+          <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-orange-500" /> {sessionStats.hard}</span>
+          <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-blue-500" /> {sessionStats.good}</span>
+          <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-emerald-500" /> {sessionStats.easy}</span>
+        </div>
       )}
+    </div>
+  );
+}
+
+// ============== PAGE PRINCIPALE ==============
+export default function ErrorNotebook() {
+  const [mode, setMode] = useState<"notebook" | "flashcard">("notebook");
+  const {
+    filteredErrors, dueErrors, subjects, activeSubject, setActiveSubject,
+    addError, deleteError, updateReview, loading,
+  } = useMedicalErrorBook();
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+              <Stethoscope className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold leading-tight text-foreground">Cahier d'Erreurs</h1>
+              <p className="text-xs text-muted-foreground">Médecine · Révision intelligente</p>
+            </div>
+          </div>
+
+          <nav className="flex items-center gap-1 rounded-lg bg-muted p-1">
+            <button
+              onClick={() => setMode("notebook")}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                mode === "notebook"
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <BookOpen className="h-4 w-4" />
+              Mon Cahier
+            </button>
+            <button
+              onClick={() => setMode("flashcard")}
+              className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                mode === "flashcard"
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Layers className="h-4 w-4" />
+              Flashcards
+              {dueErrors.length > 0 && (
+                <span className="flex h-5 min-w-5 px-1 items-center justify-center rounded-full bg-destructive text-[10px] text-destructive-foreground">
+                  {dueErrors.length}
+                </span>
+              )}
+            </button>
+          </nav>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-4 py-8">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">
+              {mode === "notebook" ? "Mon Cahier d'Erreurs" : "Mode Flashcard"}
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {mode === "notebook"
+                ? `${filteredErrors.length} erreur${filteredErrors.length > 1 ? "s" : ""} enregistrée${filteredErrors.length > 1 ? "s" : ""}`
+                : `${dueErrors.length} carte${dueErrors.length > 1 ? "s" : ""} à réviser aujourd'hui`}
+            </p>
+          </div>
+          <ErrorForm onAdd={addError} />
+        </div>
+
+        {loading ? (
+          <div className="text-center text-muted-foreground py-20">Chargement...</div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {mode === "notebook" ? (
+                <NotebookView
+                  errors={filteredErrors}
+                  subjects={subjects}
+                  activeSubject={activeSubject}
+                  setActiveSubject={setActiveSubject}
+                  onDelete={deleteError}
+                />
+              ) : (
+                <FlashcardView
+                  dueErrors={dueErrors}
+                  subjects={subjects}
+                  activeSubject={activeSubject}
+                  setActiveSubject={setActiveSubject}
+                  onReview={updateReview}
+                  totalErrors={filteredErrors.length}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        )}
+      </main>
     </div>
   );
 }
