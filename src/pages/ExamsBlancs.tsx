@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { QuestionImageUpload } from "@/components/training/QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { WEBHOOKS, callWebhook } from "@/lib/webhooks";
+
 import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { PremiumPaywall } from "@/components/PremiumPaywall";
 import { SubjectSourceSelector, SubjectSelection } from "@/components/SubjectSourceSelector";
@@ -290,13 +290,6 @@ export default function ExamsBlancs() {
         },
       });
 
-      // Also call OCR webhook
-      callWebhook(WEBHOOKS.OCR, {
-        user_id: user.id,
-        file_type: file.type,
-        format: selectedExam.format,
-        source: "exam",
-      }).catch(() => {});
 
       if (error) throw error;
 
