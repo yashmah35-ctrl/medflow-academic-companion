@@ -856,7 +856,97 @@ export default function SubjectDetail() {
         subjectName={subject?.name}
         courseId={pdfCourseId}
         folderId={folderId}
+        exercises={exercises.filter((ex) => ex.course_id === pdfCourseId)}
+        exerciseScores={exerciseScores}
+        isAdmin={isAdmin}
+        onOpenTraining={(exerciseId) => {
+          const ex = exercises.find((e) => e.id === exerciseId);
+          if (ex) setTrainingExercise(ex);
+        }}
+        onCreateManual={() => {
+          setViewerCreateMode("manual");
+          setViewerCreateTitle("");
+          setViewerCreateFormat("QCM");
+          setViewerCreateOpen(true);
+        }}
+        onImportOcr={() => {
+          setViewerCreateMode("ocr");
+          setViewerCreateTitle("");
+          setViewerCreateFormat("QCM");
+          setViewerCreateOpen(true);
+        }}
       />
+
+      {/* Dialog: création d'un exercice rattaché au cours ouvert */}
+      <Dialog open={viewerCreateOpen} onOpenChange={setViewerCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {viewerCreateMode === "manual" ? "Créer un exercice manuel" : "Importer via OCR"}
+            </DialogTitle>
+            <DialogDescription>
+              Cet exercice sera rattaché au cours « {pdfTitle} ».
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Titre de l'exercice</label>
+              <Input
+                placeholder="Ex: Exercice d'application"
+                value={viewerCreateTitle}
+                onChange={(e) => setViewerCreateTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Format</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-border has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input type="radio" name="vc-format" value="QCM" checked={viewerCreateFormat === "QCM"} onChange={() => setViewerCreateFormat("QCM")} className="accent-primary" />
+                  <span className="text-sm">QCM</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-lg border border-border has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+                  <input type="radio" name="vc-format" value="QIM" checked={viewerCreateFormat === "QIM"} onChange={() => setViewerCreateFormat("QIM")} className="accent-primary" />
+                  <span className="text-sm">QIM</span>
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setViewerCreateOpen(false)}>Annuler</Button>
+              <Button
+                onClick={async () => {
+                  if (!viewerCreateTitle.trim() || !user || !subjectId || !pdfCourseId) return;
+                  const { data, error } = await supabase
+                    .from("admin_exercises")
+                    .insert({
+                      subject_id: subjectId,
+                      course_id: pdfCourseId,
+                      title: viewerCreateTitle.trim(),
+                      format: viewerCreateFormat,
+                      created_by: user.id,
+                    } as any)
+                    .select()
+                    .single();
+                  if (error) { toast.error("Erreur lors de la création"); return; }
+                  if (data) {
+                    const newEx = data as AdminExercise;
+                    setExercises((prev) => [newEx, ...prev]);
+                    setViewerCreateOpen(false);
+                    toast.success(`Exercice "${newEx.title}" créé !`);
+                    if (viewerCreateMode === "manual") {
+                      setAddQuestionExercise(newEx);
+                    } else {
+                      setImportExercise(newEx);
+                    }
+                  }
+                }}
+              >
+                Créer et continuer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <PremiumModal open={premiumModalOpen} onOpenChange={setPremiumModalOpen} />
 
       {/* Admin exercise modals */}
