@@ -44,16 +44,18 @@ serve(async (req) => {
           },
           {
             role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: { url: `data:${mimeType};base64,${fileBase64}` },
-              },
-              {
-                type: "text",
-                text: `Extrais toutes les questions et propositions de ce document. Format attendu : ${formatHint}. Retourne les questions avec leurs propositions et indique si chaque proposition est correcte.`,
-              },
-            ],
+            content: fileText
+              ? `Extrais toutes les questions et propositions du texte ci-dessous. Format attendu : ${formatHint}. Retourne les questions avec leurs propositions et indique si chaque proposition est correcte.\n\n---\n${fileText}`
+              : [
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:${mimeType};base64,${fileBase64}` },
+                  },
+                  {
+                    type: "text",
+                    text: `Extrais toutes les questions et propositions de ce document. Format attendu : ${formatHint}. Retourne les questions avec leurs propositions et indique si chaque proposition est correcte.`,
+                  },
+                ],
           },
         ],
         tools: [
