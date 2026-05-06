@@ -281,15 +281,24 @@ export function ImportQuestionsModal({
     if (!exercise) return;
     setImporting(true);
     try {
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const isText = file.type.startsWith("text/") || /\.txt$/i.test(file.name);
+
+      let payload: Record<string, unknown>;
+      if (isText) {
+        const text = await file.text();
+        payload = { fileText: text, format: exercise.format };
+      } else {
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        payload = { fileBase64: base64, fileMimeType: file.type, format: exercise.format };
+      }
 
       const { data, error } = await supabase.functions.invoke("extract-kholle-questions", {
-        body: { fileBase64: base64, fileMimeType: file.type, format: exercise.format },
+        body: payload,
       });
       if (error) throw error;
 
@@ -318,7 +327,7 @@ export function ImportQuestionsModal({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Importer des questions</DialogTitle>
-          <DialogDescription>Importez un fichier image ou PDF avec des questions {exercise?.format}</DialogDescription>
+          <DialogDescription>Importez un fichier image, PDF ou TXT avec des questions {exercise?.format}</DialogDescription>
         </DialogHeader>
         <div className="py-4">
           {importing ? (
@@ -330,8 +339,8 @@ export function ImportQuestionsModal({
             <label className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border p-8 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all">
               <Upload className="h-8 w-8 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">Cliquer pour choisir un fichier</p>
-              <p className="text-xs text-muted-foreground">Image ou PDF</p>
-              <input type="file" className="hidden" accept="image/*,.pdf"
+              <p className="text-xs text-muted-foreground">Image, PDF ou TXT</p>
+              <input type="file" className="hidden" accept="image/*,.pdf,.txt,text/plain"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
             </label>
           )}
