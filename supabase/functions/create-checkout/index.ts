@@ -96,8 +96,8 @@ serve(async (req) => {
         const coupon = await stripe.coupons.create({
           amount_off: Math.round(aff.discount_amount * 100), // cents
           currency: "eur",
-          duration: "forever",
-          name: `Affilié ${aff.code} - ${aff.discount_amount}€ off`,
+          duration: "once", // Réduction premier mois uniquement
+          name: `Affilié ${aff.code} - ${aff.discount_amount}€ (1er mois)`,
         });
         couponId = coupon.id;
         console.log(`[CHECKOUT] Created Stripe coupon ${couponId} for ${aff.discount_amount}€ off`);
