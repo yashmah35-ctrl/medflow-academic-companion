@@ -883,6 +883,10 @@ export default function SubjectDetail() {
           const ex = exercises.find((e) => e.id === exerciseId);
           if (ex) setEditQuestionsExercise(ex);
         }}
+        onImportOCR={(exerciseId) => {
+          const ex = exercises.find((e) => e.id === exerciseId);
+          if (ex) setImportExercise(ex);
+        }}
         onDeleteExercise={(exerciseId) => {
           handleDeleteExercise(exerciseId);
         }}
