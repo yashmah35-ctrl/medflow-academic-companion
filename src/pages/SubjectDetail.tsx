@@ -26,6 +26,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 import { useFolderProgress } from "@/hooks/useFolderProgress";
 import { AddQuestionModal, EditQuestionsModal, ImportQuestionsModal } from "@/components/training/ExerciseAdminModals";
+import { TrainingEngine, type Question } from "@/components/training/TrainingEngine";
+import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 
 const container = {
   hidden: { opacity: 0 },
@@ -100,6 +102,7 @@ export default function SubjectDetail() {
   const [addQuestionExercise, setAddQuestionExercise] = useState<AdminExercise | null>(null);
   const [editQuestionsExercise, setEditQuestionsExercise] = useState<AdminExercise | null>(null);
   const [importExercise, setImportExercise] = useState<AdminExercise | null>(null);
+  const [trainingExercise, setTrainingExercise] = useState<AdminExercise | null>(null);
 
   const folderIds = dbFolders.map(f => f.id);
   const folderProgress = useFolderProgress(folderIds, folderCourseCounts);
@@ -690,7 +693,7 @@ export default function SubjectDetail() {
                         className="shrink-0"
                         onClick={() => {
                           if (exLocked) { setPremiumModalOpen(true); return; }
-                          navigate(`/learning?exerciseId=${ex.id}`);
+                          setTrainingExercise(ex);
                         }}
                       >
                         {exLocked ? <><Lock className="h-3.5 w-3.5 mr-1" /> Débloquer</> : <><Play className="h-3.5 w-3.5 mr-1" /> Démarrer</>}
