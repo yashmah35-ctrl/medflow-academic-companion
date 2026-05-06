@@ -53,7 +53,8 @@ export async function callWebhook(
       return text || null;
     }
   } catch (err: any) {
-    if (import.meta.env.DEV) console.error("[webhook] callWebhook failed:", err);
+    // Silencieux : les webhooks externes (n8n) peuvent être indisponibles sans casser l'app
+    if (import.meta.env.DEV) console.warn("[webhook] callWebhook unavailable:", err?.message);
     throw err;
   }
 }
