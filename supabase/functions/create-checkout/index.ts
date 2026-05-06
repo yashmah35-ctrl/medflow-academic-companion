@@ -77,30 +77,46 @@ serve(async (req) => {
       throw new Error("Price ID is not configured");
     }
 
+    // Prix mensuel uniquement éligible aux codes affiliés
+    const MONTHLY_PRICE_ID = "price_1TDPri19EBNXe60DCN8FSQ4h";
+
     // Handle affiliate code discount
     let couponId: string | undefined;
     let affiliateData: any = null;
 
     if (affiliateCode) {
       console.log(`[CHECKOUT] Affiliate code provided: ${affiliateCode}`);
+      const normalizedCode = affiliateCode.toUpperCase().trim();
       const { data: aff } = await supabaseClient
         .from("affiliates")
         .select("*")
-        .eq("code", affiliateCode.toUpperCase().trim())
+        .eq("code", normalizedCode)
         .eq("is_active", true)
         .maybeSingle();
 
       if (aff && aff.discount_amount > 0) {
+        // Réservé à l'abonnement mensuel 10€
+        if (priceId !== MONTHLY_PRICE_ID) {
+          return new Response(
+            JSON.stringify({ error: "affiliate_monthly_only", message: "Ce code n'est valable que pour l'abonnement mensuel à 10€." }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+          );
+        }
         affiliateData = aff;
-        // Create a one-time coupon in Stripe for this affiliate discount
-        const coupon = await stripe.coupons.create({
-          amount_off: Math.round(aff.discount_amount * 100), // cents
-          currency: "eur",
-          duration: "once", // Réduction premier mois uniquement
-          name: `Affilié ${aff.code} - ${aff.discount_amount}€ (1er mois)`,
-        });
-        couponId = coupon.id;
-        console.log(`[CHECKOUT] Created Stripe coupon ${couponId} for ${aff.discount_amount}€ off`);
+        // Réutilise un coupon Stripe existant si fourni, sinon en crée un (durée: une fois)
+        if (aff.stripe_coupon_id) {
+          couponId = aff.stripe_coupon_id;
+          console.log(`[CHECKOUT] Using existing Stripe coupon ${couponId} for ${aff.code}`);
+        } else {
+          const coupon = await stripe.coupons.create({
+            amount_off: Math.round(aff.discount_amount * 100),
+            currency: "eur",
+            duration: "once",
+            name: `Affilié ${aff.code} - ${aff.discount_amount}€ (1er mois)`,
+          });
+          couponId = coupon.id;
+          console.log(`[CHECKOUT] Created Stripe coupon ${couponId} for ${aff.discount_amount}€ off`);
+        }
       }
     }
 

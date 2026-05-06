@@ -165,6 +165,7 @@ export type Database = {
           influencer_name: string
           is_active: boolean
           pending_balance: number
+          stripe_coupon_id: string | null
           total_commission_earned: number
           total_paid_out: number
           total_subscribers: number
@@ -182,6 +183,7 @@ export type Database = {
           influencer_name: string
           is_active?: boolean
           pending_balance?: number
+          stripe_coupon_id?: string | null
           total_commission_earned?: number
           total_paid_out?: number
           total_subscribers?: number
@@ -199,6 +201,7 @@ export type Database = {
           influencer_name?: string
           is_active?: boolean
           pending_balance?: number
+          stripe_coupon_id?: string | null
           total_commission_earned?: number
           total_paid_out?: number
           total_subscribers?: number
