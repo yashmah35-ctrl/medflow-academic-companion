@@ -277,8 +277,9 @@ export function SecurePdfViewer({
 
         {/* ===== DESKTOP ===== */}
         <div className="hidden md:flex flex-1 overflow-hidden" style={{ height: "calc(92vh - 56px)" }}>
+          {/* Document area (~65%) */}
           <div
-            className="relative select-none bg-muted/20 w-full overflow-auto"
+            className="relative select-none bg-muted/20 flex-1 overflow-auto"
             onContextMenu={(e) => e.preventDefault()}
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
@@ -314,6 +315,82 @@ export function SecurePdfViewer({
               />
             )}
           </div>
+
+          {/* Side panel (~35%) — exercises list + admin actions */}
+          <aside className="w-[35%] min-w-[320px] max-w-[480px] border-l border-border/50 bg-card flex flex-col">
+            <div className="px-4 py-3 border-b border-border/50 shrink-0">
+              <h3 className="text-sm font-semibold text-foreground">Exercices du cours</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {exercises.length === 0
+                  ? "Aucun exercice pour ce cours"
+                  : `${exercises.length} exercice${exercises.length > 1 ? "s" : ""} disponible${exercises.length > 1 ? "s" : ""}`}
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {exercises.length === 0 && (
+                <div className="text-center text-xs text-muted-foreground py-8 px-4">
+                  {isAdmin
+                    ? "Ajoute un exercice via les boutons ci-dessous."
+                    : "Les exercices arriveront bientôt."}
+                </div>
+              )}
+              {exercises.map((ex) => {
+                const score = exerciseScores[ex.id];
+                const pct = score && score.total > 0 ? Math.round((score.correct / score.total) * 100) : null;
+                const qCount = Array.isArray(ex.questions_json) ? ex.questions_json.length : 0;
+                const disabled = qCount === 0;
+                return (
+                  <button
+                    key={ex.id}
+                    disabled={disabled}
+                    onClick={() => onOpenTraining?.(ex.id)}
+                    className="w-full text-left p-3 rounded-lg border border-border/60 bg-background hover:bg-accent/30 hover:border-primary/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0 group-hover:bg-primary/20 transition-colors">
+                        {pct !== null && pct >= 70 ? <CheckCircle2 className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">{ex.title}</p>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                          <span className="px-1.5 py-0.5 rounded bg-muted">{ex.format}</span>
+                          <span>{qCount} question{qCount > 1 ? "s" : ""}</span>
+                          {pct !== null && (
+                            <span className={pct >= 70 ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>
+                              {pct}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {isAdmin && (
+              <div className="p-3 border-t border-border/50 bg-muted/20 shrink-0 space-y-2">
+                <p className="text-[10px] uppercase tracking-wide font-semibold text-muted-foreground px-1">Espace admin</p>
+                <Button
+                  onClick={onCreateManual}
+                  variant="default"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                >
+                  <Plus className="h-4 w-4" /> Créer un exercice manuel (QCM/QIM)
+                </Button>
+                <Button
+                  onClick={onImportOcr}
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                >
+                  <Upload className="h-4 w-4" /> Importer via OCR (PDF/image)
+                </Button>
+              </div>
+            )}
+          </aside>
         </div>
       </DialogContent>
     </Dialog>
