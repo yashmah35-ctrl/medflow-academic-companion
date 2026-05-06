@@ -875,6 +875,17 @@ export default function SubjectDetail() {
           setViewerCreateFormat("QCM");
           setViewerCreateOpen(true);
         }}
+        onAddQuestion={(exerciseId) => {
+          const ex = exercises.find((e) => e.id === exerciseId);
+          if (ex) setAddQuestionExercise(ex);
+        }}
+        onEditQuestions={(exerciseId) => {
+          const ex = exercises.find((e) => e.id === exerciseId);
+          if (ex) setEditQuestionsExercise(ex);
+        }}
+        onDeleteExercise={(exerciseId) => {
+          handleDeleteExercise(exerciseId);
+        }}
       />
 
       {/* Dialog: création d'un exercice rattaché au cours ouvert */}

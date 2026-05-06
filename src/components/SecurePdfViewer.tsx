@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2 } from "lucide-react";
+import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +30,9 @@ interface SecurePdfViewerProps {
   onOpenTraining?: (exerciseId: string) => void;
   onCreateManual?: () => void;
   onImportOcr?: () => void;
+  onAddQuestion?: (exerciseId: string) => void;
+  onEditQuestions?: (exerciseId: string) => void;
+  onDeleteExercise?: (exerciseId: string) => void;
 }
 
 export function SecurePdfViewer({
@@ -46,6 +49,9 @@ export function SecurePdfViewer({
   onOpenTraining,
   onCreateManual,
   onImportOcr,
+  onAddQuestion,
+  onEditQuestions,
+  onDeleteExercise,
 }: SecurePdfViewerProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -341,30 +347,68 @@ export function SecurePdfViewer({
                 const qCount = Array.isArray(ex.questions_json) ? ex.questions_json.length : 0;
                 const disabled = qCount === 0;
                 return (
-                  <button
+                  <div
                     key={ex.id}
-                    disabled={disabled}
-                    onClick={() => onOpenTraining?.(ex.id)}
-                    className="w-full text-left p-3 rounded-lg border border-border/60 bg-background hover:bg-accent/30 hover:border-primary/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+                    className="w-full p-3 rounded-lg border border-border/60 bg-background hover:border-primary/40 transition-colors"
                   >
-                    <div className="flex items-start gap-2">
-                      <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0 group-hover:bg-primary/20 transition-colors">
-                        {pct !== null && pct >= 70 ? <CheckCircle2 className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{ex.title}</p>
-                        <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                          <span className="px-1.5 py-0.5 rounded bg-muted">{ex.format}</span>
-                          <span>{qCount} question{qCount > 1 ? "s" : ""}</span>
-                          {pct !== null && (
-                            <span className={pct >= 70 ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>
-                              {pct}%
-                            </span>
-                          )}
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onOpenTraining?.(ex.id)}
+                      className="w-full text-left disabled:opacity-50 disabled:cursor-not-allowed group"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary shrink-0 group-hover:bg-primary/20 transition-colors">
+                          {pct !== null && pct >= 70 ? <CheckCircle2 className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{ex.title}</p>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <span className="px-1.5 py-0.5 rounded bg-muted">{ex.format}</span>
+                            <span>{qCount} question{qCount > 1 ? "s" : ""}</span>
+                            {pct !== null && (
+                              <span className={pct >= 70 ? "text-emerald-600 font-medium" : "text-amber-600 font-medium"}>
+                                {pct}%
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/50">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px] gap-1"
+                          onClick={() => onAddQuestion?.(ex.id)}
+                        >
+                          <Plus className="h-3 w-3" /> Question
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px] gap-1"
+                          disabled={qCount === 0}
+                          onClick={() => onEditQuestions?.(ex.id)}
+                        >
+                          <Pencil className="h-3 w-3" /> Modifier
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive ml-auto"
+                          onClick={() => {
+                            if (confirm(`Supprimer l'exercice "${ex.title}" ?`)) {
+                              onDeleteExercise?.(ex.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
