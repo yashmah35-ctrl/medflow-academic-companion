@@ -1,10 +1,17 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText } from "lucide-react";
+import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2 } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+
+export interface CourseExercise {
+  id: string;
+  title: string;
+  format: string;
+  questions_json: any[] | null;
+}
 
 interface SecurePdfViewerProps {
   open: boolean;
@@ -16,9 +23,30 @@ interface SecurePdfViewerProps {
   subjectName?: string;
   courseId?: string;
   folderId?: string;
+  // Side panel
+  exercises?: CourseExercise[];
+  exerciseScores?: Record<string, { correct: number; total: number }>;
+  isAdmin?: boolean;
+  onOpenTraining?: (exerciseId: string) => void;
+  onCreateManual?: () => void;
+  onImportOcr?: () => void;
 }
 
-export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, courseId, folderId }: SecurePdfViewerProps) {
+export function SecurePdfViewer({
+  open,
+  onOpenChange,
+  signedUrl,
+  title,
+  fileName,
+  courseId,
+  folderId,
+  exercises = [],
+  exerciseScores = {},
+  isAdmin = false,
+  onOpenTraining,
+  onCreateManual,
+  onImportOcr,
+}: SecurePdfViewerProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
