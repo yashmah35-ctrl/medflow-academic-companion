@@ -871,6 +871,46 @@ export default function SubjectDetail() {
         exercise={importExercise}
         onSaved={() => { setImportExercise(null); fetchExercisesForSubject(); }}
       />
+
+      {/* Training modal */}
+      <Dialog open={!!trainingExercise} onOpenChange={(o) => { if (!o) setTrainingExercise(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {trainingExercise && (
+            <TrainingEngine
+              title={trainingExercise.title}
+              format={(trainingExercise.format as "QCM" | "QIM") || "QCM"}
+              questions={(trainingExercise.questions_json as Question[]) || []}
+              onBack={() => setTrainingExercise(null)}
+              onFinish={async ({ score, total, wrong }) => {
+                if (!user || !trainingExercise) return;
+                try {
+                  await supabase.from("user_exercise_scores" as any).insert({
+                    user_id: user.id,
+                    exercise_id: trainingExercise.id,
+                    correct_count: Math.round(score),
+                    total_count: total,
+                  });
+                  if (wrong.length > 0 && subject) {
+                    await saveErrorsWithDedup(
+                      user.id,
+                      wrong.map((q) => ({
+                        question: q.question,
+                        correct_answer: q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(" | "),
+                        wrong_answer: "Réponse incorrecte",
+                        subject_name: subject.name,
+                        source: "exercise",
+                        propositions_json: q.propositions,
+                      }))
+                    );
+                  }
+                } catch (e) {
+                  console.error("Save score error", e);
+                }
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
