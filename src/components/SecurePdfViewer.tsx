@@ -1,12 +1,10 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText, Sparkles } from "lucide-react";
+import { Loader2, X, FileText } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { MentorPanel } from "@/components/mentor/MentorPanel";
-import { toast } from "sonner";
 
 interface SecurePdfViewerProps {
   open: boolean;
@@ -20,16 +18,12 @@ interface SecurePdfViewerProps {
   folderId?: string;
 }
 
-export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, subjectId, subjectName, courseId, folderId }: SecurePdfViewerProps) {
-  const { user, isAdmin } = useAuth();
+export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName, courseId, folderId }: SecurePdfViewerProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [generatingMentor, setGeneratingMentor] = useState(false);
-  const [mentorVersion, setMentorVersion] = useState(0);
   const docxContainerRef = useRef<HTMLDivElement>(null);
   const docxDesktopRef = useRef<HTMLDivElement>(null);
-
-  const showRevisionPanel = !!courseId;
 
   // Track course open for progression
   useEffect(() => {
@@ -39,25 +33,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
       { onConflict: "user_id,course_id" }
     ).then();
   }, [open, courseId, folderId, user]);
-
-  const handleGenerateMentor = async () => {
-    if (!courseId || !subjectId) return;
-    setGeneratingMentor(true);
-    toast.info("Génération du parcours MENTOR en cours... (1-2 min)");
-    try {
-      const { data, error } = await supabase.functions.invoke("mentor-generate", {
-        body: { courseId, subjectId },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast.success("Parcours MENTOR généré !");
-      setMentorVersion((v) => v + 1);
-    } catch (e: any) {
-      toast.error(e?.message || "Erreur de génération MENTOR");
-    } finally {
-      setGeneratingMentor(false);
-    }
-  };
 
   const fileType = useMemo(() => {
     const name = fileName || "";
@@ -89,7 +64,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
 
         if (cancelled) return;
 
-        // Render into mobile container
         if (docxContainerRef.current) {
           docxContainerRef.current.innerHTML = "";
           await renderAsync(blob, docxContainerRef.current, undefined, {
@@ -116,7 +90,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
           });
         }
 
-        // Render into desktop container
         if (docxDesktopRef.current) {
           docxDesktopRef.current.innerHTML = "";
           const response2 = await fetch(signedUrl);
@@ -160,11 +133,11 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
   // Block keyboard shortcuts + completely lock background page scroll
   useEffect(() => {
     if (!open) return;
-    
+
     const html = document.documentElement;
     const body = document.body;
     const mainContent = document.getElementById("main-content");
-    
+
     html.style.overflow = "hidden";
     body.style.overflow = "hidden";
     html.style.position = "fixed";
@@ -230,21 +203,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {isAdmin && courseId && subjectId && (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={generatingMentor}
-                onClick={handleGenerateMentor}
-                className="hidden md:flex h-8 gap-1.5 text-xs"
-              >
-                {generatingMentor ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />)}
-                {generatingMentor ? "Génération..." : "Générer parcours MENTOR"}
-              </Button>
-            )}
             <Button
               variant="ghost"
               size="icon"
@@ -256,7 +214,7 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
           </div>
         </div>
 
-        {/* ===== MOBILE: vertical stack ===== */}
+        {/* ===== MOBILE ===== */}
         <div className="flex-1 overflow-y-auto md:hidden" style={{ overflowX: "hidden" }}>
           <div
             className="relative select-none bg-muted/20 w-full"
@@ -287,18 +245,12 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
               />
             )}
           </div>
-
-          {showRevisionPanel && courseId && subjectId && subjectName && (
-            <div className="w-full border-t border-border/50 bg-card" key={`mobile-${mentorVersion}`}>
-              <MentorPanel courseId={courseId} subjectId={subjectId} subjectName={subjectName} courseTitle={title} />
-            </div>
-          )}
         </div>
 
-        {/* ===== DESKTOP: horizontal split ===== */}
+        {/* ===== DESKTOP ===== */}
         <div className="hidden md:flex flex-1 overflow-hidden" style={{ height: "calc(92vh - 56px)" }}>
           <div
-            className={`relative select-none bg-muted/20 ${showRevisionPanel ? "flex-1" : "w-full"} overflow-auto`}
+            className="relative select-none bg-muted/20 w-full overflow-auto"
             onContextMenu={(e) => e.preventDefault()}
             style={{ userSelect: "none", WebkitUserSelect: "none" }}
           >
@@ -334,12 +286,6 @@ export function SecurePdfViewer({ open, onOpenChange, signedUrl, title, fileName
               />
             )}
           </div>
-
-          {showRevisionPanel && courseId && subjectId && subjectName && (
-            <div className="w-[420px] shrink-0 border-l border-border/50 bg-card overflow-hidden" key={`desktop-${mentorVersion}`}>
-              <MentorPanel courseId={courseId} subjectId={subjectId} subjectName={subjectName} courseTitle={title} />
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>
