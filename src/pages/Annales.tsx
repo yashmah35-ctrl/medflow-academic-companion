@@ -202,13 +202,6 @@ export default function Annales() {
       return;
     }
 
-    // Call Annales webhook
-    callWebhook(WEBHOOKS.ANNALES, {
-      user_id: user.id,
-      subject_id: newSubject.subjectId,
-      year: newYear || null,
-      session: newSession || null,
-    }).catch(() => {});
 
     toast.success("Annale créée !");
     setShowCreate(false);
@@ -359,13 +352,6 @@ export default function Annales() {
         },
       });
 
-      // Also call OCR webhook
-      callWebhook(WEBHOOKS.OCR, {
-        user_id: user.id,
-        file_type: file.type,
-        format: selectedAnnale.format,
-        source: "annale",
-      }).catch(() => {});
 
       if (error) throw error;
 
