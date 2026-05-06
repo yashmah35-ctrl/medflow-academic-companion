@@ -305,7 +305,12 @@ export function ImportQuestionsModal({
       const extracted: Question[] = (data.questions || []).map((q: any) => ({
         id: crypto.randomUUID(),
         question: q.question,
-        propositions: (q.propositions || []).map((p: any) => ({ id: p.id, text: p.text, isCorrect: p.isCorrect })),
+        propositions: (q.propositions || []).map((p: any) => ({
+          id: p.id,
+          text: p.text,
+          isCorrect: !!p.isCorrect,
+          explanation: p.explanation && String(p.explanation).trim() ? String(p.explanation).trim() : undefined,
+        })),
       }));
 
       if (extracted.length === 0) { toast.error("Aucune question détectée"); return; }

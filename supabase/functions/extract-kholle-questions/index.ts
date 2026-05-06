@@ -40,12 +40,18 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Tu es un expert en extraction de questions médicales à partir de documents scannés ou photographiés. Tu dois extraire TOUTES les questions et leurs propositions (A, B, C, D, E) depuis le document. Le format est ${formatHint}. Pour chaque proposition, détermine si elle est correcte ou non d'après le document. Si la correction n'est pas visible, mets toutes les propositions comme incorrectes.`,
+            content: `Tu es un expert en extraction de questions médicales (QCM/QIM). Extrais TOUTES les questions du document et leurs propositions A, B, C, D, E. Format : ${formatHint}.
+
+Règles STRICTES :
+- Pour chaque proposition, lis attentivement la correction fournie dans le document (V/F, Vrai/Faux, ✓/✗, "correct"/"incorrect", surlignage, etc.) et renseigne isCorrect en conséquence.
+- Si une explication/justification est donnée pour une proposition (souvent après "Explication :", "Justification :", "Car...", "En effet..."), extrais-la dans le champ explanation de cette proposition.
+- Ne JAMAIS inventer : si la correction d'une proposition n'apparaît pas, mets isCorrect=false et laisse explanation vide.
+- Conserve exactement l'énoncé et le texte des propositions tels qu'ils sont écrits.`,
           },
           {
             role: "user",
             content: fileText
-              ? `Extrais toutes les questions et propositions du texte ci-dessous. Format attendu : ${formatHint}. Retourne les questions avec leurs propositions et indique si chaque proposition est correcte.\n\n---\n${fileText}`
+              ? `Voici un document texte contenant des questions ${formatHint} avec leurs corrections (V/F) et explications déjà indiquées. Extrais TOUTES les questions, leurs 5 propositions A-E, le statut isCorrect (true/false) selon la correction fournie, et l'explication associée à chaque proposition lorsqu'elle est présente.\n\n---DOCUMENT---\n${fileText}\n---FIN---`
               : [
                   {
                     type: "image_url",
@@ -80,9 +86,10 @@ serve(async (req) => {
                             properties: {
                               id: { type: "string", description: "Lettre de la proposition (A, B, C, D, E)" },
                               text: { type: "string", description: "Texte de la proposition" },
-                              isCorrect: { type: "boolean", description: "Si la proposition est correcte" },
+                              isCorrect: { type: "boolean", description: "true si la proposition est marquée correcte (V/Vrai) dans le document, false sinon (F/Faux ou non précisée)" },
+                              explanation: { type: "string", description: "Explication/justification associée à la proposition si présente dans le document, sinon chaîne vide" },
                             },
-                            required: ["id", "text", "isCorrect"],
+                            required: ["id", "text", "isCorrect", "explanation"],
                             additionalProperties: false,
                           },
                         },
