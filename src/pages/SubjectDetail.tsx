@@ -105,6 +105,12 @@ export default function SubjectDetail() {
   const [importExercise, setImportExercise] = useState<AdminExercise | null>(null);
   const [trainingExercise, setTrainingExercise] = useState<AdminExercise | null>(null);
 
+  // Création d'un exercice depuis le panneau du viewer (lié à un cours précis)
+  const [viewerCreateOpen, setViewerCreateOpen] = useState(false);
+  const [viewerCreateMode, setViewerCreateMode] = useState<"manual" | "ocr">("manual");
+  const [viewerCreateTitle, setViewerCreateTitle] = useState("");
+  const [viewerCreateFormat, setViewerCreateFormat] = useState<"QCM" | "QIM">("QCM");
+
   const folderIds = dbFolders.map(f => f.id);
   const folderProgress = useFolderProgress(folderIds, folderCourseCounts);
 
