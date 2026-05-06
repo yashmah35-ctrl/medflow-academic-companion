@@ -892,12 +892,13 @@ export default function SubjectDetail() {
                   });
                   if (wrong.length > 0 && subject) {
                     await saveErrorsWithDedup(
-                      user.id,
                       wrong.map((q) => ({
+                        user_id: user.id,
                         question: q.question,
                         correct_answer: q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(" | "),
                         wrong_answer: "Réponse incorrecte",
                         subject_name: subject.name,
+                        error_type: "exercise",
                         source: "exercise",
                         propositions_json: q.propositions,
                       }))
