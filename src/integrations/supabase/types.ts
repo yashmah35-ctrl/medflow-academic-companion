@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       admin_exercises: {
         Row: {
+          course_id: string | null
           created_at: string
           created_by: string
           format: string
@@ -27,6 +28,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          course_id?: string | null
           created_at?: string
           created_by: string
           format?: string
@@ -38,6 +40,7 @@ export type Database = {
           title: string
         }
         Update: {
+          course_id?: string | null
           created_at?: string
           created_by?: string
           format?: string
