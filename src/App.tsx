@@ -16,7 +16,7 @@ import Cours from "./pages/Cours";
 import SubjectDetail from "./pages/SubjectDetail";
 import SubjectGroup from "./pages/SubjectGroup";
 import Schedule from "./pages/Schedule";
-import ActiveLearning from "./pages/ActiveLearning";
+
 import ErrorNotebook from "./pages/ErrorNotebook";
 import Kholles from "./pages/Kholles";
 import ExamsBlancs from "./pages/ExamsBlancs";
@@ -62,7 +62,7 @@ function AppRoutes() {
         <Route path="/subject/:subjectId/folder/:folderId" element={<SubjectDetail />} />
         <Route path="/subject-group/:groupName" element={<SubjectGroup />} />
         <Route path="/schedule" element={<Schedule />} />
-        <Route path="/learning" element={<ActiveLearning />} />
+        
         <Route path="/errors" element={<AdminBlockedRoute><PremiumPaywall><ErrorNotebook /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/kholles" element={<AdminBlockedRoute><PremiumPaywall><Kholles /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/exams" element={<AdminBlockedRoute><PremiumPaywall><ExamsBlancs /></PremiumPaywall></AdminBlockedRoute>} />

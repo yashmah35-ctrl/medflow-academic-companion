@@ -41,7 +41,7 @@ const studentTabs: Tab[] = [
     title: "Plus",
     icon: BarChart3,
     subItems: [
-      { title: "Apprentissage actif", path: "/learning", icon: Brain },
+      
       { title: "Cahier d'erreurs", path: "/errors", icon: BookX },
       { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
       { title: "Annales", path: "/annales", icon: Archive, restricted: true },

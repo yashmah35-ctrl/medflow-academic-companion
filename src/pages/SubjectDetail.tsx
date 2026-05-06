@@ -26,6 +26,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 import { useFolderProgress } from "@/hooks/useFolderProgress";
 import { AddQuestionModal, EditQuestionsModal, ImportQuestionsModal } from "@/components/training/ExerciseAdminModals";
+import { TrainingEngine, type Question } from "@/components/training/TrainingEngine";
+import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 
 const container = {
   hidden: { opacity: 0 },
@@ -100,6 +102,7 @@ export default function SubjectDetail() {
   const [addQuestionExercise, setAddQuestionExercise] = useState<AdminExercise | null>(null);
   const [editQuestionsExercise, setEditQuestionsExercise] = useState<AdminExercise | null>(null);
   const [importExercise, setImportExercise] = useState<AdminExercise | null>(null);
+  const [trainingExercise, setTrainingExercise] = useState<AdminExercise | null>(null);
 
   const folderIds = dbFolders.map(f => f.id);
   const folderProgress = useFolderProgress(folderIds, folderCourseCounts);
@@ -690,7 +693,7 @@ export default function SubjectDetail() {
                         className="shrink-0"
                         onClick={() => {
                           if (exLocked) { setPremiumModalOpen(true); return; }
-                          navigate(`/learning?exerciseId=${ex.id}`);
+                          setTrainingExercise(ex);
                         }}
                       >
                         {exLocked ? <><Lock className="h-3.5 w-3.5 mr-1" /> Débloquer</> : <><Play className="h-3.5 w-3.5 mr-1" /> Démarrer</>}
@@ -868,6 +871,47 @@ export default function SubjectDetail() {
         exercise={importExercise}
         onSaved={() => { setImportExercise(null); fetchExercisesForSubject(); }}
       />
+
+      {/* Training modal */}
+      <Dialog open={!!trainingExercise} onOpenChange={(o) => { if (!o) setTrainingExercise(null); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {trainingExercise && (
+            <TrainingEngine
+              title={trainingExercise.title}
+              format={(trainingExercise.format as "QCM" | "QIM") || "QCM"}
+              questions={(trainingExercise.questions_json as Question[]) || []}
+              onBack={() => setTrainingExercise(null)}
+              onFinish={async ({ score, total, wrong }) => {
+                if (!user || !trainingExercise) return;
+                try {
+                  await supabase.from("user_exercise_scores" as any).insert({
+                    user_id: user.id,
+                    exercise_id: trainingExercise.id,
+                    correct_count: Math.round(score),
+                    total_count: total,
+                  });
+                  if (wrong.length > 0 && subject) {
+                    await saveErrorsWithDedup(
+                      wrong.map((q) => ({
+                        user_id: user.id,
+                        question: q.question,
+                        correct_answer: q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(" | "),
+                        wrong_answer: "Réponse incorrecte",
+                        subject_name: subject.name,
+                        error_type: "exercise",
+                        source: "exercise",
+                        propositions_json: q.propositions,
+                      }))
+                    );
+                  }
+                } catch (e) {
+                  console.error("Save score error", e);
+                }
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
