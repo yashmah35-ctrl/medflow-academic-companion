@@ -281,15 +281,24 @@ export function ImportQuestionsModal({
     if (!exercise) return;
     setImporting(true);
     try {
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const isText = file.type.startsWith("text/") || /\.txt$/i.test(file.name);
+
+      let payload: Record<string, unknown>;
+      if (isText) {
+        const text = await file.text();
+        payload = { fileText: text, format: exercise.format };
+      } else {
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        payload = { fileBase64: base64, fileMimeType: file.type, format: exercise.format };
+      }
 
       const { data, error } = await supabase.functions.invoke("extract-kholle-questions", {
-        body: { fileBase64: base64, fileMimeType: file.type, format: exercise.format },
+        body: payload,
       });
       if (error) throw error;
 
