@@ -12,9 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const { fileBase64, fileMimeType, format } = await req.json();
+    const { fileBase64, fileMimeType, format, fileText } = await req.json();
 
-    if (!fileBase64) {
+    if (!fileBase64 && !fileText) {
       return new Response(
         JSON.stringify({ error: "Aucun fichier fourni." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
