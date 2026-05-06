@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2 } from "lucide-react";
+import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2, Pencil, Trash2 } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,6 +30,9 @@ interface SecurePdfViewerProps {
   onOpenTraining?: (exerciseId: string) => void;
   onCreateManual?: () => void;
   onImportOcr?: () => void;
+  onAddQuestion?: (exerciseId: string) => void;
+  onEditQuestions?: (exerciseId: string) => void;
+  onDeleteExercise?: (exerciseId: string) => void;
 }
 
 export function SecurePdfViewer({
@@ -46,6 +49,9 @@ export function SecurePdfViewer({
   onOpenTraining,
   onCreateManual,
   onImportOcr,
+  onAddQuestion,
+  onEditQuestions,
+  onDeleteExercise,
 }: SecurePdfViewerProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
