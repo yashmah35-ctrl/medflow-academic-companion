@@ -62,6 +62,7 @@ interface AdminExercise {
   id: string;
   title: string;
   subject_id: string;
+  course_id?: string | null;
   questions_json: any[] | null;
   format: string;
   created_by: string;
