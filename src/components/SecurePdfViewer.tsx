@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2, Pencil, Trash2 } from "lucide-react";
+import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2, Pencil, Trash2, ScanLine } from "lucide-react";
 import { renderAsync } from "docx-preview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -32,6 +32,7 @@ interface SecurePdfViewerProps {
   onImportOcr?: () => void;
   onAddQuestion?: (exerciseId: string) => void;
   onEditQuestions?: (exerciseId: string) => void;
+  onImportOCR?: (exerciseId: string) => void;
   onDeleteExercise?: (exerciseId: string) => void;
 }
 
@@ -51,6 +52,7 @@ export function SecurePdfViewer({
   onImportOcr,
   onAddQuestion,
   onEditQuestions,
+  onImportOCR,
   onDeleteExercise,
 }: SecurePdfViewerProps) {
   const { user } = useAuth();
@@ -393,6 +395,14 @@ export function SecurePdfViewer({
                           onClick={() => onEditQuestions?.(ex.id)}
                         >
                           <Pencil className="h-3 w-3" /> Modifier
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-[11px] gap-1"
+                          onClick={() => onImportOCR?.(ex.id)}
+                        >
+                          <ScanLine className="h-3 w-3" /> OCR
                         </Button>
                         <Button
                           size="sm"
