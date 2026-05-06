@@ -213,7 +213,7 @@ export default function SubjectDetail() {
 
   // Fetch exercises for this subject
   const fetchExercisesForSubject = async () => {
-    if (!subjectId || folderId) return;
+    if (!subjectId) return;
     const { data } = await supabase
       .from("admin_exercises")
       .select("*")
@@ -240,6 +240,8 @@ export default function SubjectDetail() {
             });
             setExerciseScores(scoreMap);
           }
+        } else {
+          setExerciseScores({});
         }
       }
     }

@@ -304,19 +304,27 @@ export function ImportQuestionsModal({
 
       const extracted: Question[] = (data.questions || []).map((q: any) => ({
         id: crypto.randomUUID(),
-        question: q.question,
+        question: String(q.question || "").trim(),
         propositions: (q.propositions || []).map((p: any) => ({
-          id: p.id,
-          text: p.text,
+          id: String(p.id || "").trim().toUpperCase(),
+          text: String(p.text || "").trim(),
           isCorrect: !!p.isCorrect,
           explanation: p.explanation && String(p.explanation).trim() ? String(p.explanation).trim() : undefined,
-        })),
-      }));
+        })).filter((p: Proposition) => /^[A-E]$/.test(p.id) && p.text),
+      })).filter((q: Question) => q.question && q.propositions.length >= 2);
 
       if (extracted.length === 0) { toast.error("Aucune question détectée"); return; }
 
       const updated = [...(exercise.questions_json || []), ...extracted];
-      await supabase.from("admin_exercises").update({ questions_json: updated as any }).eq("id", exercise.id);
+      const { data: savedExercise, error: saveError } = await supabase
+        .from("admin_exercises")
+        .update({ questions_json: updated as any })
+        .eq("id", exercise.id)
+        .select("questions_json")
+        .single();
+      if (saveError) throw saveError;
+      const savedCount = Array.isArray(savedExercise?.questions_json) ? savedExercise.questions_json.length : 0;
+      if (savedCount < updated.length) throw new Error("La sauvegarde des questions a échoué.");
       toast.success(`${extracted.length} question(s) importée(s) !`);
       onSaved();
       onOpenChange(false);
