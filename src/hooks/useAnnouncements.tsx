@@ -40,24 +40,8 @@ export function useAnnouncements() {
     };
 
     fetchData();
-
-    // Realtime subscription for new announcements
-    const channel = supabase
-      .channel("announcements-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "announcements" },
-        (payload) => {
-          const newAnn = payload.new as Announcement;
-          setAnnouncements((prev) => [newAnn, ...prev]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   }, [user]);
+
 
   const markAsRead = async (announcementId: string) => {
     if (!user || readIds.has(announcementId)) return;
