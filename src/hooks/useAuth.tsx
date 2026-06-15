@@ -47,11 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        const r = await fetchRole(session.user.id);
-        if (mounted) setRole(r);
+      try {
+        if (session?.user) {
+          const r = await fetchRole(session.user.id);
+          if (mounted) setRole(r);
+        }
+      } finally {
+        if (mounted) setLoading(false);
       }
-      if (mounted) setLoading(false);
     });
 
     // 2. Listen for auth changes (don't do async work inside the callback)
@@ -63,9 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Use setTimeout to avoid calling Supabase inside the listener
         setTimeout(async () => {
           if (!mounted) return;
-          const r = await fetchRole(session.user.id);
-          if (mounted) setRole(r);
-          if (mounted) setLoading(false);
+          try {
+            const r = await fetchRole(session.user.id);
+            if (mounted) setRole(r);
+          } finally {
+            if (mounted) setLoading(false);
+          }
         }, 0);
       } else {
         setRole(null);

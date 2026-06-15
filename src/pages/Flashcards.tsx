@@ -136,19 +136,30 @@ export default function Flashcards() {
 
     if (error) { toast.error("Erreur chargement decks"); setLoading(false); return; }
 
-    // Get card counts per deck using SRS localStorage
-    const deckList: Deck[] = [];
-    for (const d of deckRows || []) {
+    // Fetch all card IDs for all decks in a single query
+    const deckIds = (deckRows || []).map((d: any) => d.id);
+    let allCards: { id: string; deck_id: string }[] = [];
+    if (deckIds.length > 0) {
       const { data: cardData } = await supabase
-        .from("flashcards").select("id", { count: "exact" })
-        .eq("deck_id", d.id);
-      const cardIds = (cardData || []).map((c: any) => c.id);
-      const total = cardIds.length;
-      const dueIds = getDueCardIds(d.id, cardIds);
-      const due = dueIds.length;
-      const mastery = total > 0 ? Math.round(((total - due) / total) * 100) : 0;
+        .from("flashcards")
+        .select("id, deck_id")
+        .in("deck_id", deckIds);
+      allCards = cardData || [];
+    }
 
-      deckList.push({
+    // Group by deck_id on the client
+    const cardsByDeck = allCards.reduce<Record<string, string[]>>((acc, c) => {
+      if (!acc[c.deck_id]) acc[c.deck_id] = [];
+      acc[c.deck_id].push(c.id);
+      return acc;
+    }, {});
+
+    const deckList: Deck[] = (deckRows || []).map((d: any) => {
+      const cardIds = cardsByDeck[d.id] || [];
+      const total = cardIds.length;
+      const due = getDueCardIds(d.id, cardIds).length;
+      const mastery = total > 0 ? Math.round(((total - due) / total) * 100) : 0;
+      return {
         id: d.id,
         name: d.name,
         description: d.description,
@@ -158,8 +169,8 @@ export default function Flashcards() {
         cardCount: total,
         dueCount: due,
         mastery,
-      });
-    }
+      };
+    });
     setDecks(deckList);
     setLoading(false);
   }, [user]);

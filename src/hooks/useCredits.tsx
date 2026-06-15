@@ -87,6 +87,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
 
   // Vérification après retour Stripe (achat de crédits)
   useEffect(() => {
+    if (!user) return;
     const params = new URLSearchParams(window.location.search);
     const status = params.get("credits_purchase");
     const sessionId = params.get("session_id");
@@ -115,7 +116,7 @@ export function CreditsProvider({ children }: { children: ReactNode }) {
       url.searchParams.delete("credits_purchase");
       window.history.replaceState({}, "", url.toString());
     }
-  }, [refresh]);
+  }, [user, refresh]);
 
   const buyPack = useCallback(async (packId: "pack_50" | "pack_100" | "pack_150" | "pack_4000") => {
     try {

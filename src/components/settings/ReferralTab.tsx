@@ -31,12 +31,8 @@ export function ReferralTab() {
           .maybeSingle();
         setAff(data);
 
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("iban_encrypted, bic")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (prof) { setIban(prof.iban_encrypted ?? ""); setBic(prof.bic ?? ""); }
+        const { data: bankData } = await supabase.functions.invoke("get-bank-details");
+        if (bankData) { setIban(bankData.iban ?? ""); setBic(bankData.bic ?? ""); }
       } finally { setLoading(false); }
     })();
   }, [user]);
@@ -57,10 +53,9 @@ export function ReferralTab() {
     if (!user) return;
     setSavingIban(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ iban_encrypted: iban.trim() || null, bic: bic.trim() || null })
-        .eq("user_id", user.id);
+      const { error } = await supabase.functions.invoke("save-bank-details", {
+        body: { iban: iban.trim() || null, bic: bic.trim() || null },
+      });
       if (error) throw error;
       toast.success("Coordonnées bancaires enregistrées");
     } catch (e: any) { toast.error(e.message ?? "Erreur"); }

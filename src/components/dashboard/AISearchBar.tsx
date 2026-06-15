@@ -33,10 +33,8 @@ export function AISearchBar() {
 
   // Lock background scroll when modal open
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
-    }
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
   }, [open]);
 
   const send = async (textOverride?: string) => {

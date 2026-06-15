@@ -214,8 +214,10 @@ export default function Auth() {
   // Auth listener
   useEffect(() => {
     let isMounted = true;
+    let navigated = false;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted && session) {
+      if (isMounted && session && !navigated) {
+        navigated = true;
         syncUserToExternal(session.user.id, session.user.email || "")
           .then((ok) => console.log("[Auth] External sync result:", ok))
           .catch((err) => console.error("[Auth] External sync error:", err));
@@ -223,7 +225,10 @@ export default function Auth() {
       }
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (isMounted && session) navigate("/dashboard", { replace: true });
+      if (isMounted && session && !navigated) {
+        navigated = true;
+        navigate("/dashboard", { replace: true });
+      }
     });
     return () => {
       isMounted = false;

@@ -4,6 +4,7 @@ import { Play, Pause, Square, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { computeLevel } from "@/hooks/useUserStats";
 
 interface StudyTimerProps {
   onMinutesUpdate?: (totalMinutes: number) => void;
@@ -108,10 +109,7 @@ const StudyTimer = ({ onMinutesUpdate }: StudyTimerProps) => {
       if (stats) {
         const today = new Date().toISOString().slice(0, 10);
         const newXp = stats.xp + xpEarned;
-        let newLevel = stats.level;
-        while (newXp >= newLevel * 100) {
-          newLevel++;
-        }
+        const newLevel = computeLevel(newXp);
         let newStreak = stats.streak_days;
         if (stats.last_active_date !== today) {
           const yesterday = new Date();

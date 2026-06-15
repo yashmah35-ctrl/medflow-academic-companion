@@ -211,10 +211,11 @@ export default function Kholles() {
   const handleDeleteQuestion = async (qId: string) => {
     if (!selectedKholle) return;
     const updated = (selectedKholle.questions_json || []).filter((q) => q.id !== qId);
-    await supabase
+    const { error } = await supabase
       .from("kholles")
       .update({ questions_json: updated as any })
       .eq("id", selectedKholle.id);
+    if (error) { toast.error("Erreur lors de la suppression"); return; }
     setSelectedKholle({ ...selectedKholle, questions_json: updated });
     fetchKholles();
   };
@@ -368,7 +369,8 @@ export default function Kholles() {
   };
 
   const nextQuestion = async () => {
-    const questions = selectedKholle!.questions_json!;
+    if (!selectedKholle?.questions_json) return;
+    const questions = selectedKholle.questions_json;
     if (currentQIndex < questions.length - 1) {
       setCurrentQIndex((i) => i + 1);
       setShowResults(false);

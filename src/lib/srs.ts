@@ -40,26 +40,26 @@ const SRS_TABLE: Record<number, Record<SRSRating, Transition>> = {
   3: {
     again: { newLevel: 2, intervalMinutes: 1 },
     hard:  { newLevel: 2, intervalMinutes: 3 },
-    good:  { newLevel: 4, intervalMinutes: 7 },
-    easy:  { newLevel: 5, intervalMinutes: 10 },
+    good:  { newLevel: 4, intervalDays: 1 },
+    easy:  { newLevel: 5, intervalDays: 3 },
   },
   4: {
     again: { newLevel: 3, intervalMinutes: 1 },
     hard:  { newLevel: 3, intervalMinutes: 3 },
-    good:  { newLevel: 5, intervalMinutes: 7 },
-    easy:  { newLevel: 6, intervalMinutes: 10 },
+    good:  { newLevel: 5, intervalDays: 3 },
+    easy:  { newLevel: 6, intervalDays: 7 },
   },
   5: {
     again: { newLevel: 4, intervalMinutes: 1 },
     hard:  { newLevel: 4, intervalMinutes: 3 },
-    good:  { newLevel: 6, intervalMinutes: 7 },
-    easy:  { newLevel: 6, intervalMinutes: 10 },
+    good:  { newLevel: 6, intervalDays: 7 },
+    easy:  { newLevel: 6, intervalDays: 21 },
   },
   6: {
     again: { newLevel: 5, intervalMinutes: 1 },
     hard:  { newLevel: 5, intervalMinutes: 3 },
-    good:  { newLevel: 6, intervalMinutes: 7 },
-    easy:  { newLevel: 6, intervalMinutes: 10 },
+    good:  { newLevel: 6, intervalDays: 21 },
+    easy:  { newLevel: 6, intervalDays: 30 },
   },
 };
 

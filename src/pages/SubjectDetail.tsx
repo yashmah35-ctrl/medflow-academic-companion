@@ -18,7 +18,7 @@ import {
   subjectColorMap,
   type SubjectColor,
 } from "@/data/mockData";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -194,32 +194,33 @@ export default function SubjectDetail() {
     fetchFolders();
   }, [subjectId]);
 
-  // Dynamic course counts
+  // Dynamic course counts — single query instead of N sequential requests
   useEffect(() => {
     if (dbFolders.length === 0) return;
     const fetchCounts = async () => {
+      const folderIdList = dbFolders.map(f => f.id);
+      const { data: allCourses } = await supabase
+        .from("courses")
+        .select("folder_id")
+        .in("folder_id", folderIdList);
       const counts: Record<string, number> = {};
-      for (const folder of dbFolders) {
-        const { count } = await supabase
-          .from("courses")
-          .select("id", { count: "exact", head: true })
-          .eq("folder_id", folder.id);
-        counts[folder.id] = count || 0;
-      }
+      for (const f of dbFolders) counts[f.id] = 0;
+      for (const c of allCourses || []) counts[c.folder_id] = (counts[c.folder_id] || 0) + 1;
       setFolderCourseCounts(counts);
     };
     fetchCounts();
   }, [dbFolders]);
 
   // Fetch exercises for this subject
-  const fetchExercisesForSubject = async () => {
+  const fetchExercisesForSubject = useCallback(async () => {
     if (!subjectId) return;
-    const { data } = await supabase
-      .from("admin_exercises")
-      .select("*")
-      .eq("subject_id", subjectId)
-      .order("created_at", { ascending: false });
-    if (data) {
+    try {
+      const { data } = await supabase
+        .from("admin_exercises")
+        .select("*")
+        .eq("subject_id", subjectId)
+        .order("created_at", { ascending: false });
+      if (!data) return;
       setExercises(data as AdminExercise[]);
       if (user) {
         const exerciseIds = data.map((e: any) => e.id);
@@ -244,12 +245,14 @@ export default function SubjectDetail() {
           setExerciseScores({});
         }
       }
+    } catch (e) {
+      console.error("fetchExercisesForSubject error:", e);
     }
-  };
+  }, [subjectId, user]);
 
   useEffect(() => {
     fetchExercisesForSubject();
-  }, [subjectId, folderId, user]);
+  }, [fetchExercisesForSubject, folderId]);
 
   // Fetch courses inside folder
   useEffect(() => {
