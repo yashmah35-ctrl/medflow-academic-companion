@@ -52,7 +52,7 @@ function buildSystemPrompt(formatHint: string) {
 
 Règles STRICTES :
 - Pour chaque proposition, lis attentivement la correction fournie dans le document (V/F, Vrai/Faux, ✓/✗, "correct"/"incorrect", surlignage, etc.) et renseigne isCorrect en conséquence.
-- Si une explication/justification est donnée pour une proposition (souvent après "Explication :", "Justification :", "Car...", "En effet..."), extrais-la dans le champ explanation de cette proposition.
+- Si une explication est présente, résume-la en UNE seule phrase courte (max 20 mots). Ne copie jamais le texte intégral.
 - Ne JAMAIS inventer : si la correction d'une proposition n'apparaît pas, mets isCorrect=false et laisse explanation vide.
 - Conserve exactement l'énoncé et le texte des propositions tels qu'ils sont écrits.`;
 }
@@ -95,11 +95,11 @@ async function extractWithClaude(
       "content-type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 8192,
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 16000,
       system: systemPrompt,
       tools: [
-      {
+        {
           name: EXTRACT_TOOL.function.name,
           description: EXTRACT_TOOL.function.description,
           input_schema: EXTRACT_TOOL.function.parameters,
