@@ -306,7 +306,7 @@ export function ImportQuestionsModal({
         id: crypto.randomUUID(),
         question: String(q.question || "").trim(),
         propositions: (q.propositions || []).map((p: any) => ({
-          id: String(p.id || "").trim().toUpperCase(),
+          id: (String(p.id || "").toUpperCase().match(/[A-E]/) || [""])[0],
           text: String(p.text || "").trim(),
           isCorrect: !!p.isCorrect,
           explanation: p.explanation && String(p.explanation).trim() ? String(p.explanation).trim() : undefined,
