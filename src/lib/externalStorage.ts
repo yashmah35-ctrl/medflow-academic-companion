@@ -41,14 +41,22 @@ export function getCoursePublicUrl(filePath: string): string {
 export async function resolveCourseUrl(filePath: string): Promise<string> {
   if (filePath.startsWith("http")) return filePath;
 
-  // Try Lovable Cloud first via signed URL (avoids 400 on non-public buckets)
+  // Get a signed URL (bypasses public/private bucket restriction)
   const { data, error } = await supabase.storage
     .from(LOVABLE_CLOUD_BUCKET)
     .createSignedUrl(filePath, 3600);
 
-  if (!error && data?.signedUrl) return data.signedUrl;
+  if (!error && data?.signedUrl) {
+    // HEAD on the signed URL: 200 = file exists, 400/404 = file absent
+    try {
+      const res = await fetch(data.signedUrl, { method: "HEAD" });
+      if (res.ok) return data.signedUrl;
+    } catch {
+      // network error, try external
+    }
+  }
 
-  // Fall back to external bucket
+  // Fall back to external bucket (old Supabase project)
   return getExternalCourseUrl(filePath);
 }
 
