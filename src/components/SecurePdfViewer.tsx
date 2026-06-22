@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, X, FileText, Plus, Upload, Play, CheckCircle2, Pencil, Trash2, ScanLine } from "lucide-react";
 import { renderAsync } from "docx-preview";
@@ -227,6 +227,8 @@ export function SecurePdfViewer({
       <DialogContent
         className="max-w-[100vw] md:max-w-[95vw] w-[100vw] md:w-[95vw] h-[100dvh] md:h-[92vh] p-0 gap-0 overflow-hidden border-0 md:border md:border-border/50 bg-card shadow-2xl [&>button:last-child]:hidden rounded-none md:rounded-lg"
       >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <DialogDescription className="sr-only">Consultation du cours en lecture seule</DialogDescription>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-card via-card to-muted/30 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
