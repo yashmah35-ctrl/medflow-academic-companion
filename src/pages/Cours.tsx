@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth, canAccessTC } from "@/hooks/useAuth";
 import { subjectColorMap, type SubjectColor } from "@/data/mockData";
-import PersonalCoursesSection from "@/components/dashboard/PersonalCoursesSection";
 import anatomieOsImg from "@/assets/subjects/anatomie-os.png";
 import anatomieTcImg from "@/assets/subjects/anatomie-tc.png";
 import shsImg from "@/assets/subjects/shs.png";
@@ -147,7 +146,7 @@ export default function Cours() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">Cours</h1>
             <p className="text-sm text-muted-foreground">
-              Tes cours personnels et ceux de la Prépa du Peuple.
+              Les cours de la Prépa du Peuple.
             </p>
           </div>
         </div>
@@ -162,14 +161,6 @@ export default function Cours() {
           />
         </div>
       </div>
-
-      {/* Mes cours personnels */}
-      {!isAdmin && user && (
-        <section>
-          <h2 className="text-lg font-bold text-foreground mb-3">Mes cours personnels</h2>
-          <PersonalCoursesSection userId={user.id} />
-        </section>
-      )}
 
       {/* Cours La Prépa du Peuple */}
       <section>
