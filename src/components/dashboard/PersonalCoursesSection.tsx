@@ -152,6 +152,7 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
     if (!files || files.length === 0 || !uploadingFolderId) return;
     setUploading(true);
 
+    let successCount = 0;
     for (const file of Array.from(files)) {
       const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]/g, "_");
       const filePath = `${userId}/${uploadingFolderId}/${Date.now()}-${safeName}`;
@@ -172,6 +173,7 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
 
       if (insertError) { toast.error(`Erreur: ${file.name}`); continue; }
       if (course) {
+        successCount++;
         setFolderCourses((prev) => ({
           ...prev,
           [uploadingFolderId]: [...(prev[uploadingFolderId] || []), course],
@@ -179,7 +181,7 @@ export default function PersonalCoursesSection({ userId }: { userId: string }) {
       }
     }
 
-    toast.success("Fichier(s) importé(s) !");
+    if (successCount > 0) toast.success(`${successCount} fichier(s) importé(s) !`);
     setUploading(false);
     setUploadingFolderId(null);
     e.target.value = "";
