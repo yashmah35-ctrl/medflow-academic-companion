@@ -12,7 +12,6 @@ import {
   Users,
   BookX,
   FileText,
-  Archive,
   Brain,
   Crown,
   Settings,
@@ -62,7 +61,6 @@ const allNavGroups: NavGroup[] = [
       { title: "Pomodoro", path: "/pomodoro", icon: Timer, adminHidden: true },
       { title: "Cahier d'erreurs", path: "/errors", icon: BookX, adminHidden: true },
       { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true, adminHidden: true },
-      { title: "Annales", path: "/annales", icon: Archive, restricted: true, adminHidden: true },
     ],
   },
   {

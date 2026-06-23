@@ -38,13 +38,6 @@ const SOURCES: { key: SourceKey; label: string; icon: any; gradient: string; mat
     match: ["kholle"],
   },
   {
-    key: "annale",
-    label: "Annales",
-    icon: ClipboardList,
-    gradient: "from-purple-500/20 to-purple-600/5 border-purple-500/30",
-    match: ["annale"],
-  },
-  {
     key: "exam",
     label: "Examens blancs",
     icon: FlaskConical,

@@ -20,7 +20,6 @@ import Schedule from "./pages/Schedule";
 import ErrorNotebook from "./pages/ErrorNotebook";
 import Kholles from "./pages/Kholles";
 import ExamsBlancs from "./pages/ExamsBlancs";
-import Annales from "./pages/Annales";
 import InteractiveModules from "./pages/InteractiveModules";
 import Flashcards from "./pages/Flashcards";
 import QCMCreator from "./pages/QCMCreator";
@@ -66,7 +65,6 @@ function AppRoutes() {
         <Route path="/errors" element={<AdminBlockedRoute><PremiumPaywall><ErrorNotebook /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/kholles" element={<AdminBlockedRoute><PremiumPaywall><Kholles /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/exams" element={<AdminBlockedRoute><PremiumPaywall><ExamsBlancs /></PremiumPaywall></AdminBlockedRoute>} />
-        <Route path="/annales" element={<AdminBlockedRoute><PremiumPaywall><Annales /></PremiumPaywall></AdminBlockedRoute>} />
         <Route path="/modules" element={<InteractiveModules />} />
         <Route path="/flashcards" element={<AdminBlockedRoute><Flashcards /></AdminBlockedRoute>} />
         <Route path="/qcm-creator" element={<AdminBlockedRoute><QCMCreator /></AdminBlockedRoute>} />

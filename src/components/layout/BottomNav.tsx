@@ -9,7 +9,6 @@ import {
   Users,
   BookX,
   FileText,
-  Archive,
   GraduationCap,
   X,
   Megaphone,
@@ -44,7 +43,6 @@ const studentTabs: Tab[] = [
       
       { title: "Cahier d'erreurs", path: "/errors", icon: BookX },
       { title: "Examens Blancs", path: "/exams", icon: FileText, restricted: true },
-      { title: "Annales", path: "/annales", icon: Archive, restricted: true },
       { title: "Khôlles & Tutorat", path: "/kholles", icon: GraduationCap, restricted: true },
       { title: "Réglages", path: "/settings", icon: Settings },
     ],

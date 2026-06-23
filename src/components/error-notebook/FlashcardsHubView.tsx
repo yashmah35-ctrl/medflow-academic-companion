@@ -46,7 +46,6 @@ const AUTO_SOURCES: {
   match: string[];
 }[] = [
   { key: "kholle", label: "Khôlles", icon: GraduationCap, gradient: "from-blue-500/20 to-blue-600/5 border-blue-500/30", match: ["kholle"] },
-  { key: "annale", label: "Annales", icon: ClipboardList, gradient: "from-purple-500/20 to-purple-600/5 border-purple-500/30", match: ["annale"] },
   { key: "exam", label: "Examens blancs", icon: FlaskConical, gradient: "from-amber-500/20 to-amber-600/5 border-amber-500/30", match: ["exam", "exam_blanc"] },
 ];
 
