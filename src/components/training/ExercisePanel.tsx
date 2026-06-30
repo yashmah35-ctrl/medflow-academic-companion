@@ -13,6 +13,7 @@ import { QuestionImageUpload } from "./QuestionImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { saveErrorsWithDedup } from "@/lib/saveErrorsWithDedup";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserStats } from "@/hooks/useUserStats";
 import { TrainingEngine, type Question, type Proposition } from "./TrainingEngine";
 
 interface AdminExercise {
@@ -46,6 +47,7 @@ interface ExercisePanelProps {
 
 export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises = false, folderId }: ExercisePanelProps) {
   const { user, isAdmin } = useAuth();
+  const { addXP } = useUserStats();
   const [exercises, setExercises] = useState<AdminExercise[]>([]);
   const [reviews, setReviews] = useState<ChapterReview[]>([]);
   const [training, setTraining] = useState<{ type: "exercise" | "review"; item: AdminExercise | ChapterReview } | null>(null);
@@ -320,13 +322,24 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
   const handleTrainingFinish = async (result: { score: number; total: number; wrong: Question[] }) => {
     if (!training || !user) return;
 
+    const xpForScore = (c: number) => 5 + c * 2;
+
     // Save revision score for progression tracking
     if (training.type === "review" && folderId) {
       const review = training.item as ChapterReview;
       const questions = (review.questions_json || []) as Question[];
       const totalCount = questions.length;
       const correctCount = Math.max(0, Math.min(totalCount, Math.round(result.score)));
-      
+
+      const { data: prevBest } = await supabase
+        .from("user_revision_scores")
+        .select("correct_count")
+        .eq("user_id", user.id)
+        .eq("review_id", review.id)
+        .order("correct_count", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       await supabase.from("user_revision_scores").insert({
         user_id: user.id,
         review_id: review.id,
@@ -334,6 +347,13 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
         correct_count: correctCount,
         total_count: totalCount,
       });
+
+      const prevBestCount: number = prevBest?.correct_count ?? -1;
+      const xpToAdd = Math.max(0, xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0));
+      if (xpToAdd > 0) {
+        const gained = await addXP(xpToAdd);
+        toast.success(`+${gained?.xpGained ?? xpToAdd} XP gagnés !`);
+      }
     }
 
     // Save exercise score for progression tracking
@@ -342,13 +362,35 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
       const questions = (exercise.questions_json || []) as Question[];
       const totalCount = questions.length;
       const correctCount = Math.max(0, Math.min(totalCount, Math.round(result.score)));
-      
+
+      const { data: prevBest } = await supabase
+        .from("user_exercise_scores" as any)
+        .select("correct_count")
+        .eq("user_id", user.id)
+        .eq("exercise_id", exercise.id)
+        .order("correct_count", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       await supabase.from("user_exercise_scores" as any).insert({
         user_id: user.id,
         exercise_id: exercise.id,
         correct_count: correctCount,
         total_count: totalCount,
       });
+
+      const prevBestCount: number = prevBest?.correct_count ?? -1;
+      const xpToAdd = Math.max(0, xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0));
+      console.log("[XP Debug] exercise", { correctCount, prevBestCount, xpToAdd });
+      if (xpToAdd > 0) {
+        try {
+          const gained = await addXP(xpToAdd);
+          console.log("[XP Debug] addXP result", gained);
+          toast.success(`+${gained?.xpGained ?? xpToAdd} XP gagnés !`);
+        } catch (e) {
+          console.error("[XP Debug] addXP error", e);
+        }
+      }
     }
 
     // Only save errors to notebook for exercises, NOT for chapter reviews
