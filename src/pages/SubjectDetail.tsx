@@ -22,7 +22,6 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useUserStats } from "@/hooks/useUserStats";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 import { useFolderProgress } from "@/hooks/useFolderProgress";
@@ -76,7 +75,6 @@ export default function SubjectDetail() {
   const { subjectId, folderId } = useParams();
   const navigate = useNavigate();
   const { user, role, isAdmin } = useAuth();
-  const { addXP } = useUserStats();
   const [subject, setSubject] = useState<{ id: string; name: string; icon: string; color: string } | null>(null);
   const [dbFolders, setDbFolders] = useState<DBFolder[]>([]);
   const [newFolderName, setNewFolderName] = useState("");
@@ -430,33 +428,17 @@ export default function SubjectDetail() {
 
     try {
       const correctCount = Math.max(0, Math.min(result.total, Math.round(result.score)));
-      const xpForScore = (count: number) => 5 + count * 2;
 
-      const { data: prevBest, error: prevBestError } = await supabase
-        .from("user_exercise_scores" as any)
-        .select("correct_count")
-        .eq("user_id", user.id)
-        .eq("exercise_id", exercise.id)
-        .order("correct_count", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (prevBestError) throw prevBestError;
-
-      const prevBestCount = Number((prevBest as any)?.correct_count ?? -1);
-      const xpToAdd = Math.max(
-        0,
-        xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0)
+      const { data: xpResult, error: recordError } = await (supabase as any).rpc(
+        "record_exercise_score_with_xp",
+        {
+          _exercise_id: exercise.id,
+          _correct_count: correctCount,
+          _total_count: result.total,
+        }
       );
 
-      const { error: insertScoreError } = await supabase.from("user_exercise_scores" as any).insert({
-        user_id: user.id,
-        exercise_id: exercise.id,
-        correct_count: correctCount,
-        total_count: result.total,
-      });
-
-      if (insertScoreError) throw insertScoreError;
+      if (recordError) throw recordError;
 
       setExerciseScores((prev) => {
         const current = prev[exercise.id] ?? { correct: 0, total: 0 };
@@ -469,9 +451,9 @@ export default function SubjectDetail() {
         };
       });
 
+      const xpToAdd = Number(xpResult?.xpGained ?? xpResult?.xpToAdd ?? 0);
       if (xpToAdd > 0) {
-        const gained = await addXP(xpToAdd);
-        toast.success(`+${gained?.xpGained ?? xpToAdd} XP gagnés !`);
+        toast.success(`+${xpToAdd} XP gagnés !`);
       }
 
       if (result.wrong.length > 0 && subject) {
