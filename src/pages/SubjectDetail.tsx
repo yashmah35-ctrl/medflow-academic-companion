@@ -22,6 +22,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserStats } from "@/hooks/useUserStats";
 import { useSubscription } from "@/hooks/useSubscription";
 import { PremiumModal } from "@/components/PremiumPaywall";
 import { useFolderProgress } from "@/hooks/useFolderProgress";
@@ -75,6 +76,7 @@ export default function SubjectDetail() {
   const { subjectId, folderId } = useParams();
   const navigate = useNavigate();
   const { user, role, isAdmin } = useAuth();
+  const { addXP } = useUserStats();
   const [subject, setSubject] = useState<{ id: string; name: string; icon: string; color: string } | null>(null);
   const [dbFolders, setDbFolders] = useState<DBFolder[]>([]);
   const [newFolderName, setNewFolderName] = useState("");
@@ -1001,12 +1003,37 @@ export default function SubjectDetail() {
               onFinish={async ({ score, total, wrong }) => {
                 if (!user || !trainingExercise) return;
                 try {
-                  await supabase.from("user_exercise_scores" as any).insert({
+                  const correctCount = Math.max(0, Math.min(total, Math.round(score)));
+                  const xpForScore = (correct: number) => 5 + correct * 2;
+
+                  const { data: prevBest, error: prevBestError } = await supabase
+                    .from("user_exercise_scores" as any)
+                    .select("correct_count")
+                    .eq("user_id", user.id)
+                    .eq("exercise_id", trainingExercise.id)
+                    .order("correct_count", { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                  if (prevBestError) throw prevBestError;
+
+                  const { error: insertScoreError } = await supabase.from("user_exercise_scores" as any).insert({
                     user_id: user.id,
                     exercise_id: trainingExercise.id,
-                    correct_count: Math.round(score),
+                    correct_count: correctCount,
                     total_count: total,
                   });
+
+                  if (insertScoreError) throw insertScoreError;
+
+                  const prevBestCount = (prevBest as any)?.correct_count ?? -1;
+                  const xpToAdd = Math.max(0, xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0));
+
+                  if (xpToAdd > 0) {
+                    const gained = await addXP(xpToAdd);
+                    if (gained) toast.success(`+${gained.xpGained} XP gagnés !`);
+                  }
+
                   if (wrong.length > 0 && subject) {
                     await saveErrorsWithDedup(
                       wrong.map((q) => ({
