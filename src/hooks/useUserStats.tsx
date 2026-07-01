@@ -102,7 +102,6 @@ export function useUserStats() {
       .select("*")
       .eq("user_id", user.id)
       .maybeSingle();
-
     if (fetchError) {
       console.error("[addXP] fetch error", fetchError);
     }
