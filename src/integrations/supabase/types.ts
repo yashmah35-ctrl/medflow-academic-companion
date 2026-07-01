@@ -1426,6 +1426,7 @@ export type Database = {
         Args: { _amount: number; _stripe_session_id: string; _user_id: string }
         Returns: number
       }
+      add_user_xp: { Args: { _amount: number }; Returns: Json }
       claim_daily_credit: { Args: { _user_id: string }; Returns: number }
       consume_credits: {
         Args: {
