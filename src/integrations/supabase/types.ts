@@ -1336,6 +1336,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_exercise_xp_awards: {
+        Row: {
+          awarded_xp: number
+          best_correct_count: number
+          created_at: string
+          exercise_id: string
+          id: string
+          total_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          awarded_xp?: number
+          best_correct_count?: number
+          created_at?: string
+          exercise_id: string
+          id?: string
+          total_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          awarded_xp?: number
+          best_correct_count?: number
+          created_at?: string
+          exercise_id?: string
+          id?: string
+          total_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_revision_scores: {
         Row: {
           completed_at: string
@@ -1451,6 +1484,14 @@ export type Database = {
       record_affiliate_payout: {
         Args: { _affiliate_id: string; _amount: number; _notes?: string }
         Returns: string
+      }
+      record_exercise_score_with_xp: {
+        Args: {
+          _correct_count: number
+          _exercise_id: string
+          _total_count: number
+        }
+        Returns: Json
       }
       refund_credits: {
         Args: { _amount: number; _reason: string; _user_id: string }

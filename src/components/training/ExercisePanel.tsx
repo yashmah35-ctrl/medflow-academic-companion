@@ -363,33 +363,20 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
       const totalCount = questions.length;
       const correctCount = Math.max(0, Math.min(totalCount, Math.round(result.score)));
 
-      const { data: prevBest } = await supabase
-        .from("user_exercise_scores" as any)
-        .select("correct_count")
-        .eq("user_id", user.id)
-        .eq("exercise_id", exercise.id)
-        .order("correct_count", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      await supabase.from("user_exercise_scores" as any).insert({
-        user_id: user.id,
-        exercise_id: exercise.id,
-        correct_count: correctCount,
-        total_count: totalCount,
-      });
-
-      const prevBestCount: number = (prevBest as any)?.correct_count ?? -1;
-      const xpToAdd = Math.max(0, xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0));
-      console.log("[XP Debug] exercise", { correctCount, prevBestCount, xpToAdd });
-      if (xpToAdd > 0) {
-        try {
-          const gained = await addXP(xpToAdd);
-          console.log("[XP Debug] addXP result", gained);
-          toast.success(`+${gained?.xpGained ?? xpToAdd} XP gagnés !`);
-        } catch (e) {
-          console.error("[XP Debug] addXP error", e);
+      const { data: xpResult, error: recordError } = await (supabase as any).rpc(
+        "record_exercise_score_with_xp",
+        {
+          _exercise_id: exercise.id,
+          _correct_count: correctCount,
+          _total_count: totalCount,
         }
+      );
+
+      if (recordError) throw recordError;
+
+      const xpToAdd = Number(xpResult?.xpGained ?? xpResult?.xpToAdd ?? 0);
+      if (xpToAdd > 0) {
+        toast.success(`+${xpToAdd} XP gagnés !`);
       }
     }
 
