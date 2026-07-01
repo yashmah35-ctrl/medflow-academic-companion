@@ -379,7 +379,7 @@ export function ExercisePanel({ subjectId, courseId, subjectName, hideExercises 
         total_count: totalCount,
       });
 
-      const prevBestCount: number = prevBest?.correct_count ?? -1;
+      const prevBestCount: number = (prevBest as any)?.correct_count ?? -1;
       const xpToAdd = Math.max(0, xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0));
       console.log("[XP Debug] exercise", { correctCount, prevBestCount, xpToAdd });
       if (xpToAdd > 0) {
