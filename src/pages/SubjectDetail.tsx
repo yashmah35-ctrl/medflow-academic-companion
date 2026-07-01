@@ -422,6 +422,78 @@ export default function SubjectDetail() {
     }
   };
 
+  const handleSubjectExerciseFinish = async (
+    exercise: AdminExercise,
+    result: { score: number; total: number; wrong: Question[] }
+  ) => {
+    if (!user) return;
+
+    try {
+      const correctCount = Math.max(0, Math.min(result.total, Math.round(result.score)));
+      const xpForScore = (count: number) => 5 + count * 2;
+
+      const { data: prevBest, error: prevBestError } = await supabase
+        .from("user_exercise_scores" as any)
+        .select("correct_count")
+        .eq("user_id", user.id)
+        .eq("exercise_id", exercise.id)
+        .order("correct_count", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (prevBestError) throw prevBestError;
+
+      const prevBestCount = Number((prevBest as any)?.correct_count ?? -1);
+      const xpToAdd = Math.max(
+        0,
+        xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0)
+      );
+
+      const { error: insertScoreError } = await supabase.from("user_exercise_scores" as any).insert({
+        user_id: user.id,
+        exercise_id: exercise.id,
+        correct_count: correctCount,
+        total_count: result.total,
+      });
+
+      if (insertScoreError) throw insertScoreError;
+
+      setExerciseScores((prev) => {
+        const current = prev[exercise.id] ?? { correct: 0, total: 0 };
+        return {
+          ...prev,
+          [exercise.id]: {
+            correct: current.correct + correctCount,
+            total: current.total + result.total,
+          },
+        };
+      });
+
+      if (xpToAdd > 0) {
+        const gained = await addXP(xpToAdd);
+        toast.success(`+${gained?.xpGained ?? xpToAdd} XP gagnés !`);
+      }
+
+      if (result.wrong.length > 0 && subject) {
+        await saveErrorsWithDedup(
+          result.wrong.map((q) => ({
+            user_id: user.id,
+            question: q.question,
+            correct_answer: q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(" | "),
+            wrong_answer: "Réponse incorrecte",
+            subject_name: subject.name,
+            error_type: "exercise",
+            source: "exercise",
+            propositions_json: q.propositions,
+          }))
+        );
+      }
+    } catch (e) {
+      console.error("Save exercise score error", e);
+      toast.error("Erreur lors de l'enregistrement du score");
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     try {
       return new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -1000,58 +1072,7 @@ export default function SubjectDetail() {
               format={(trainingExercise.format as "QCM" | "QIM") || "QCM"}
               questions={(trainingExercise.questions_json as Question[]) || []}
               onBack={() => setTrainingExercise(null)}
-              onFinish={async ({ score, total, wrong }) => {
-                if (!user || !trainingExercise) return;
-                try {
-                  const correctCount = Math.max(0, Math.min(total, Math.round(score)));
-                  const xpForScore = (correct: number) => 5 + correct * 2;
-
-                  const { data: prevBest, error: prevBestError } = await supabase
-                    .from("user_exercise_scores" as any)
-                    .select("correct_count")
-                    .eq("user_id", user.id)
-                    .eq("exercise_id", trainingExercise.id)
-                    .order("correct_count", { ascending: false })
-                    .limit(1)
-                    .maybeSingle();
-
-                  if (prevBestError) throw prevBestError;
-
-                  const { error: insertScoreError } = await supabase.from("user_exercise_scores" as any).insert({
-                    user_id: user.id,
-                    exercise_id: trainingExercise.id,
-                    correct_count: correctCount,
-                    total_count: total,
-                  });
-
-                  if (insertScoreError) throw insertScoreError;
-
-                  const prevBestCount = (prevBest as any)?.correct_count ?? -1;
-                  const xpToAdd = Math.max(0, xpForScore(correctCount) - (prevBestCount >= 0 ? xpForScore(prevBestCount) : 0));
-
-                  if (xpToAdd > 0) {
-                    const gained = await addXP(xpToAdd);
-                    if (gained) toast.success(`+${gained.xpGained} XP gagnés !`);
-                  }
-
-                  if (wrong.length > 0 && subject) {
-                    await saveErrorsWithDedup(
-                      wrong.map((q) => ({
-                        user_id: user.id,
-                        question: q.question,
-                        correct_answer: q.propositions.filter((p) => p.isCorrect).map((p) => `${p.id}. ${p.text}`).join(" | "),
-                        wrong_answer: "Réponse incorrecte",
-                        subject_name: subject.name,
-                        error_type: "exercise",
-                        source: "exercise",
-                        propositions_json: q.propositions,
-                      }))
-                    );
-                  }
-                } catch (e) {
-                  console.error("Save score error", e);
-                }
-              }}
+              onFinish={(result) => handleSubjectExerciseFinish(trainingExercise, result)}
             />
           )}
         </DialogContent>
