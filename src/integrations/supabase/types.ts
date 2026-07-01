@@ -1336,6 +1336,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_exercise_xp_awards: {
+        Row: {
+          awarded_xp: number
+          best_correct_count: number
+          created_at: string
+          exercise_id: string
+          id: string
+          total_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          awarded_xp?: number
+          best_correct_count?: number
+          created_at?: string
+          exercise_id: string
+          id?: string
+          total_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          awarded_xp?: number
+          best_correct_count?: number
+          created_at?: string
+          exercise_id?: string
+          id?: string
+          total_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_revision_scores: {
         Row: {
           completed_at: string
