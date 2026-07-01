@@ -95,82 +95,28 @@ export function useUserStats() {
 
   const addXP = async (amount: number) => {
     if (!user) return;
-    const today = new Date().toISOString().split("T")[0];
+    const { data: updated, error } = await (supabase as any).rpc("add_user_xp", { _amount: amount });
 
-    let { data: current, error: fetchError } = await supabase
-      .from("user_stats")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (fetchError) {
-      console.error("[addXP] fetch error", fetchError);
-    }
-
-    if (!current) {
-      // Ensure a row exists for legacy users created before the trigger
-      const { data: created, error: insertError } = await supabase
-        .from("user_stats")
-        .insert({ user_id: user.id })
-        .select()
-        .single();
-      if (insertError) {
-        console.error("[addXP] insert error", insertError);
-        return;
-      }
-      current = created;
-    }
-
-    let newStreak = current.streak_days;
-    const lastActive = current.last_active_date;
-
-    if (lastActive !== today) {
-      if (lastActive) {
-        const lastDate = new Date(lastActive);
-        const todayDate = new Date(today);
-        const diffDays = Math.floor((todayDate.getTime() - lastDate.getTime()) / 86400000);
-        newStreak = diffDays === 1 ? current.streak_days + 1 : diffDays === 0 ? current.streak_days : 1;
-      } else {
-        newStreak = 1;
-      }
-    }
-
-    // Streak bonus: multiply XP by streak multiplier
-    const streakMultiplier = 1 + Math.min(newStreak, 7) * 0.1; // max 1.7x
-    const finalXP = Math.round(amount * streakMultiplier);
-    const newXP = current.xp + finalXP;
-    const newLevel = computeLevel(newXP);
-
-    const { data: updated, error: updateError } = await supabase
-      .from("user_stats")
-      .update({
-        xp: newXP,
-        level: newLevel,
-        streak_days: newStreak,
-        last_active_date: today,
-      })
-      .eq("user_id", user.id)
-      .select("xp, streak_days, last_active_date")
-      .maybeSingle();
-
-    if (updateError) {
-      console.error("[addXP] update error", updateError);
-      throw updateError;
-    }
-
-    if (!updated) {
-      const error = new Error("Aucune ligne user_stats mise à jour pour cet utilisateur");
-      console.error("[addXP] update missing row", error);
+    if (error) {
+      console.error("[addXP] rpc error", error);
       throw error;
     }
 
+    if (!updated) return;
+
+    const xp = Number(updated.xp ?? 0);
+    const streakDays = Number(updated.streakDays ?? 0);
+    const xpGained = Number(updated.xpGained ?? 0);
+    const streakMultiplier = Number(updated.streakMultiplier ?? 1);
+
     setStats({
-      xp: updated.xp,
-      level: computeLevel(updated.xp),
-      streak_days: updated.streak_days,
-      last_active_date: updated.last_active_date,
+      xp,
+      level: Number(updated.level ?? computeLevel(xp)),
+      streak_days: streakDays,
+      last_active_date: updated.lastActiveDate ?? null,
     });
 
-    return { xpGained: finalXP, streakMultiplier };
+    return { xpGained, streakMultiplier };
   };
 
   return { stats, rank, loading, addXP };
