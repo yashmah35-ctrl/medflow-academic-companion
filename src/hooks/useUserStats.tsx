@@ -97,13 +97,29 @@ export function useUserStats() {
     if (!user) return;
     const today = new Date().toISOString().split("T")[0];
 
-    const { data: current } = await supabase
+    let { data: current, error: fetchError } = await supabase
       .from("user_stats")
       .select("*")
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (!current) return;
+    if (fetchError) {
+      console.error("[addXP] fetch error", fetchError);
+    }
+
+    if (!current) {
+      // Ensure a row exists for legacy users created before the trigger
+      const { data: created, error: insertError } = await supabase
+        .from("user_stats")
+        .insert({ user_id: user.id })
+        .select()
+        .single();
+      if (insertError) {
+        console.error("[addXP] insert error", insertError);
+        return;
+      }
+      current = created;
+    }
 
     let newStreak = current.streak_days;
     const lastActive = current.last_active_date;
