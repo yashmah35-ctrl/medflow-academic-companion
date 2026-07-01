@@ -1452,6 +1452,14 @@ export type Database = {
         Args: { _affiliate_id: string; _amount: number; _notes?: string }
         Returns: string
       }
+      record_exercise_score_with_xp: {
+        Args: {
+          _correct_count: number
+          _exercise_id: string
+          _total_count: number
+        }
+        Returns: Json
+      }
       refund_credits: {
         Args: { _amount: number; _reason: string; _user_id: string }
         Returns: number
