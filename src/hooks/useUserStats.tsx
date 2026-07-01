@@ -140,7 +140,7 @@ export function useUserStats() {
     const newXP = current.xp + finalXP;
     const newLevel = computeLevel(newXP);
 
-    await supabase
+    const { data: updated, error: updateError } = await supabase
       .from("user_stats")
       .update({
         xp: newXP,
@@ -148,13 +148,26 @@ export function useUserStats() {
         streak_days: newStreak,
         last_active_date: today,
       })
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select("xp, streak_days, last_active_date")
+      .maybeSingle();
+
+    if (updateError) {
+      console.error("[addXP] update error", updateError);
+      throw updateError;
+    }
+
+    if (!updated) {
+      const error = new Error("Aucune ligne user_stats mise à jour pour cet utilisateur");
+      console.error("[addXP] update missing row", error);
+      throw error;
+    }
 
     setStats({
-      xp: newXP,
-      level: newLevel,
-      streak_days: newStreak,
-      last_active_date: today,
+      xp: updated.xp,
+      level: computeLevel(updated.xp),
+      streak_days: updated.streak_days,
+      last_active_date: updated.last_active_date,
     });
 
     return { xpGained: finalXP, streakMultiplier };
