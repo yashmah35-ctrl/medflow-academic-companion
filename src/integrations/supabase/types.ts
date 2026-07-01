@@ -1460,6 +1460,16 @@ export type Database = {
         Returns: number
       }
       add_user_xp: { Args: { _amount: number }; Returns: Json }
+      apply_exercise_score_xp_award: {
+        Args: {
+          _activity_date?: string
+          _correct_count: number
+          _exercise_id: string
+          _total_count: number
+          _user_id: string
+        }
+        Returns: Json
+      }
       claim_daily_credit: { Args: { _user_id: string }; Returns: number }
       consume_credits: {
         Args: {
